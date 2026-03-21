@@ -1,33 +1,32 @@
 // src/App.jsx
 import { useState } from 'react'
-import Ticker from './components/Ticker'
-import Navbar from './components/Navbar'
-import Home from './pages/Home'
+import Ticker     from './components/Ticker'
+import Navbar     from './components/Navbar'
+import AuthModal  from './components/AuthModal'
+import SupportFAB from './components/SupportFAB'
+import Home       from './pages/Home'
+import { Rates }  from './pages/Rates'
+import { News, Support, About } from './pages/OtherPages'
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home')
+  const [authOpen, setAuthOpen]       = useState(false)
+  const [authTab, setAuthTab]         = useState('login')
 
-  const handleNavigate = (page) => {
-    setCurrentPage(page)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const handleOpenAuth = (type) => {
-    console.log('فتح نافذة:', type)
-  }
+  const navigate = page => { setCurrentPage(page); window.scrollTo({top:0,behavior:'smooth'}) }
+  const openAuth = tab  => { setAuthTab(tab); setAuthOpen(true) }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+    <div style={{ minHeight:'100vh', background:'var(--bg)' }}>
       <Ticker />
-      <Navbar currentPage={currentPage} onNavigate={handleNavigate} onOpenAuth={handleOpenAuth} />
-      {currentPage === 'home' && <Home onNavigate={handleNavigate} />}
-      {currentPage !== 'home' && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
-          <h1 style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '2rem', color: 'var(--cyan)' }}>
-            صفحة {currentPage} — قريباً
-          </h1>
-        </div>
-      )}
+      <Navbar currentPage={currentPage} onNavigate={navigate} onOpenAuth={openAuth} />
+      {currentPage==='home'    && <Home    onNavigate={navigate} onOpenAuth={openAuth} />}
+      {currentPage==='rates'   && <Rates   />}
+      {currentPage==='news'    && <News    />}
+      {currentPage==='support' && <Support />}
+      {currentPage==='about'   && <About   onNavigate={navigate} />}
+      <AuthModal  isOpen={authOpen} initialTab={authTab} onClose={()=>setAuthOpen(false)} />
+      <SupportFAB />
     </div>
   )
 }

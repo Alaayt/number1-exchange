@@ -3,13 +3,8 @@ import { createContext, useState, useEffect } from 'react'
 
 const ThemeContext = createContext()
 
-// هذا الملف يصدّر Component واحد فقط (ThemeProvider)
-// useTheme منقولة لملف منفصل لتجنب التحذير
 export function ThemeProvider({ children }) {
-  const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('theme')
-    return saved !== 'light'
-  })
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') !== 'light')
 
   useEffect(() => {
     if (isDark) {
@@ -21,7 +16,7 @@ export function ThemeProvider({ children }) {
     }
   }, [isDark])
 
-  const toggleTheme = () => setIsDark(prev => !prev)
+  const toggleTheme = () => setIsDark(p => !p)
 
   return (
     <ThemeContext.Provider value={{ isDark, toggleTheme }}>
@@ -30,5 +25,4 @@ export function ThemeProvider({ children }) {
   )
 }
 
-// نصدّر الـ Context نفسه فقط — الـ hook سينتقل لملف منفصل
 export { ThemeContext }
