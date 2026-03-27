@@ -355,3 +355,19 @@ html.light button[style*="linear-gradient(135deg,#00c97a"] {
   .ab-story-grid,
   .ab-values-grid { grid-template-columns: 1fr !important; gap: 24px !important; }
 }
+
+.ex-currency-box-wrapper {
+  position: relative;
+  flex: 1.2;
+}
+
+.ex-currency-box-wrapper .ex-currency-box {
+  flex: unset;
+  width: 100%;
+}
+
+/* القائمة المنسدلة تظهر فوق كل شيء */
+.ex-currency-box-wrapper > div[style*="position:\"absolute\""],
+.ex-currency-box-wrapper > div {
+  z-index: 9999 !important;
+}

@@ -1111,8 +1111,8 @@ function ExchangeForm() {
             </div>
 
             <div style={{display:"flex",gap:10,alignItems:"stretch"}}>
-              <div style={{position:"relative"}}>
-                <div className="ex-currency-box" onClick={()=>setOpenPicker(openPicker==="receive"?null:"receive")}>
+              <div className="ex-currency-box-wrapper">
+  <div className="ex-currency-box" onClick={()=>setOpenPicker(openPicker==="receive"?null:"receive")}>
                   <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,overflow:"hidden"}}>
                     <CurrencyIcon method={receiveMethod} size={32}/>
                   </div>
@@ -1242,29 +1242,25 @@ function Home() {
           <HeroSection />
           <PromoBanner />
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 360px',
-            gap: 20,
-            alignItems: 'start',
-          }}>
-            <ExchangeForm />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <ReviewsSidebar />
-              <LiveActivitySidebar />
-            </div>
-          </div>
+  display: 'grid',
+  gridTemplateColumns: '1fr 360px',
+  gap: 20,
+  alignItems: 'start',
+}}>
+  {/* العمود الأيسر — ExchangeForm + WalletBanner متلاصقين */}
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <ExchangeForm />
+    <WalletBanner />
+  </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 360px',
-            gap: 20,
-            marginTop: 0,
-          }}>
-            <WalletBanner />
-            <div />
-          </div>
+  {/* العمود الأيمن — Sidebar */}
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <ReviewsSidebar />
+    <LiveActivitySidebar />
+  </div>
+</div>
 
-          <FeaturesSection />
+<FeaturesSection />
         </div>
       </section>
     </div>

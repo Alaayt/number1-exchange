@@ -23,7 +23,19 @@ function CurrencyDropdown({ options, selected, onSelect }) {
   )
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div ref={ref} style={{
+  position: "absolute",
+  top: "calc(100% + 6px)",
+  right: 0,
+  left: "unset",           // ← احذف left: 0
+  minWidth: 220,           // ← عرض ثابت بدلاً من left+right
+  background: "var(--drop-bg,#0d1520)",
+  border: "1px solid var(--border-2)",
+  borderRadius: 12,
+  boxShadow: "0 16px 48px rgba(0,0,0,0.75)",
+  zIndex: 9999,            // ← هذا مهم جداً
+  overflow: "hidden",
+}}>
 
       {/* ✅ الزر يستخدم onMouseDown بدل onClick */}
       {/* onMouseDown يشتغل قبل أي click event على document */}
