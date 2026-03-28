@@ -157,7 +157,7 @@ const handleSendMethodChange = (newMethod) => {
         {/* ── رأس البطاقة ── */}
         <div style={{ padding: '17px 22px', borderBottom: '1px solid var(--border-1)', display: 'flex', alignItems: 'center', gap: 11 }}>
           <div style={{ width: 33, height: 33, borderRadius: 9, background: 'var(--cyan-dim)', border: '1px solid rgba(0,210,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>
-            💱
+            
           </div>
           <h3 style={{ fontSize: '0.92rem', fontWeight: 700, flex: 1 }}>تبادل العملات</h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'JetBrains Mono',monospace", fontSize: '0.66rem', color: 'var(--green)', background: 'rgba(0,229,160,0.07)', border: '1px solid rgba(0,229,160,0.14)', padding: '2px 8px', borderRadius: 20 }}>
@@ -300,7 +300,7 @@ const handleSendMethodChange = (newMethod) => {
                 onBlur={onBlur}
               />
               <div style={{ marginTop: 6, fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>
-                ℹ️ هذا الرقم للتحقق من هويتك فقط
+                هذا الرقم للتحقق من هويتك فقط
               </div>
             </div>
           )}
@@ -313,7 +313,7 @@ const handleSendMethodChange = (newMethod) => {
           {(isUSDT || isMoneyGo) && (
             <div style={{ marginBottom: 12, background: 'rgba(0,210,255,0.03)', border: '1px solid var(--border-1)', borderRadius: 9, padding: '10px 13px' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 4 }}>
-                ℹ️ {isUSDT ? 'USDT TRC20 · معلومة' : 'MoneyGo USD · معلومة'}
+                {isUSDT ? 'USDT TRC20 · معلومة' : 'MoneyGo USD · معلومة'}
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', lineHeight: 1.6 }}>
                 {isUSDT

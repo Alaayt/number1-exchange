@@ -29,8 +29,8 @@ export const SEND_METHODS = [
   { id:'vodafone',  name:'فودافون كاش',  nameEn:'Vodafone Cash',  symbol:'V', color:'#e40000', type:'egp',    flag:'🇪🇬', img:'/images/vodafone.png'  },
   { id:'instapay',  name:'إنستا باي',    nameEn:'Instapay',       symbol:'I', color:'#1a56db', type:'egp',    flag:'🇪🇬', img:'/images/instapay.png'  },
   { id:'etisalat',  name:'اتصالات كاش',  nameEn:'Etisalat Cash',  symbol:'E', color:'#009a44', type:'egp',    flag:'🇪🇬', img:'/images/etisalat.png'  },
-  { id:'usdt-trc',  name:'USDT',         nameEn:'USDT',           symbol:'₮', color:'#26a17b', type:'crypto', flag:'🔷', img:'/images/usdt.png'      },
-  { id:'mgo-send',  name:'MoneyGo USD',  nameEn:'MoneyGo USD',    symbol:'M', color:'#e91e63', type:'crypto', flag:'💳', img:'/images/moneygo.png'   },
+  { id:'usdt-trc',  name:'USDT',         nameEn:'USDT',           symbol:'₮', color:'#26a17b', type:'crypto', flag:'USDT', img:'/images/usdt.png'      },
+  { id:'mgo-send',  name:'MoneyGo USD',  nameEn:'MoneyGo USD',    symbol:'M', color:'#e91e63', type:'crypto', flag:'MGO', img:'/images/moneygo.png'   },
 ]
 
 // ══ وسائل الاستلام — صور من public/images/ ══

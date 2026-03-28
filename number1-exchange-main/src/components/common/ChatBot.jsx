@@ -6,19 +6,19 @@ const WHATSAPP_NUMBER = '9647XXXXXXXXX'
 const TELEGRAM_USER   = 'Number1Exchange'
 
 const BOT_QS = [
-  { id: 'q1', text: '💱 كيف أبدأ عملية التبادل؟' },
-  { id: 'q2', text: '💰 ما هي الرسوم؟' },
-  { id: 'q3', text: '⏱️ كم يستغرق التحويل؟' },
-  { id: 'q4', text: '🔐 هل بياناتي آمنة؟' },
-  { id: 'q5', text: '📋 ما هي العملات المدعومة؟' },
-  { id: 'q6', text: '🧑‍💼 التحدث مع الدعم البشري' },
+  { id: 'q1', text: 'كيف أبدأ عملية التبادل؟' },
+  { id: 'q2', text: 'ما هي الرسوم؟' },
+  { id: 'q3', text: 'كم يستغرق التحويل؟' },
+  { id: 'q4', text: 'هل بياناتي آمنة؟' },
+  { id: 'q5', text: 'ما هي العملات المدعومة؟' },
+  { id: 'q6', text: 'التحدث مع الدعم البشري' },
 ]
 const BOT_ANS = {
-  q1: 'اختر العملة التي تريد إرسالها، أدخل المبلغ، ثم أدخل بيانات المحفظة والبريد الإلكتروني واضغط "إرسال طلب التبادل". ستصلك تأكيد فوري! 🚀',
-  q2: 'رسومنا تبدأ من **0.1%** فقط — من أقل الرسوم في السوق مع أفضل أسعار الصرف المتاحة. 💚',
-  q3: 'معظم العمليات تتم خلال **1 إلى 5 دقائق** بعد تأكيد التحويل من طرفك. ⚡',
-  q4: 'نعم! نستخدم تشفير **AES-256** مع حماية متعددة الطبقات. بياناتك محمية بأعلى معايير الأمان. 🔐',
-  q5: 'ندعم: **فودافون كاش، إنستا باي، اتصالات كاش** ↔ **USDT TRC20 وMoneyGo USD**. نعمل على إضافة المزيد! 💱',
+  q1: 'اختر العملة التي تريد إرسالها، أدخل المبلغ، ثم أدخل بيانات المحفظة والبريد الإلكتروني واضغط "إرسال طلب التبادل". ستصلك تأكيد فوري!',
+  q2: 'رسومنا تبدأ من **0.1%** فقط — من أقل الرسوم في السوق مع أفضل أسعار الصرف المتاحة.',
+  q3: 'معظم العمليات تتم خلال **1 إلى 5 دقائق** بعد تأكيد التحويل من طرفك.',
+  q4: 'نعم! نستخدم تشفير **AES-256** مع حماية متعددة الطبقات. بياناتك محمية بأعلى معايير الأمان.',
+  q5: 'ندعم: **فودافون كاش، إنستا باي، اتصالات كاش** ↔ **USDT TRC20 وMoneyGo USD**. نعمل على إضافة المزيد!',
   q6: 'support',
 }
 
@@ -130,7 +130,7 @@ export default function ChatBot() {
       setTimeout(() => {
         setTyping(false)
         setMessages([{
-          id: 1, text: 'مرحباً بك في **Number 1 Exchange**! 👋\nأنا N1-BOT مساعدك الذكي، كيف يمكنني مساعدتك اليوم؟',
+          id: 1, text: 'مرحباً بك في **Number 1 Exchange**! \nأنا N1-BOT مساعدك الذكي، كيف يمكنني مساعدتك اليوم؟',
           isUser: false, time: now(), robAnim: 'wave',
         }])
         setRobAnim('wink')
@@ -166,13 +166,13 @@ export default function ChatBot() {
       const ans = BOT_ANS[id]
       if (ans === 'support') {
         setRobAnim('wave')
-        addMsg('يسعدني توصيلك بفريق الدعم! 😊\nاختر طريقة التواصل المفضلة:', false, 'wave')
+        addMsg('يسعدني توصيلك بفريق الدعم!\nاختر طريقة التواصل المفضلة:', false, 'wave')
         setTimeout(() => { setShowSup(true); setRobAnim('idle') }, 300)
       } else {
         setRobAnim('idle')
         addMsg(ans, false, 'idle')
         setTimeout(() => {
-          addMsg('هل هناك شيء آخر يمكنني مساعدتك به؟ 😊', false, 'wink')
+          addMsg('هل هناك شيء آخر يمكنني مساعدتك به؟', false, 'wink')
           setTimeout(() => setShowOpts(true), 300)
         }, 700)
       }
@@ -187,7 +187,7 @@ export default function ChatBot() {
     setTyping(true); setRobAnim('talking')
     setTimeout(() => {
       setTyping(false); setRobAnim('wave')
-      addMsg('شكراً على رسالتك! 😊 للمساعدة الفورية تواصل مع فريق الدعم:', false, 'wave')
+      addMsg('شكراً على رسالتك! للمساعدة الفورية تواصل مع فريق الدعم:', false, 'wave')
       setTimeout(() => { setShowSup(true); setRobAnim('idle') }, 300)
     }, 1000)
   }
@@ -222,7 +222,7 @@ export default function ChatBot() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <RobotAvatar size={28} animate="wave" />
-            <span>مرحباً! هل تحتاج مساعدة؟ 👋</span>
+            <span>مرحباً! هل تحتاج مساعدة؟</span>
           </div>
         )}
 
@@ -242,7 +242,7 @@ export default function ChatBot() {
           position: 'relative',
         }}>
           {open
-            ? <span style={{ fontSize: '1.4rem', color: '#fff' }}>✕</span>
+            ? <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='#fff' strokeWidth='2.5' strokeLinecap='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg>
             : <RobotAvatar size={48} animate={fabAnim ? 'wave' : 'idle'} />
           }
           {!open && unread > 0 && (
@@ -377,7 +377,7 @@ export default function ChatBot() {
               style={{ width: 38, height: 38, borderRadius: 11, background: 'linear-gradient(135deg,#00b8d9,#0077b6)', border: 'none', cursor: 'pointer', fontSize: '1rem', flexShrink: 0, transition: 'all 0.2s', boxShadow: '0 2px 10px rgba(0,210,255,0.3)' }}
               onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
-              ➤
+              
             </button>
           </div>
         </div>

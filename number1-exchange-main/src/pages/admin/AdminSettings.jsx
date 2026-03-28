@@ -101,7 +101,7 @@ export default function AdminSettings() {
         <div style={styles.errorBanner}><AlertCircle size={16} /> {error}</div>
       )}
       {saved && (
-        <div style={styles.successBanner}><CheckCircle size={16} /> تم الحفظ بنجاح ✓</div>
+        <div style={styles.successBanner}><CheckCircle size={16} /> تم الحفظ بنجاح</div>
       )}
 
       {/* ── Section: Platform ──────────────────────── */}

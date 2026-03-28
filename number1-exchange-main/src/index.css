@@ -377,3 +377,22 @@ html.light button[style*="linear-gradient(135deg,#00c97a"] {
 .ex-currency-box-wrapper > div {
   z-index: 9999 !important;
 }
+/* ── AuthModal Theme Variables ──────────────────────────────── */
+:root {
+  --n1-card: rgba(7,14,30,0.92);
+  --n1-overlay: rgba(2,6,16,0.93);
+  --n1-border: rgba(0,210,255,0.09);
+  --n1-input: rgba(255,255,255,0.025);
+  --n1-text1: #e8f4ff;
+  --n1-text2: rgba(100,140,165,0.5);
+  --n1-accent: #00d2ff;
+}
+html.light {
+  --n1-card: #ffffff;
+  --n1-overlay: rgba(215,224,238,0.95);
+  --n1-border: rgba(0,100,160,0.14);
+  --n1-input: rgba(0,0,0,0.03);
+  --n1-text1: #0d1b2a;
+  --n1-text2: rgba(40,70,100,0.5);
+  --n1-accent: #0077b6;
+}

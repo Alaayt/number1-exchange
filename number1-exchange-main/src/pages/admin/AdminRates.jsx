@@ -138,7 +138,7 @@ export default function AdminRates() {
       )}
       {saved && (
         <div style={styles.successBanner}>
-          <CheckCircle size={16} /> تم حفظ الأسعار بنجاح ✓
+          <CheckCircle size={16} /> تم حفظ الأسعار بنجاح
         </div>
       )}
 

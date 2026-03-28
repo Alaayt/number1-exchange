@@ -233,7 +233,7 @@ function PromoBanner() {
   const wave2=`M0,${waveTop+4} C55,${waveTop+12} 110,${waveTop-6} 165,${waveTop+6} C185,${waveTop+12} 205,${waveTop-4} 220,${waveTop+4} L220,52 L0,52 Z`
 
   const handleClick=()=>{
-    if(ready) alert(lang==="ar"?"🎉 تهانينا! سيتم إضافة البونص لمحفظتك":"🎉 Congratulations! Bonus added to your wallet")
+    if(ready) alert(lang==="ar"?"تهانينا! سيتم إضافة البونص لمحفظتك":"Congratulations! Bonus added to your wallet")
   }
 
   // حساب strokeDashoffset للدائرة — 239 = محيط الدائرة كامل
@@ -280,7 +280,7 @@ function PromoBanner() {
             <text x="45" y="70" textAnchor="middle" fontSize="9" fontWeight="700" fill="#c8a84b" fontFamily="'JetBrains Mono',monospace">{transfers}/10</text>
           )}
           {ready&&(
-            <text x="45" y="70" textAnchor="middle" fontSize="9" fontWeight="700" fill="#f59e0b" fontFamily="monospace">✓</text>
+            <text x="45" y="70" textAnchor="middle" fontSize="9" fontWeight="700" fill="#f59e0b" fontFamily="monospace">OK</text>
           )}
         </svg>
       </div>
@@ -309,7 +309,7 @@ function PromoBanner() {
           <span>{lang==="ar"?`تقدّمك: ${transfers} / 10`:`Progress: ${transfers} / 10`}</span>
           <span style={{color:ready?"var(--green)":"var(--text-3)"}}>
             {ready
-              ?(lang==="ar"?"✓ اكتمل!":"✓ Complete!")
+              ?(lang==="ar"?"اكتمل!":"Complete!")
               :(lang==="ar"?`${MAX-transfers} متبقية`:`${MAX-transfers} remaining`)}
           </span>
         </div>
@@ -399,13 +399,13 @@ function PromoBanner() {
               <path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/>
             </svg>
             {ready
-              ?(lang==="ar"?"🎉 استلم هديتك!":"🎉 Claim Bonus!")
+              ?(lang==="ar"?"استلم هديتك!":"Claim Bonus!")
               :(lang==="ar"?"احصل على البونص":"Get Bonus")}
           </div>
         </button>
         <span style={{fontSize:"0.64rem",color:ready?"var(--green)":"var(--text-3)",fontFamily:"'JetBrains Mono',monospace",transition:"color 0.4s"}}>
           {ready
-            ?(lang==="ar"?"✓ مكتمل — اضغط لاستلام هديتك":"✓ Complete — click to claim")
+            ?(lang==="ar"?"مكتمل — اضغط لاستلام هديتك":"Complete — click to claim")
             :(lang==="ar"?"سجّل مجاناً · لا شروط":"Free signup · No conditions")}
         </span>
       </div>
@@ -490,7 +490,7 @@ function ConfirmModal({isOpen,onClose,orderData}) {
           <div style={{flex:1}}><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:"0.95rem",fontWeight:700,color:"var(--cyan)",letterSpacing:1}}>{t("confirm_title")}</div></div>
           <button onClick={handleClose} style={{width:32,height:32,borderRadius:8,background:"transparent",border:"1px solid var(--border-1)",color:"var(--text-2)",fontSize:"1.1rem",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s"}}
             onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,61,90,0.1)";e.currentTarget.style.color="var(--red)"}}
-            onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--text-2)"}}>✕</button>
+            onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--text-2)"}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div style={{padding:24,overflowY:"auto",display:"flex",flexDirection:"column",gap:16}}>
           {submitted?(
@@ -546,7 +546,7 @@ function ConfirmModal({isOpen,onClose,orderData}) {
                 <div onClick={()=>fileRef.current.click()} style={{border:`1.5px dashed ${receipt?"var(--green)":"var(--border-2)"}`,borderRadius:12,padding:receipt?10:20,textAlign:"center",cursor:"pointer",transition:"all 0.25s",background:receipt?"rgba(0,229,160,0.04)":"transparent"}}
                   onMouseEnter={e=>{if(!receipt)e.currentTarget.style.borderColor="var(--cyan)"}}
                   onMouseLeave={e=>{if(!receipt)e.currentTarget.style.borderColor="var(--border-2)"}}>
-                  {preview?(<div><img src={preview} alt="receipt" style={{width:"100%",maxHeight:160,objectFit:"contain",borderRadius:8}}/><div style={{marginTop:8,fontSize:"0.75rem",color:"var(--green)",fontFamily:"'JetBrains Mono',monospace"}}>✓ {receipt.name}</div></div>):(<><div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><svg width="42" height="42" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="upl" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(0,210,255,0.3)"/><stop offset="100%" stopColor="rgba(0,210,255,0.05)"/></linearGradient></defs><rect x="4" y="4" width="36" height="36" rx="10" fill="url(#upl)" stroke="rgba(0,210,255,0.25)" strokeWidth="1.5" strokeDasharray="4 2"/><path d="M22 28V16" stroke="var(--cyan)" strokeWidth="2.2" strokeLinecap="round"/><polyline points="15,22 22,15 29,22" fill="none" stroke="var(--cyan)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/><line x1="14" y1="31" x2="30" y2="31" stroke="var(--cyan)" strokeWidth="2" strokeLinecap="round" opacity="0.5"/></svg></div><div style={{fontSize:"0.88rem",color:"var(--text-2)",marginBottom:4}}>{t("confirm_upload")}</div><div style={{fontSize:"0.72rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace"}}>{t("confirm_upload_hint")}</div></>)}
+                  {preview?(<div style={{position:'relative'}}><img src={preview} alt="receipt" style={{width:"100%",maxHeight:160,objectFit:"contain",borderRadius:8}}/><div style={{marginTop:8,fontSize:"0.75rem",color:"var(--green)",fontFamily:"'JetBrains Mono',monospace",display:"flex",alignItems:"center",gap:4}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>{receipt.name}</div></div>):(<><div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><svg width="42" height="42" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="upl" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(0,210,255,0.3)"/><stop offset="100%" stopColor="rgba(0,210,255,0.05)"/></linearGradient></defs><rect x="4" y="4" width="36" height="36" rx="10" fill="url(#upl)" stroke="rgba(0,210,255,0.25)" strokeWidth="1.5" strokeDasharray="4 2"/><path d="M22 28V16" stroke="var(--cyan)" strokeWidth="2.2" strokeLinecap="round"/><polyline points="15,22 22,15 29,22" fill="none" stroke="var(--cyan)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/><line x1="14" y1="31" x2="30" y2="31" stroke="var(--cyan)" strokeWidth="2" strokeLinecap="round" opacity="0.5"/></svg></div><div style={{fontSize:"0.88rem",color:"var(--text-2)",marginBottom:4}}>{t("confirm_upload")}</div><div style={{fontSize:"0.72rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace"}}>{t("confirm_upload_hint")}</div></>)}
                 </div>
                 <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={handleFile} style={{display:"none"}}/>
               </div>
@@ -1281,7 +1281,7 @@ function Footer({onNavigate}) {
   )
 }
 
-// ✅ جديد — بدون Footer وبدون onNavigate
+// جديد — بدون Footer وبدون onNavigate
 function Home() {
   const navigate=useNavigate()
   return (
@@ -1296,20 +1296,16 @@ function Home() {
             gap: 20,
             alignItems: 'start',
           }}>
-            {/* العمود الأيسر — ExchangeForm */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {/* العمود الأيسر — ExchangeForm + WalletBanner */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <ExchangeForm />
+              <WalletBanner />
             </div>
 
             {/* العمود الأيمن — Sidebar */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <ReviewsSidebar />
               <LiveActivitySidebar />
-            </div>
-
-            {/* المحفظة: طفل ثالث داخل نفس شبكة الصف — أسفل ex-inner-grid والعمودين */}
-            <div style={{ gridColumn: '1 / -1', width: '100%', display: 'flex', justifyContent: 'center' }}>
-              <WalletBanner />
             </div>
           </div>
 

@@ -7,7 +7,7 @@ function Stars({ count = 5 }) {
   return (
     <div style={{ display: 'flex', gap: 2, direction: 'ltr' }}>
       {[1,2,3,4,5].map(i => (
-        <span key={i} style={{ fontSize: '0.85rem', color: i <= count ? '#f59e0b' : 'var(--border-1)' }}>★</span>
+        <svg key={i} width='11' height='11' viewBox='0 0 24 24' fill={i <= count ? '#f59e0b' : 'none'} stroke={i <= count ? '#f59e0b' : 'var(--border-1)'} strokeWidth='2'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>
       ))}
     </div>
   )
@@ -24,7 +24,7 @@ function StarPicker({ value, onChange }) {
           onMouseLeave={() => setHov(0)}
           onClick={() => onChange(i)}
           style={{ fontSize: '1.2rem', cursor: 'pointer', color: i <= (hov || value) ? '#f59e0b' : 'var(--border-1)', transition: 'color 0.15s' }}>
-          ★
+          <svg width='12' height='12' viewBox='0 0 24 24' fill='#f59e0b' stroke='#f59e0b' strokeWidth='1'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>
         </span>
       ))}
     </div>

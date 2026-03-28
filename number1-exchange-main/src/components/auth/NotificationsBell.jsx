@@ -97,7 +97,7 @@ function NotificationsBell() {
           ))}
 
           {notifs.every(n => n.read) && (
-            <div style={{ padding: '18px', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-3)' }}>لا توجد إشعارات جديدة ✓</div>
+            <div style={{ padding: '18px', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-3)' }}>لا توجد إشعارات جديدة</div>
           )}
         </div>
       )}

@@ -11,7 +11,7 @@ const COIN_COLORS = {
 
 const COIN_SYMBOLS = {
   BTC:'₿', ETH:'Ξ', USDT:'₮', MGO:'M', BNB:'B', TON:'T',
-  LTC:'Ł', XRP:'✕', SOL:'◎', ADA:'₳',
+  LTC:'Ł', XRP:'X', SOL:'◎', ADA:'₳',
 }
 
 function MiniSparkline({ up, color }) {

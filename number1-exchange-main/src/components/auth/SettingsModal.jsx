@@ -57,12 +57,12 @@ function AvatarPicker({ selected, onSelect }) {
 
   return (
     <div style={{ marginTop: 8 }}>
-      <GroupLabel icon="👨" text="MALE · رجال" />
+      <GroupLabel icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="10" cy="14" r="5"/><line x1="19" y1="5" x2="14.65" y2="9.35"/><line x1="15" y1="5" x2="19" y2="5"/><line x1="19" y1="5" x2="19" y2="9"/></svg>} text="MALE · رجال" />
       <Grid list={males} />
-      <GroupLabel icon="👩" text="FEMALE · نساء" />
+      <GroupLabel icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8" r="5"/><line x1="12" y1="13" x2="12" y2="21"/><line x1="9" y1="18" x2="15" y2="18"/></svg>} text="FEMALE · نساء" />
       <Grid list={females} />
       {selected && (
-        <div style={{ marginTop: 6, textAlign: 'center', fontSize: '0.7rem', color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}>✓ {selected.label}</div>
+        <div style={{ marginTop: 6, textAlign: 'center', fontSize: '0.7rem', color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}><svg width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round'><polyline points='20 6 9 17 4 12'/></svg> {selected.label}</div>
       )}
     </div>
   )
@@ -162,7 +162,7 @@ function PasswordChange() {
               onFocus={e => e.target.style.borderColor = 'var(--border-2)'} onBlur={e => e.target.style.borderColor = 'var(--border-1)'} />
           </div>
           {err && <div style={{ fontSize: '0.78rem', color: 'var(--red)' }}>{err}</div>}
-          {success && <div style={{ fontSize: '0.78rem', color: 'var(--green)' }}>✓ تم تغيير كلمة المرور بنجاح</div>}
+          {success && <div style={{ fontSize: '0.78rem', color: 'var(--green)' }}><svg width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round'><polyline points='20 6 9 17 4 12'/></svg> تم تغيير كلمة المرور بنجاح</div>}
           <button onClick={handle} style={{ width: '100%', padding: 10, background: 'linear-gradient(135deg,#009fc0,#006e9e)', border: 'none', borderRadius: 10, fontFamily: "'Tajawal',sans-serif", fontSize: '0.9rem', fontWeight: 800, color: '#fff', cursor: 'pointer' }}>
             حفظ كلمة المرور
           </button>
@@ -186,7 +186,7 @@ function WalletRow({ icon, name, placeholder, color }) {
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-1)' }}>{name}</div>
           <div style={{ fontSize: '0.7rem', color: linked ? 'var(--green)' : 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 1 }}>
-            {linked ? '✓ مرتبطة' : 'غير مربوطة'}
+            {linked ? '● مرتبطة' : '○ غير مربوطة'}
           </div>
         </div>
         <button
@@ -269,7 +269,7 @@ function SettingsModal({ isOpen, onClose }) {
             style={{ width: 30, height: 30, borderRadius: 8, background: 'transparent', border: '1px solid var(--border-1)', color: 'var(--text-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', transition: 'all 0.2s' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,61,90,0.1)'; e.currentTarget.style.color = 'var(--red)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-2)' }}>
-            ✕
+            <svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.5' strokeLinecap='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg>
           </button>
         </div>
 
@@ -302,7 +302,7 @@ function SettingsModal({ isOpen, onClose }) {
                 {/* Edit button */}
                 <button onClick={() => setEditOpen(p => !p)}
                   style={{ padding: '8px 16px', background: editOpen ? 'rgba(0,229,160,0.1)' : 'var(--cyan-dim)', border: `1px solid ${editOpen ? 'rgba(0,229,160,0.3)' : 'var(--border-2)'}`, borderRadius: 10, color: editOpen ? 'var(--green)' : 'var(--cyan)', fontFamily: "'Tajawal',sans-serif", fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap' }}>
-                  {editOpen ? '✕ إغلاق' : 'تعديل'}
+                  {editOpen ? 'إغلاق' : 'تعديل'}
                 </button>
               </div>
 
@@ -382,7 +382,7 @@ function SettingsModal({ isOpen, onClose }) {
                   right={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: '0.72rem', color: twoFA ? 'var(--green)' : 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>
-                        {twoFA ? '✓ مفعّل' : 'معطّل'}
+                        {twoFA ? '● مفعّل' : '○ معطّل'}
                       </span>
                       <Toggle value={twoFA} onChange={setTwoFA} />
                     </div>

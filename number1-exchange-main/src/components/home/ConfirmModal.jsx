@@ -62,7 +62,7 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
 
         {/* رأس النافذة */}
         <div style={{ padding: '22px 24px 18px', borderBottom: '1px solid var(--border-1)', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 11, background: 'var(--cyan-dim)', border: '1px solid rgba(0,210,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>📋</div>
+          <div style={{ width: 40, height: 40, borderRadius: 11, background: 'var(--cyan-dim)', border: '1px solid rgba(0,210,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--cyan)', flexShrink: 0 }}><svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><path d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/><rect x='8' y='2' width='8' height='4' rx='1'/></svg></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.95rem', fontWeight: 700, color: 'var(--cyan)', letterSpacing: 1 }}>تأكيد الطلب</div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>ORDER CONFIRMATION</div>
@@ -71,7 +71,7 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
             style={{ width: 32, height: 32, borderRadius: 8, background: 'transparent', border: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,61,90,0.1)'; e.currentTarget.style.borderColor = 'rgba(255,61,90,0.3)'; e.currentTarget.style.color = '#ff3d5a' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border-1)'; e.currentTarget.style.color = 'var(--text-2)' }}>
-            ✕
+            <svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.5' strokeLinecap='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg>
           </button>
         </div>
 
@@ -80,14 +80,14 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
           {submitted ? (
             // ── شاشة النجاح ──
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(0,229,160,0.1)', border: '2px solid rgba(0,229,160,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px', fontSize: '2rem' }}>✓</div>
+              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(0,229,160,0.1)', border: '2px solid rgba(0,229,160,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px', color: '#00e5a0' }}><svg width='34' height='34' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.5' strokeLinecap='round'><polyline points='20 6 9 17 4 12'/></svg></div>
               <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.1rem', fontWeight: 700, color: 'var(--green)', marginBottom: 8 }}>تم إرسال الطلب!</div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-2)', lineHeight: 1.65 }}>
                 سيقوم فريقنا بمراجعة الإيصال وتحويل المبلغ خلال 15-30 دقيقة
               </p>
               <button onClick={handleClose}
                 style={{ marginTop: 20, padding: '12px 30px', background: 'linear-gradient(135deg,#00c97a,#009960)', border: 'none', borderRadius: 12, color: '#fff', fontFamily: "'Tajawal',sans-serif", fontSize: '1rem', fontWeight: 800, cursor: 'pointer' }}>
-                حسناً ✓
+                حسناً
               </button>
             </div>
           ) : (
@@ -125,11 +125,11 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
                     </div>
                     <button onClick={handleCopy}
                       style={{ flexShrink: 0, padding: '8px 14px', background: copied ? 'rgba(0,229,160,0.15)' : 'var(--cyan-dim)', border: `1px solid ${copied ? 'rgba(0,229,160,0.3)' : 'var(--border-2)'}`, borderRadius: 9, color: copied ? 'var(--green)' : 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.25s', whiteSpace: 'nowrap' }}>
-                      {copied ? '✓ تم' : '📋 نسخ'}
+                      {copied ? <><svg width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round'><polyline points='20 6 9 17 4 12'/></svg> تم</> : 'نسخ'}
                     </button>
                   </div>
                   <div style={{ marginTop: 8, fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>
-                    ⚠ {transferInfo.note}
+                    <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round'><path d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg> {transferInfo.note}
                   </div>
                 </div>
 
@@ -154,11 +154,11 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
                   {receiptPreview ? (
                     <div>
                       <img src={receiptPreview} alt="الإيصال" style={{ width: '100%', maxHeight: 160, objectFit: 'contain', borderRadius: 8 }} />
-                      <div style={{ marginTop: 8, fontSize: '0.75rem', color: 'var(--green)', fontFamily: "'JetBrains Mono',monospace" }}>✓ {receipt.name}</div>
+                      <div style={{ marginTop: 8, fontSize: '0.75rem', color: 'var(--green)', fontFamily: "'JetBrains Mono',monospace", display:'flex', alignItems:'center', gap:4 }}><svg width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round'><polyline points='20 6 9 17 4 12'/></svg>{receipt.name}</div>
                     </div>
                   ) : (
                     <>
-                      <div style={{ fontSize: '2rem', marginBottom: 8 }}>📸</div>
+                      <div style={{ color:'var(--text-3)', marginBottom: 8 }}><svg width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'><path d='M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z'/><circle cx='12' cy='13' r='4'/></svg></div>
                       <div style={{ fontSize: '0.88rem', color: 'var(--text-2)', marginBottom: 4 }}>اضغط لرفع صورة الإيصال</div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>JPG, PNG, PDF — حتى 5MB</div>
                     </>
@@ -172,7 +172,7 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
                 style={{ width: '100%', padding: 13, background: !receipt ? 'rgba(0,159,192,0.4)' : 'linear-gradient(135deg,#009fc0,#006e9e)', border: 'none', borderRadius: 12, fontFamily: "'Tajawal',sans-serif", fontSize: '1.02rem', fontWeight: 800, color: '#fff', cursor: !receipt ? 'not-allowed' : 'pointer', transition: 'all 0.3s', boxShadow: receipt ? '0 4px 22px rgba(0,159,192,0.22)' : 'none' }}
                 onMouseEnter={e => { if (receipt && !loading) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,210,255,0.35)' } }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = receipt ? '0 4px 22px rgba(0,159,192,0.22)' : 'none' }}>
-                {loading ? '⏳ جاري الإرسال...' : !receipt ? '↑ ارفع الإيصال أولاً' : 'إرسال الطلب نهائياً ✓'}
+                {loading ? 'جاري الإرسال...' : !receipt ? 'ارفع الإيصال أولاً' : 'إرسال الطلب نهائياً'}
               </button>
             </>
           )}

@@ -2,28 +2,33 @@
 import { useState, useEffect } from 'react'
 
 const REVIEWS = [
-  { id:1,  name:'أحمد محمد',    country:'🇸🇦', rating:5, date:'مارس 2025',    amount:'500 USDT → MoneyGo',  text:'خدمة ممتازة! التحويل تم خلال 10 دقائق فقط. السعر أفضل مما وجدته في أي مكان آخر. سأستخدم المنصة دائماً.' },
-  { id:2,  name:'محمود علي',    country:'🇪🇬', rating:5, date:'مارس 2025',    amount:'200 USDT → فودافون',  text:'تعاملت معهم مرات عديدة ودائماً الخدمة سريعة وأمينة. فريق الدعم متجاوب جداً على تيليغرام.' },
-  { id:3,  name:'خالد العمري', country:'🇸🇦', rating:4, date:'فبراير 2025',   amount:'1000 USDT → MoneyGo', text:'تجربة جيدة جداً. انتظرت 20 دقيقة بسبب ازدحام لكن المبلغ وصل كاملاً. أنصح بهم.' },
-  { id:4,  name:'ياسمين حسن',  country:'🇪🇬', rating:5, date:'فبراير 2025',   amount:'300 USDT → إنستاباي', text:'أول تعامل معهم وكان رائعاً. الموقع واضح وسهل، والتحويل وصل بسرعة. شكراً!' },
-  { id:5,  name:'عمر الزهراني', country:'🇸🇦', rating:5, date:'يناير 2025',    amount:'750 USDT → MoneyGo',  text:'من أفضل منصات الصرف التي استخدمتها. شفافية كاملة في الأسعار وسرعة في التنفيذ.' },
-  { id:6,  name:'نورة القحطاني',country:'🇸🇦', rating:4, date:'يناير 2025',    amount:'150 USDT → فودافون',  text:'الخدمة ممتازة والفريق محترف. السعر منافس جداً مقارنة بالبدائل الأخرى.' },
-  { id:7,  name:'مصطفى إبراهيم',country:'🇪🇬', rating:5, date:'ديسمبر 2024',  amount:'2000 USDT → MoneyGo', text:'أثق بهم بمبالغ كبيرة منذ سنة. لم يخذلوني أبداً. الدعم متاح على مدار الساعة.' },
-  { id:8,  name:'سارة الأنصاري',country:'🇸🇦', rating:5, date:'ديسمبر 2024',  amount:'400 USDT → إنستاباي', text:'تحويل سلس ومريح. الموقع جميل ومنظم. استمروا هكذا 👍' },
+  { id:1,  name:'أحمد محمد',    country:'SA', rating:5, date:'مارس 2025',    amount:'500 USDT → MoneyGo',  text:'خدمة ممتازة! التحويل تم خلال 10 دقائق فقط. السعر أفضل مما وجدته في أي مكان آخر. سأستخدم المنصة دائماً.' },
+  { id:2,  name:'محمود علي',    country:'EG', rating:5, date:'مارس 2025',    amount:'200 USDT → فودافون',  text:'تعاملت معهم مرات عديدة ودائماً الخدمة سريعة وأمينة. فريق الدعم متجاوب جداً على تيليغرام.' },
+  { id:3,  name:'خالد العمري', country:'SA', rating:4, date:'فبراير 2025',   amount:'1000 USDT → MoneyGo', text:'تجربة جيدة جداً. انتظرت 20 دقيقة بسبب ازدحام لكن المبلغ وصل كاملاً. أنصح بهم.' },
+  { id:4,  name:'ياسمين حسن',  country:'EG', rating:5, date:'فبراير 2025',   amount:'300 USDT → إنستاباي', text:'أول تعامل معهم وكان رائعاً. الموقع واضح وسهل، والتحويل وصل بسرعة. شكراً!' },
+  { id:5,  name:'عمر الزهراني', country:'SA', rating:5, date:'يناير 2025',    amount:'750 USDT → MoneyGo',  text:'من أفضل منصات الصرف التي استخدمتها. شفافية كاملة في الأسعار وسرعة في التنفيذ.' },
+  { id:6,  name:'نورة القحطاني',country:'SA', rating:4, date:'يناير 2025',    amount:'150 USDT → فودافون',  text:'الخدمة ممتازة والفريق محترف. السعر منافس جداً مقارنة بالبدائل الأخرى.' },
+  { id:7,  name:'مصطفى إبراهيم',country:'EG', rating:5, date:'ديسمبر 2024',  amount:'2000 USDT → MoneyGo', text:'أثق بهم بمبالغ كبيرة منذ سنة. لم يخذلوني أبداً. الدعم متاح على مدار الساعة.' },
+  { id:8,  name:'سارة الأنصاري',country:'SA', rating:5, date:'ديسمبر 2024',  amount:'400 USDT → إنستاباي', text:'تحويل سلس ومريح. الموقع جميل ومنظم. استمروا هكذا' },
 ]
 
+// ── Icon components (must be defined before STATS array) ──────
+const IcRefresh = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
+const IcSmile   = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+const IcZapSm   = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+
 const STATS = [
-  { value: '10,000+', label: 'صفقة منجزة',   icon: '🔄' },
-  { value: '4.9/5',   label: 'متوسط التقييم', icon: '⭐' },
-  { value: '98%',     label: 'رضا العملاء',   icon: '😊' },
-  { value: '<15 دق',  label: 'متوسط التحويل', icon: '⚡' },
+  { value: '10,000+', label: 'صفقة منجزة',   icon: <IcRefresh /> },
+  { value: '4.9/5',   label: 'متوسط التقييم', icon: null },
+  { value: '98%',     label: 'رضا العملاء',   icon: <IcSmile /> },
+  { value: '<15 دق',  label: 'متوسط التحويل', icon: <IcZapSm /> },
 ]
 
 function StarRating({ rating }) {
   return (
     <div style={{ display: 'flex', gap: 2 }}>
       {[1,2,3,4,5].map(s => (
-        <span key={s} style={{ fontSize: '0.8rem', color: s <= rating ? '#f59e0b' : 'var(--border-1)' }}>★</span>
+        <svg key={s} width='12' height='12' viewBox='0 0 24 24' fill={s <= rating ? '#f59e0b' : 'none'} stroke={s <= rating ? '#f59e0b' : 'var(--border-1)'} strokeWidth='2'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>
       ))}
     </div>
   )
@@ -44,7 +49,7 @@ function ReviewCard({ review }) {
           </div>
           <div>
             <div style={{ fontFamily: "'Tajawal',sans-serif", fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-1)' }}>
-              {review.name} <span style={{ fontSize: '0.85rem' }}>{review.country}</span>
+              {review.name} <span style={{ fontSize: '0.65rem', fontFamily:"'JetBrains Mono',monospace", color:'var(--text-3)', background:'var(--cyan-dim)', padding:'1px 5px', borderRadius:4 }}>{review.country}</span>
             </div>
             <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>{review.date}</div>
           </div>
@@ -59,7 +64,7 @@ function ReviewCard({ review }) {
 
       {/* Transaction badge */}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 8, background: 'rgba(0,212,255,0.07)', border: '1px solid rgba(0,212,255,0.15)', alignSelf: 'flex-start' }}>
-        <span style={{ fontSize: '0.65rem', color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}>✓ {review.amount}</span>
+        <span style={{ fontSize: '0.65rem', color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace", display:'flex', alignItems:'center', gap:4 }}><svg width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round'><polyline points='20 6 9 17 4 12'/></svg>{review.amount}</span>
       </div>
     </div>
   )
@@ -91,7 +96,7 @@ export default function Reviews() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 48 }}>
         {STATS.map(s => (
           <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border-1)', borderRadius: 14, padding: '20px', textAlign: 'center' }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: 6 }}>{s.icon}</div>
+            <div style={{ color:'var(--cyan)', marginBottom: 6, display:'flex', alignItems:'center', justifyContent:'center' }}>{s.icon || <svg width='24' height='24' viewBox='0 0 24 24' fill='#f59e0b' stroke='#f59e0b' strokeWidth='1'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>}</div>
             <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.3rem', fontWeight: 900, color: 'var(--cyan)', marginBottom: 4 }}>{s.value}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', fontFamily: "'Tajawal',sans-serif" }}>{s.label}</div>
           </div>
@@ -100,7 +105,7 @@ export default function Reviews() {
 
       {/* Filter */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
-        {[{ v:'all', label:'الكل' }, { v:'5', label:'⭐⭐⭐⭐⭐' }, { v:'4', label:'⭐⭐⭐⭐' }].map(f => (
+        {[{ v:'all', label:'الكل' }, { v:'5', label:'5/5' }, { v:'4', label:'4/5' }].map(f => (
           <button key={f.v} onClick={() => setFilter(f.v)}
             style={{ padding: '6px 16px', borderRadius: 10, border: `1px solid ${filter === f.v ? 'var(--cyan)' : 'var(--border-1)'}`, background: filter === f.v ? 'var(--cyan-dim)' : 'transparent', color: filter === f.v ? 'var(--cyan)' : 'var(--text-2)', fontFamily: "'Tajawal',sans-serif", fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>
             {f.label}

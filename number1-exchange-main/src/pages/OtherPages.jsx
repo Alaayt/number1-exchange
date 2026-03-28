@@ -57,7 +57,7 @@ function ArticleModal({ article, onClose }) {
           <button onClick={onClose}
             style={{ width:32, height:32, borderRadius:9, background:'transparent', border:'1px solid var(--border-1)', color:'var(--text-2)', fontSize:'1rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all .15s', flexShrink:0 }}
             onMouseEnter={e=>{ e.currentTarget.style.background='rgba(255,61,90,0.1)'; e.currentTarget.style.color='var(--red)' }}
-            onMouseLeave={e=>{ e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--text-2)' }}>✕</button>
+            onMouseLeave={e=>{ e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--text-2)' }}><svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.5' strokeLinecap='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button>
         </div>
         <div style={{ padding:'20px 24px', overflowY:'auto', fontSize:'0.92rem', color:'var(--text-2)', lineHeight:1.9 }}>
           {lang==='ar' ? article.bodyAr : article.bodyEn}
@@ -104,7 +104,7 @@ function NewsFeatured({ article, onClick }) {
         </div>
         <div style={{ position:'absolute', top:14, right:14 }}>
           <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 12px', borderRadius:20, background:tc.bg, border:`1px solid ${tc.border}`, fontSize:'0.62rem', fontFamily:"'JetBrains Mono',monospace", color:tc.color, fontWeight:700 }}>
-            ★ {lang==='ar'?'مميز':'FEATURED'}
+            <svg width='10' height='10' viewBox='0 0 24 24' fill='currentColor' stroke='none'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg> {lang==='ar'?'مميز':'FEATURED'}
           </span>
         </div>
       </div>
@@ -807,7 +807,7 @@ export function About({ onNavigate }) {
         {/* ══ HERO ══ */}
         <section ref={heroRef} style={{ textAlign:'center', marginBottom:80 }}>
           <div style={{ animation: heroVisible ? 'ab-fadeUp 0.7s 0s both' : 'none' }}>
-            <AbSectionLabel text={lang==='ar' ? '✦ من نحن ✦' : '✦ ABOUT US ✦'} />
+            <AbSectionLabel text={lang==='ar' ? '— من نحن —' : '— ABOUT US —'} />
             <h1 style={{ fontSize:'clamp(2rem,5.5vw,3.4rem)', fontWeight:900, lineHeight:1.15, marginBottom:10, ...goldShimmer }}>
               {lang==='ar' ? 'حيث الثقة تلتقي' : 'Where Trust Meets'}
               <br/>{lang==='ar' ? 'بالسرعة والفخامة' : 'Speed & Excellence'}
@@ -837,9 +837,9 @@ export function About({ onNavigate }) {
           {/* Trust Bar */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:16, flexWrap:'wrap', marginTop:44, padding:'14px 24px', background:'rgba(200,168,75,0.04)', border:'1px solid rgba(200,168,75,0.1)', borderRadius:50, maxWidth:680, margin:'44px auto 0', animation: heroVisible ? 'ab-fadeUp 0.7s 0.3s both' : 'none' }}>
             {[
-              { ar:'🔐 ISO 27001 معتمد', en:'🔐 ISO 27001 Certified' },
-              { ar:'⚡ تحويل فوري',      en:'⚡ Instant Transfer'    },
-              { ar:'🌍 50+ دولة',        en:'🌍 50+ Countries'       },
+              { ar:'ISO 27001 معتمد', en:'ISO 27001 Certified' },
+              { ar:'تحويل فوري', en:'Instant Transfer' },
+              { ar:'50+ دولة', en:'50+ Countries' },
               { ar:'⭐ تقييم 4.98/5',   en:'⭐ Rating 4.98/5'       },
             ].map((item,i) => (
               <div key={i} style={{ display:'flex', alignItems:'center', gap:6, fontSize:'0.75rem', color:'var(--text-3)', fontFamily:"'JetBrains Mono',monospace", padding: i>0 ? (lang==='ar'?'0 16px 0 0':'0 0 0 16px') : '0', borderRight: lang==='ar' ? (i>0?'1px solid rgba(200,168,75,0.15)':'none') : 'none', borderLeft: lang!=='ar' ? (i>0?'1px solid rgba(200,168,75,0.15)':'none') : 'none' }}>
@@ -911,8 +911,8 @@ export function About({ onNavigate }) {
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
             {[
-              { icon:'🌟', colorMain:'var(--gold)',  colorBg:'rgba(200,168,75,0.05)',  labelAr:'الرؤية',  labelEn:'VISION',  titleAr:'القيادة الإقليمية',       titleEn:'Regional Leadership',             textAr:'أن نكون المنصة المرجعية الأولى في تحويل العملات على مستوى المنطقة العربية والعالم.', textEn:'To be the premier reference platform for currency exchange across the Arab region and beyond.', points: lang==='ar' ? ['قيادة السوق إقليمياً بحلول 2026','توسع لـ 80 دولة بحلول 2027','أعلى معدل رضا في القطاع'] : ['Regional market leadership by 2026','Expansion to 80 countries by 2027','Highest customer satisfaction in the sector'] },
-              { icon:'🤝', colorMain:'var(--cyan)', colorBg:'rgba(0,210,255,0.04)',   labelAr:'الرسالة', labelEn:'MISSION', titleAr:'تمكين مالي للجميع',       titleEn:'Financial Empowerment for All',    textAr:'تقديم خدمات صرف عادلة وآمنة وسريعة لكل شخص مع الحفاظ على أعلى مستويات الشفافية.', textEn:'Delivering fair, secure, and fast exchange for everyone while maintaining the highest standards of transparency.', points: lang==='ar' ? ['رسوم عادلة وشفافة 100%','أمان بمستوى بنكي لكل معاملة','دعم بشري حقيقي على مدار الساعة'] : ['100% fair and transparent fees','Bank-level security per transaction','Real human support around the clock'] },
+              { icon:<svg width='22' height='22' viewBox='0 0 24 24' fill='var(--gold)' stroke='var(--gold)' strokeWidth='1'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>, colorMain:'var(--gold)',  colorBg:'rgba(200,168,75,0.05)',  labelAr:'الرؤية',  labelEn:'VISION',  titleAr:'القيادة الإقليمية',       titleEn:'Regional Leadership',             textAr:'أن نكون المنصة المرجعية الأولى في تحويل العملات على مستوى المنطقة العربية والعالم.', textEn:'To be the premier reference platform for currency exchange across the Arab region and beyond.', points: lang==='ar' ? ['قيادة السوق إقليمياً بحلول 2026','توسع لـ 80 دولة بحلول 2027','أعلى معدل رضا في القطاع'] : ['Regional market leadership by 2026','Expansion to 80 countries by 2027','Highest customer satisfaction in the sector'] },
+              { icon:<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='var(--cyan)' strokeWidth='1.8' strokeLinecap='round'><path d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M23 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/></svg>, colorMain:'var(--cyan)', colorBg:'rgba(0,210,255,0.04)',   labelAr:'الرسالة', labelEn:'MISSION', titleAr:'تمكين مالي للجميع',       titleEn:'Financial Empowerment for All',    textAr:'تقديم خدمات صرف عادلة وآمنة وسريعة لكل شخص مع الحفاظ على أعلى مستويات الشفافية.', textEn:'Delivering fair, secure, and fast exchange for everyone while maintaining the highest standards of transparency.', points: lang==='ar' ? ['رسوم عادلة وشفافة 100%','أمان بمستوى بنكي لكل معاملة','دعم بشري حقيقي على مدار الساعة'] : ['100% fair and transparent fees','Bank-level security per transaction','Real human support around the clock'] },
             ].map((item,i) => (
               <div key={i} style={{ background:item.colorBg, border:`1px solid ${item.colorMain}28`, borderRadius:20, padding:'30px 26px', position:'relative', overflow:'hidden' }}>
                 <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${item.colorMain},transparent)`, opacity:0.6 }}/>
@@ -1012,7 +1012,7 @@ export function About({ onNavigate }) {
                   </div>
                   <div>
                     <div style={{ fontSize:'0.72rem', fontWeight:800, color:'var(--text-1)' }}>{lang==='ar' ? r.nameAr : r.nameEn}</div>
-                    <div style={{ fontSize:'0.65rem', color:'var(--gold)' }}>{'★★★★★'}</div>
+                    <div style={{ fontSize:'0.65rem', color:'var(--gold)' }}><span style={{display:'flex',gap:1}}>{[0,1,2,3,4].map(i=><svg key={i} width='11' height='11' viewBox='0 0 24 24' fill='#f59e0b' stroke='#f59e0b' strokeWidth='1'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>)}</span></div>
                   </div>
                   <div style={{ fontSize:'0.72rem', color:'var(--text-2)', maxWidth:160, lineHeight:1.4, borderRight:'1px solid var(--border-1)', paddingRight:10 }}>
                     "{lang==='ar' ? r.textAr : r.textEn}"
@@ -1028,7 +1028,7 @@ export function About({ onNavigate }) {
           <div style={{ background:'var(--card)', border:'1px solid rgba(200,168,75,0.2)', borderRadius:24, padding:'56px 40px', textAlign:'center', position:'relative', overflow:'hidden', animation: ctaVisible ? 'ab-fadeUp 0.7s 0s both' : 'none' }}>
             <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:'linear-gradient(90deg,transparent,var(--cyan) 30%,var(--purple) 50%,var(--cyan) 70%,transparent)' }}/>
             <div style={{ position:'absolute', top:-80, right:'50%', transform:'translateX(50%)', width:300, height:150, background:'radial-gradient(ellipse,rgba(200,168,75,0.08),transparent 70%)', pointerEvents:'none' }}/>
-            <div style={{ fontSize:'2.5rem', marginBottom:16 }}>✦</div>
+            <div style={{ color:'var(--cyan)', marginBottom:16 }}><svg width='36' height='36' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round'><line x1='12' y1='2' x2='12' y2='22'/><line x1='2' y1='12' x2='22' y2='12'/><line x1='4.93' y1='4.93' x2='19.07' y2='19.07'/><line x1='19.07' y1='4.93' x2='4.93' y2='19.07'/></svg></div>
             <h2 style={{ fontSize:'clamp(1.5rem,3.5vw,2.2rem)', fontWeight:900, marginBottom:12, ...goldShimmer }}>
               {lang==='ar' ? 'انضم لـ 52,000+ عميل يثقون بنا' : 'Join 52,000+ Clients Who Trust Us'}
             </h2>

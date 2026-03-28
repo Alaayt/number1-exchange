@@ -8,12 +8,19 @@ const DEMO_ORDERS = {
   'N1-2025-003': { id:'N1-2025-003', status:'pending',    amount:'150 USDT', receive:'إنستاباي',    created:'2025-03-26 11:50', updated:'2025-03-26 11:50', steps: [true,false,false,false] },
 }
 
+const _IcClock   = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+const _IcSearch  = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+const _IcZap     = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+const _IcCheck2  = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+const _IcXCircle = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+const _IcSearch2 = () => <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+
 const STATUS_CONFIG = {
-  pending:    { label:'في الانتظار',    color:'#f59e0b', icon:'⏳', desc:'في انتظار استلام دفعتك' },
-  reviewing:  { label:'قيد المراجعة',  color:'#a78bfa', icon:'🔍', desc:'يراجع الفريق طلبك' },
-  processing: { label:'قيد المعالجة',  color:'#00b8d9', icon:'⚡', desc:'جاري إرسال المبلغ' },
-  completed:  { label:'مكتمل',         color:'#00e5a0', icon:'✅', desc:'تم إرسال المبلغ بنجاح' },
-  failed:     { label:'فشل',           color:'#f43f5e', icon:'❌', desc:'حدث خطأ، تواصل مع الدعم' },
+  pending:    { label:'في الانتظار',   color:'#f59e0b', icon:<_IcClock  />, desc:'في انتظار استلام دفعتك' },
+  reviewing:  { label:'قيد المراجعة', color:'#a78bfa', icon:<_IcSearch />, desc:'يراجع الفريق طلبك' },
+  processing: { label:'قيد المعالجة', color:'#00b8d9', icon:<_IcZap    />, desc:'جاري إرسال المبلغ' },
+  completed:  { label:'مكتمل',        color:'#00e5a0', icon:<_IcCheck2 />, desc:'تم إرسال المبلغ بنجاح' },
+  failed:     { label:'فشل',          color:'#f43f5e', icon:<_IcXCircle/>, desc:'حدث خطأ، تواصل مع الدعم' },
 }
 
 const TRACK_STEPS = ['استلام الدفعة', 'مراجعة الطلب', 'معالجة التحويل', 'اكتمال الإرسال']
@@ -35,7 +42,7 @@ function ProgressTracker({ steps }) {
           {/* Circle */}
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, flexShrink:0 }}>
             <div style={{ width:32, height:32, borderRadius:'50%', background: steps[i] ? 'var(--cyan)' : 'var(--border-1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.75rem', color: steps[i] ? '#000' : 'var(--text-3)', fontWeight:700, transition:'all 0.3s', boxShadow: steps[i] ? '0 0 14px rgba(0,212,255,0.5)' : 'none' }}>
-              {steps[i] ? '✓' : i+1}
+              {steps[i] ? <svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round'><polyline points='20 6 9 17 4 12'/></svg> : i+1}
             </div>
             <span style={{ fontSize:'0.65rem', color: steps[i] ? 'var(--cyan)' : 'var(--text-3)', fontFamily:"'Tajawal',sans-serif", textAlign:'center', whiteSpace:'nowrap', maxWidth:70, lineHeight:1.3 }}>{label}</span>
           </div>
@@ -115,7 +122,7 @@ export default function OrderTrack() {
       {/* Not found */}
       {notFound && (
         <div style={{ textAlign:'center', padding:'32px', background:'var(--card)', border:'1px solid rgba(244,63,94,0.3)', borderRadius:16 }}>
-          <div style={{ fontSize:'2rem', marginBottom:12 }}>🔍</div>
+          <div style={{ color:'var(--text-3)', marginBottom:12 }}><_IcSearch2 /></div>
           <h3 style={{ fontFamily:"'Tajawal',sans-serif", color:'var(--text-1)', margin:'0 0 8px' }}>الطلب غير موجود</h3>
           <p style={{ color:'var(--text-3)', fontFamily:"'Tajawal',sans-serif", fontSize:'0.86rem' }}>تأكد من رقم الطلب أو تواصل مع <a href="/contact" style={{ color:'var(--cyan)' }}>الدعم</a></p>
         </div>

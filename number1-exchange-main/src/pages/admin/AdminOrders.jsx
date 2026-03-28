@@ -235,7 +235,7 @@ function OrderDetailModal({ order, onClose, onUpdateStatus, loading }) {
       <div style={modal.box} onClick={(e) => e.stopPropagation()}>
         <div style={modal.header}>
           <span style={modal.title}>تفاصيل الطلب #{order._id.slice(-6)}</span>
-          <button style={modal.closeBtn} onClick={onClose}>✕</button>
+          <button style={modal.closeBtn} onClick={onClose}><svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.5' strokeLinecap='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button>
         </div>
 
         {/* Receipt image if available */}

@@ -17,7 +17,7 @@ const METHODS = [
   {
     key:         'vodafone',
     label:       'Vodafone Cash',
-    icon:        '📱',
+    icon: <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'><rect x='5' y='2' width='14' height='20' rx='2'/><line x1='12' y1='18' x2='12.01' y2='18'/></svg>,
     color:       '#ef4444',
     bg:          'rgba(239,68,68,0.08)',
     border:      'rgba(239,68,68,0.2)',
@@ -28,7 +28,7 @@ const METHODS = [
   {
     key:         'orange',
     label:       'Orange Cash',
-    icon:        '🟠',
+    icon: <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='#f97316' strokeWidth='1.8' strokeLinecap='round'><circle cx='12' cy='12' r='10'/><path d='M12 6v12M8 10h8'/></svg>,
     color:       '#f97316',
     bg:          'rgba(249,115,22,0.08)',
     border:      'rgba(249,115,22,0.2)',
@@ -39,7 +39,7 @@ const METHODS = [
   {
     key:         'instapay',
     label:       'InstaPay',
-    icon:        '⚡',
+    icon: <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2'/></svg>,
     color:       '#8b5cf6',
     bg:          'rgba(139,92,246,0.08)',
     border:      'rgba(139,92,246,0.2)',
@@ -50,7 +50,7 @@ const METHODS = [
   {
     key:         'fawry',
     label:       'Fawry',
-    icon:        '🏪',
+    icon: <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'><path d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/><polyline points='9 22 9 12 15 12 15 22'/></svg>,
     color:       '#f59e0b',
     bg:          'rgba(245,158,11,0.08)',
     border:      'rgba(245,158,11,0.2)',
@@ -61,7 +61,7 @@ const METHODS = [
   {
     key:         'wepay',
     label:       'WE Pay',
-    icon:        '📡',
+    icon: <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'><path d='M1 6l11 6 11-6'/><path d='M1 12l11 6 11-6'/></svg>,
     color:       '#06b6d4',
     bg:          'rgba(6,182,212,0.08)',
     border:      'rgba(6,182,212,0.2)',
@@ -72,7 +72,7 @@ const METHODS = [
   {
     key:         'meeza',
     label:       'Meeza',
-    icon:        '💳',
+    icon: <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'><rect x='1' y='4' width='22' height='16' rx='2'/><line x1='1' y1='10' x2='23' y2='10'/></svg>,
     color:       '#10b981',
     bg:          'rgba(16,185,129,0.08)',
     border:      'rgba(16,185,129,0.2)',
@@ -177,7 +177,7 @@ export default function AdminPaymentMethods() {
           {saving ? (
             <><div style={s.btnSpinner} /> جاري الحفظ...</>
           ) : saved ? (
-            <>✓ تم الحفظ</>
+            <><svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round'><polyline points='20 6 9 17 4 12'/></svg> تم الحفظ</>
           ) : (
             <>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -191,8 +191,8 @@ export default function AdminPaymentMethods() {
       </div>
 
       {/* Feedback */}
-      {error && <div style={s.errorBanner}>⚠ {error}</div>}
-      {saved && <div style={s.successBanner}>✓ تم حفظ جميع التغييرات بنجاح</div>}
+      {error && <div style={s.errorBanner}><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' style={{flexShrink:0}}><path d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg> {error}</div>}
+      {saved && <div style={s.successBanner}><svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round'><polyline points='20 6 9 17 4 12'/></svg> تم حفظ جميع التغييرات بنجاح</div>}
 
       {/* ═══════════════════════════════════════ */}
       {/* SECTION 1 — USDT Wallet               */}
@@ -229,7 +229,7 @@ export default function AdminPaymentMethods() {
               )}
             </div>
             <p style={s.fieldHint}>
-              ⚠ تأكد من أن العنوان صحيح — هذا هو العنوان الذي سيحوّل إليه المستخدمون
+               تأكد من أن العنوان صحيح — هذا هو العنوان الذي سيحوّل إليه المستخدمون
             </p>
           </div>
 
@@ -375,12 +375,12 @@ function MethodCard({ method, enabled, number, onToggle, onChange }) {
         />
         {enabled && number && (
           <p style={{ ...s.fieldHint, color: method.color }}>
-            ✓ {method.desc}
+             {method.desc}
           </p>
         )}
         {enabled && !number && (
           <p style={{ ...s.fieldHint, color: '#f59e0b' }}>
-            ⚠ أدخل الرقم عشان يظهر للمستخدمين
+             أدخل الرقم عشان يظهر للمستخدمين
           </p>
         )}
       </div>
