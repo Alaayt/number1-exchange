@@ -1,300 +1,297 @@
 // src/pages/admin/AdminSettings.jsx
 // =============================================
-// Admin Settings - Platform on/off toggles + config
+// Admin Settings — 5 Tabs
 // =============================================
+import { useState, useEffect, useCallback } from 'react'
+import AdminLayout from '../../components/admin/AdminLayout'
+import { adminAPI } from '../../services/api'
 
-import { useEffect, useState } from "react";
-import AdminLayout from "../../components/admin/AdminLayout";
-import { Save, AlertCircle, CheckCircle, Power, Bell, Shield, Globe } from "lucide-react";
+import TabGeneral       from './settings/TabGeneral'
+import TabOrders        from './settings/TabOrders'
+import TabNotifications from './settings/TabNotifications'
+import TabIntegrations  from './settings/TabIntegrations'
+import TabSecurity      from './settings/TabSecurity'
 
-const API = import.meta.env.VITE_API_URL;
+// ── Tabs config ───────────────────────────────────────────
+const TABS = [
+  { id: 'general',       label: 'عام',          icon: '⚙️'  },
+  { id: 'orders',        label: 'الطلبات',       icon: '📋'  },
+  { id: 'notifications', label: 'الإشعارات',     icon: '🔔'  },
+  { id: 'integrations',  label: 'API & تكامل',   icon: '🔗', badge: 'جديد' },
+  { id: 'security',      label: 'الأمان',         icon: '🔒', badge: 'جديد' },
+]
+
+// ── Default settings ──────────────────────────────────────
+const DEFAULT = {
+  // General
+  platformEnabled:     true,
+  maintenanceMode:     false,
+  registrationEnabled: true,
+  platformNameAr:      'نمبر ون',
+  platformNameEn:      'Number1',
+  platformUrl:         '',
+  supportEmail:        '',
+  supportTelegram:     '',
+
+  // Orders
+  usdtOrdersEnabled:    true,
+  walletOrdersEnabled:  true,
+  bankTransferEnabled:  false,
+  minOrderUsd:          10,
+  maxOrderUsd:          10000,
+  orderExpiryMinutes:   30,
+  maxDailyOrdersUser:   5,
+
+  // Notifications
+  telegramNotifications: true,
+  emailNotifications:    true,
+  telegramBotToken:      '',
+  telegramChatId:        '',
+  smtpHost:              '',
+  smtpPort:              587,
+  smtpEmail:             '',
+  smtpPassword:          '',
+
+  // Integrations
+  moneygoApiKey:      '',
+  cryptoApiKey:       '',
+  webhookUrl:         '',
+  environment:        'sandbox',
+
+  // Security
+  jwtRefreshEnabled:  true,
+  twoFactorAdmin:     false,
+  auditLogEnabled:    true,
+  sessionExpireHours: 24,
+  maxLoginAttempts:   5,
+  ipBanMinutes:       30,
+  maxConcurrentSessions: 3,
+}
 
 export default function AdminSettings() {
-  const [settings, setSettings] = useState({
-    // Platform toggles
-    platformEnabled:      true,
-    maintenanceMode:      false,
-    registrationEnabled:  true,
-    // Order toggles
-    usdtOrdersEnabled:    true,
-    walletOrdersEnabled:  true,
-    // Notifications
-    telegramNotifications: true,
-    emailNotifications:   true,
-    // Display
-    platformNameAr:       "نمبر ون",
-    platformNameEn:       "Number1",
-    supportEmail:         "",
-    supportTelegram:      "",
-  });
+  const [activeTab, setActiveTab] = useState('general')
+  const [settings,  setSettings]  = useState(DEFAULT)
+  const [loading,   setLoading]   = useState(true)
+  const [saving,    setSaving]    = useState(false)
+  const [toast,     setToast]     = useState(null)   // { type, text }
+  const [confirmDialog, setConfirmDialog] = useState(null) // { message, onConfirm }
 
-  const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState(false);
-  const [error,   setError]   = useState("");
-
-  useEffect(() => { fetchSettings(); }, []);
-
-  const fetchSettings = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res   = await fetch(`${API}/api/admin/settings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data  = await res.json();
-      if (data) setSettings((prev) => ({ ...prev, ...data }));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+  // ── Fetch ───────────────────────────────────────────────
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const { data } = await adminAPI.getSettings()
+        if (data) setSettings(prev => ({ ...prev, ...data }))
+      } catch { /* استخدم الـ defaults */ }
+      finally { setLoading(false) }
     }
-  };
+    fetch()
+  }, [])
 
-  const handleToggle = (key) =>
-    setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  // ── Toast helper ────────────────────────────────────────
+  const showToast = useCallback((type, text) => {
+    setToast({ type, text })
+    setTimeout(() => setToast(null), 3500)
+  }, [])
 
-  const handleText = (key, value) =>
-    setSettings((prev) => ({ ...prev, [key]: value }));
+  // ── Confirm helper ──────────────────────────────────────
+  const confirm = useCallback((message, onConfirm) => {
+    setConfirmDialog({ message, onConfirm })
+  }, [])
 
+  // ── Update field ────────────────────────────────────────
+  const set = useCallback((key, value) => {
+    setSettings(prev => ({ ...prev, [key]: value }))
+  }, [])
+
+  // ── Save ────────────────────────────────────────────────
   const handleSave = async () => {
-    setSaving(true);
-    setError("");
+    setSaving(true)
     try {
-      const token = localStorage.getItem("token");
-      const res   = await fetch(`${API}/api/admin/settings`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(settings),
-      });
-      if (!res.ok) throw new Error("فشل الحفظ");
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      setError(err.message);
+      await adminAPI.saveSettings(settings)
+      showToast('success', '✓ تم حفظ الإعدادات بنجاح')
+    } catch {
+      showToast('error', '✗ فشل الحفظ — تحقق من الاتصال')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
+
+  // ── Toggle platform with confirm ────────────────────────
+  const togglePlatform = () => {
+    if (settings.platformEnabled) {
+      confirm('هل أنت متأكد من تعطيل المنصة؟ سيتوقف جميع المستخدمين عن الوصول.', () => {
+        set('platformEnabled', false)
+        setConfirmDialog(null)
+      })
+    } else {
+      set('platformEnabled', true)
+    }
+  }
 
   if (loading) return (
-    <AdminLayout>
-      <div style={{ padding: 80, textAlign: "center", color: "#6e7681" }}>جاري التحميل...</div>
+    <AdminLayout title="الإعدادات">
+      <div style={s.center}><div style={s.spinner} /></div>
     </AdminLayout>
-  );
+  )
+
+  const tabProps = { settings, set, confirm, showToast, togglePlatform }
 
   return (
-    <AdminLayout>
-      {/* Header */}
-      <div style={styles.pageHeader}>
-        <div>
-          <h2 style={styles.pageTitle}>الإعدادات العامة</h2>
-          <p style={styles.pageSub}>التحكم في المنصة والخيارات العامة</p>
+    <AdminLayout title="الإعدادات">
+
+      {/* ── Sticky Top Bar ──────────────────────── */}
+      <div style={s.stickyBar}>
+        <div style={s.stickyLeft}>
+          <span style={s.stickyTitle}>الإعدادات</span>
+          {settings.maintenanceMode && (
+            <span style={s.maintenanceBadge}>⚠ وضع الصيانة مفعّل</span>
+          )}
+          {!settings.platformEnabled && (
+            <span style={s.offlineBadge}>🔴 المنصة معطّلة</span>
+          )}
         </div>
-        <button style={styles.saveBtn} onClick={handleSave} disabled={saving}>
-          <Save size={16} />
-          {saving ? "جاري الحفظ..." : "حفظ التغييرات"}
+        <button
+          style={{ ...s.saveBtn, opacity: saving ? 0.7 : 1 }}
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? '⏳ جاري الحفظ...' : '💾 حفظ التغييرات'}
         </button>
       </div>
 
-      {/* Feedback */}
-      {error && (
-        <div style={styles.errorBanner}><AlertCircle size={16} /> {error}</div>
-      )}
-      {saved && (
-        <div style={styles.successBanner}><CheckCircle size={16} /> تم الحفظ بنجاح</div>
-      )}
+      {/* ── Tabs ────────────────────────────────── */}
+      <div style={s.tabsRow}>
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            style={{
+              ...s.tab,
+              ...(activeTab === tab.id ? s.tabActive : {}),
+            }}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            <span>{tab.icon}</span>
+            <span>{tab.label}</span>
+            {tab.badge && <span style={s.tabBadge}>{tab.badge}</span>}
+          </button>
+        ))}
+      </div>
 
-      {/* ── Section: Platform ──────────────────────── */}
-      <SettingsSection icon={<Power size={16} />} title="حالة المنصة" color="#2563eb">
-        <ToggleRow
-          label="تفعيل المنصة"
-          desc="إيقاف هذا سيمنع جميع العمليات الجديدة"
-          value={settings.platformEnabled}
-          onChange={() => handleToggle("platformEnabled")}
-          color="#059669"
-          danger={!settings.platformEnabled}
-        />
-        <ToggleRow
-          label="وضع الصيانة"
-          desc="يعرض رسالة صيانة للمستخدمين ويوقف الموقع"
-          value={settings.maintenanceMode}
-          onChange={() => handleToggle("maintenanceMode")}
-          color="#d97706"
-          danger={settings.maintenanceMode}
-        />
-        <ToggleRow
-          label="تسجيل مستخدمين جدد"
-          desc="السماح بإنشاء حسابات جديدة"
-          value={settings.registrationEnabled}
-          onChange={() => handleToggle("registrationEnabled")}
-          color="#059669"
-        />
-      </SettingsSection>
+      {/* ── Tab Content ─────────────────────────── */}
+      <div style={s.tabContent}>
+        {activeTab === 'general'       && <TabGeneral       {...tabProps} />}
+        {activeTab === 'orders'        && <TabOrders        {...tabProps} />}
+        {activeTab === 'notifications' && <TabNotifications {...tabProps} />}
+        {activeTab === 'integrations'  && <TabIntegrations  {...tabProps} />}
+        {activeTab === 'security'      && <TabSecurity      {...tabProps} />}
+      </div>
 
-      {/* ── Section: Order Types ───────────────────── */}
-      <SettingsSection icon={<Globe size={16} />} title="أنواع الطلبات" color="#7c3aed">
-        <ToggleRow
-          label="طلبات USDT"
-          desc="قبول طلبات الدفع بـ USDT (TRC20)"
-          value={settings.usdtOrdersEnabled}
-          onChange={() => handleToggle("usdtOrdersEnabled")}
-          color="#059669"
-        />
-        <ToggleRow
-          label="طلبات المحافظ الإلكترونية"
-          desc="قبول طلبات Vodafone Cash / InstaPay / Fawry وغيرها"
-          value={settings.walletOrdersEnabled}
-          onChange={() => handleToggle("walletOrdersEnabled")}
-          color="#059669"
-        />
-      </SettingsSection>
-
-      {/* ── Section: Notifications ─────────────────── */}
-      <SettingsSection icon={<Bell size={16} />} title="الإشعارات" color="#d97706">
-        <ToggleRow
-          label="إشعارات Telegram"
-          desc="إرسال تنبيهات للطلبات الجديدة عبر Telegram Bot"
-          value={settings.telegramNotifications}
-          onChange={() => handleToggle("telegramNotifications")}
-          color="#2563eb"
-        />
-        <ToggleRow
-          label="إشعارات البريد الإلكتروني"
-          desc="إرسال تأكيدات الطلبات عبر البريد (Resend)"
-          value={settings.emailNotifications}
-          onChange={() => handleToggle("emailNotifications")}
-          color="#2563eb"
-        />
-      </SettingsSection>
-
-      {/* ── Section: Info ──────────────────────────── */}
-      <SettingsSection icon={<Shield size={16} />} title="معلومات المنصة" color="#059669">
-        <div style={styles.textFieldsGrid}>
-          <TextField
-            label="اسم المنصة (عربي)"
-            value={settings.platformNameAr}
-            onChange={(v) => handleText("platformNameAr", v)}
-          />
-          <TextField
-            label="اسم المنصة (إنجليزي)"
-            value={settings.platformNameEn}
-            onChange={(v) => handleText("platformNameEn", v)}
-          />
-          <TextField
-            label="إيميل الدعم"
-            type="email"
-            placeholder="support@..."
-            value={settings.supportEmail}
-            onChange={(v) => handleText("supportEmail", v)}
-          />
-          <TextField
-            label="Telegram الدعم"
-            placeholder="@username"
-            value={settings.supportTelegram}
-            onChange={(v) => handleText("supportTelegram", v)}
-          />
+      {/* ── Toast ───────────────────────────────── */}
+      {toast && (
+        <div style={{
+          ...s.toast,
+          background: toast.type === 'success' ? '#064e3b' : '#3d0a0a',
+          borderColor: toast.type === 'success' ? '#22c55e' : '#f87171',
+          color:       toast.type === 'success' ? '#4ade80' : '#f87171',
+        }}>
+          {toast.text}
         </div>
-      </SettingsSection>
+      )}
 
-      {/* Bottom save */}
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-        <button style={{ ...styles.saveBtn, padding: "12px 32px", fontSize: 15 }} onClick={handleSave} disabled={saving}>
-          <Save size={16} />
-          {saving ? "جاري الحفظ..." : "حفظ كل الإعدادات"}
-        </button>
-      </div>
+      {/* ── Confirm Dialog ──────────────────────── */}
+      {confirmDialog && (
+        <div style={s.overlay}>
+          <div style={s.dialog}>
+            <div style={s.dialogIcon}>⚠️</div>
+            <p style={s.dialogMsg}>{confirmDialog.message}</p>
+            <div style={s.dialogBtns}>
+              <button style={s.dialogConfirm} onClick={confirmDialog.onConfirm}>
+                تأكيد
+              </button>
+              <button style={s.dialogCancel} onClick={() => setConfirmDialog(null)}>
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </AdminLayout>
-  );
+  )
 }
 
-// ── SettingsSection ────────────────────────────────────
-function SettingsSection({ icon, title, color, children }) {
-  return (
-    <div style={styles.card}>
-      <div style={{ ...styles.sectionHeader, borderColor: color }}>
-        <span style={{ color }}>{icon}</span>
-        <span style={{ ...styles.sectionTitle, color }}>{title}</span>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {children}
-      </div>
-    </div>
-  );
+// ── Styles ────────────────────────────────────────────────
+const s = {
+  center:  { display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 },
+  spinner: { width: 32, height: 32, borderRadius: '50%', border: '3px solid #1e293b', borderTop: '3px solid #3b82f6', animation: 'spin 0.8s linear infinite' },
+
+  stickyBar: {
+    position: 'sticky', top: 0, zIndex: 20,
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    background: '#0f172a', borderBottom: '1px solid #1e293b',
+    padding: '12px 0', marginBottom: 20,
+  },
+  stickyLeft:  { display: 'flex', alignItems: 'center', gap: 12 },
+  stickyTitle: { fontSize: 16, fontWeight: 800, color: '#f1f5f9' },
+  maintenanceBadge: { fontSize: 11, fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, padding: '3px 10px' },
+  offlineBadge:     { fontSize: 11, fontWeight: 700, color: '#f87171', background: 'rgba(239,68,68,0.1)',  border: '1px solid rgba(239,68,68,0.3)',  borderRadius: 6, padding: '3px 10px' },
+
+  saveBtn: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '9px 22px', borderRadius: 10, border: 'none',
+    background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)',
+    color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700,
+    boxShadow: '0 4px 14px rgba(59,130,246,0.3)',
+    fontFamily: "'Cairo','Tajawal',sans-serif",
+  },
+
+  tabsRow: {
+    display: 'flex', gap: 4, flexWrap: 'wrap',
+    marginBottom: 24,
+    borderBottom: '1px solid #1e293b',
+    paddingBottom: 0,
+  },
+  tab: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '9px 16px', borderRadius: '8px 8px 0 0',
+    border: '1px solid transparent', borderBottom: 'none',
+    background: 'transparent', color: '#64748b',
+    cursor: 'pointer', fontSize: 13, fontWeight: 600,
+    fontFamily: "'Cairo','Tajawal',sans-serif",
+    transition: 'all 0.15s',
+    position: 'relative', bottom: -1,
+  },
+  tabActive: {
+    background: '#1e293b',
+    border: '1px solid #334155',
+    borderBottom: '1px solid #1e293b',
+    color: '#3b82f6',
+  },
+  tabBadge: {
+    fontSize: 9, fontWeight: 800,
+    color: '#3b82f6', background: 'rgba(59,130,246,0.15)',
+    border: '1px solid rgba(59,130,246,0.3)',
+    borderRadius: 6, padding: '1px 5px',
+  },
+  tabContent: { minHeight: 400 },
+
+  toast: {
+    position: 'fixed', bottom: 28, left: '50%',
+    transform: 'translateX(-50%)',
+    padding: '12px 24px', borderRadius: 10,
+    border: '1px solid', fontSize: 14, fontWeight: 700,
+    zIndex: 999, boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+    fontFamily: "'Cairo','Tajawal',sans-serif",
+    animation: 'fadeIn 0.25s ease',
+    whiteSpace: 'nowrap',
+  },
+
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  dialog:  { background: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 28, maxWidth: 380, width: '90%', textAlign: 'center' },
+  dialogIcon: { fontSize: 36, marginBottom: 12 },
+  dialogMsg:  { fontSize: 14, color: '#cbd5e1', lineHeight: 1.7, marginBottom: 20 },
+  dialogBtns: { display: 'flex', gap: 10, justifyContent: 'center' },
+  dialogConfirm: { padding: '9px 24px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 14, fontFamily: "'Cairo','Tajawal',sans-serif" },
+  dialogCancel:  { padding: '9px 24px', borderRadius: 8, border: '1px solid #334155', background: 'transparent', color: '#94a3b8', fontWeight: 700, cursor: 'pointer', fontSize: 14, fontFamily: "'Cairo','Tajawal',sans-serif" },
 }
-
-// ── ToggleRow ──────────────────────────────────────────
-function ToggleRow({ label, desc, value, onChange, color, danger }) {
-  return (
-    <div style={{ ...toggle.row, ...(danger ? toggle.dangerRow : {}) }}>
-      <div style={{ flex: 1 }}>
-        <div style={toggle.label}>{label}</div>
-        <div style={toggle.desc}>{desc}</div>
-      </div>
-      <button
-        style={{
-          ...toggle.btn,
-          background: value ? color : "#21262d",
-          boxShadow: value ? `0 0 0 3px ${color}33` : "none",
-        }}
-        onClick={onChange}
-        role="switch"
-        aria-checked={value}
-      >
-        <span
-          style={{
-            ...toggle.thumb,
-            transform: value ? "translateX(20px)" : "translateX(2px)",
-          }}
-        />
-      </button>
-    </div>
-  );
-}
-
-// ── TextField ──────────────────────────────────────────
-function TextField({ label, value, onChange, type = "text", placeholder }) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <div>
-      <label style={styles.fieldLabel}>{label}</label>
-      <input
-        type={type}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={{
-          ...styles.fieldInput,
-          borderColor: focused ? "#2563eb" : "#21262d",
-          boxShadow: focused ? "0 0 0 3px #2563eb22" : "none",
-        }}
-      />
-    </div>
-  );
-}
-
-// ── Styles ─────────────────────────────────────────────
-const styles = {
-  pageHeader:  { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 },
-  pageTitle:   { fontSize: 20, fontWeight: 700, color: "#e6edf3", margin: 0 },
-  pageSub:     { fontSize: 13, color: "#6e7681", marginTop: 4 },
-  saveBtn:     { display: "flex", alignItems: "center", gap: 8, padding: "9px 20px", borderRadius: 8, border: "none", background: "#2563eb", color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 600 },
-  errorBanner:   { display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: 8, background: "#3d0a0a", color: "#f85149", marginBottom: 16, fontSize: 14 },
-  successBanner: { display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: 8, background: "#064e3b", color: "#059669", marginBottom: 16, fontSize: 14 },
-  card:          { backgroundColor: "#161b22", border: "1px solid #21262d", borderRadius: 12, padding: 20, marginBottom: 16 },
-  sectionHeader: { display: "flex", alignItems: "center", gap: 10, paddingBottom: 14, marginBottom: 16, borderBottom: "1px solid" },
-  sectionTitle:  { fontSize: 15, fontWeight: 600 },
-  textFieldsGrid:{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 },
-  fieldLabel:    { display: "block", fontSize: 13, fontWeight: 600, color: "#c9d1d9", marginBottom: 6 },
-  fieldInput:    { width: "100%", padding: "9px 12px", background: "#0d1117", border: "1px solid #21262d", borderRadius: 8, color: "#e6edf3", fontSize: 14, outline: "none", transition: "border-color 0.2s, box-shadow 0.2s", boxSizing: "border-box" },
-};
-
-const toggle = {
-  row:      { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #21262d" },
-  dangerRow:{ background: "#1a0a0a", marginInline: -20, paddingInline: 20, borderRadius: 8 },
-  label:    { fontSize: 14, fontWeight: 600, color: "#c9d1d9" },
-  desc:     { fontSize: 12, color: "#6e7681", marginTop: 3 },
-  btn:      { width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", position: "relative", transition: "background 0.25s, box-shadow 0.25s", flexShrink: 0 },
-  thumb:    { position: "absolute", top: 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "transform 0.2s", display: "block" },
-};
