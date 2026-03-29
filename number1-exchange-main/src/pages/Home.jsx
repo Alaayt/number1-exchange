@@ -479,7 +479,62 @@ function ConfirmModal({isOpen,onClose,orderData}) {
   const isEgp=orderData.sendMethod.type==="egp"
   const handleCopy=()=>{navigator.clipboard.writeText(info.value);setCopied(true);setTimeout(()=>setCopied(false),2000)}
   const handleFile=e=>{const file=e.target.files[0];if(!file)return;setReceipt(file);const r=new FileReader();r.onload=ev=>setPreview(ev.target.result);r.readAsDataURL(file)}
-  const handleSubmit=()=>{if(!receipt){alert(lang==="ar"?"يرجى رفع صورة الإيصال أولاً":"Please upload receipt first");return}setLoading(true);setTimeout(()=>{setLoading(false);setSubmitted(true)},1800)}
+const handleSubmit = async () => {
+  if (!receipt) { alert(lang === "ar" ? "يرجى رفع صورة الإيصال أولاً" : "Please upload receipt"); return }
+  setLoading(true)
+  try {
+    // رفع الصورة
+    let receiptImageUrl = ''
+    try {
+      const formData = new FormData()
+      formData.append('receipt', receipt)
+      const token = localStorage.getItem('n1_token')
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/upload-receipt`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      })
+      const data = await res.json()
+      if (data.url) receiptImageUrl = data.url
+    } catch(e) { console.warn('upload failed:', e.message) }
+
+    // إرسال الطلب
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName:  email.split('@')[0] || 'مستخدم',
+        customerEmail: email,
+        customerPhone: orderData.userPhone || '',
+        orderType:     orderData.sendMethod.type === 'egp' ? 'EGP_WALLET_TO_MONEYGO' : 'USDT_TO_MONEYGO',
+        payment: {
+          method:        orderData.sendMethod.type === 'egp' ? 'VODAFONE_CASH' : 'USDT_TRC20',
+          amountSent:    parseFloat(orderData.sendAmount),
+          currencySent:  orderData.sendMethod.type === 'egp' ? 'EGP' : 'USDT',
+          receiptImageUrl,
+          senderPhoneNumber: orderData.userPhone || '',
+        },
+        moneygo: {
+          recipientName:  email.split('@')[0] || 'مستخدم',
+          recipientPhone: recipientId || '',
+          amountUSD:      parseFloat(orderData.receiveAmount),
+        },
+        exchangeRate: {
+          appliedRate:    parseFloat(orderData.receiveAmount) / parseFloat(orderData.sendAmount) || 1,
+          finalAmountUSD: parseFloat(orderData.receiveAmount),
+        },
+      })
+    })
+    const data = await res.json()
+    console.log('✅ Order created:', data)
+    setSubmitted(true)
+  } catch(err) {
+    console.error('❌ Error:', err)
+    alert('حدث خطأ، حاول مرة أخرى')
+  } finally {
+    setLoading(false)
+  }
+}
   const handleClose=()=>{setReceipt(null);setPreview(null);setSubmitted(false);setLoading(false);setCopied(false);onClose()}
   return (
     <div onClick={e=>{if(e.target===e.currentTarget)handleClose()}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.78)",backdropFilter:"blur(8px)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
