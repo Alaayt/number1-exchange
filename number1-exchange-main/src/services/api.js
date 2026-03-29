@@ -44,7 +44,7 @@ export const ordersAPI = {
 // ─── Public Payment Methods (للمستخدم) ───────────────────────
 // يُستخدم في صفحة الـ Exchange عشان يعرض الوسائل المفعّلة فقط
 export const paymentAPI = {
-  getMethods: () => request('/payment-methods'),   // GET — بدون auth
+getMethods: () => request('/public/payment-methods'),   // GET — بدون auth
 }
 
 // ─── Admin ────────────────────────────────────────────────────
