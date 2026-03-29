@@ -1,13 +1,14 @@
 // ============================================
 // routes/admin.js — لوحة الأدمن + Telegram Webhook
 // ============================================
-
+const Setting = require('../models/Setting');
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const User = require('../models/User');
 const { protect, adminOnly } = require('../middleware/auth');
 const telegramService = require('../services/telegram');
+const Rate = require('../models/Rate');
 
 // ─── Middleware: حماية كل routes الأدمن ───────
 router.use(protect, adminOnly);
@@ -242,5 +243,96 @@ router.post('/telegram-webhook-internal', async (req, res) => {
     res.json({ success: true }); // دائماً نرجع 200 للتليغرام
   }
 });
+// ─── GET /api/admin/rates ─────────────────────
+// جلب الأسعار الحالية
+router.get('/rates', async (req, res) => {
+  try {
+    const rates = await Rate.getSingleton();
+    res.json({ success: true, ...rates.toObject() });
+  } catch (error) {
+    console.error('Get rates error:', error);
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
+// ─── PUT /api/admin/rates ─────────────────────
+// تحديث الأسعار
+router.put('/rates', async (req, res) => {
+  try {
+    const allowed = [
+      'usdtBuyRate', 'usdtSellRate', 'moneygoRate',
+      'vodafoneBuyRate', 'instaPayRate', 'fawryRate', 'orangeRate',
+      'minOrderUsdt', 'maxOrderUsdt',
+    ];
+
+    // فلترة الحقول المسموحة فقط
+    const updates = {};
+    allowed.forEach(key => {
+      if (req.body[key] !== undefined && req.body[key] !== '') {
+        updates[key] = parseFloat(req.body[key]);
+      }
+    });
+
+    updates.updatedBy = req.user.email;
+
+    const rates = await Rate.findOneAndUpdate(
+      {},
+      { $set: updates },
+      { new: true, upsert: true }
+    );
+
+    res.json({ success: true, message: 'Rates updated.', ...rates.toObject() });
+  } catch (error) {
+    console.error('Update rates error:', error);
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
+// ─── GET /api/admin/settings ──────────────────
+router.get('/settings', async (req, res) => {
+  try {
+    const settings = await Setting.getSingleton()
+    // نخفي كلمات السر من الـ response
+    const safe = settings.toObject()
+    if (safe.smtpPassword)    safe.smtpPassword    = safe.smtpPassword    ? '••••••••' : ''
+    if (safe.telegramBotToken) safe.telegramBotToken = safe.telegramBotToken ? '••••••••' : ''
+    res.json({ success: true, ...safe })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+
+// ─── PUT /api/admin/settings ──────────────────
+router.put('/settings', async (req, res) => {
+  try {
+    const allowed = [
+      'platformName', 'platformActive', 'maintenanceMode',
+      'telegramNotifications', 'emailNotifications',
+      'telegramBotToken', 'telegramChatId',
+      'smtpHost', 'smtpPort', 'smtpEmail', 'smtpPassword',
+      'minOrderUsdt', 'maxOrderUsdt', 'orderExpiryMins',
+      'moneygoApiKey', 'moneygoApiUrl', 'cryptoApiKey',
+    ]
+
+    const updates = {}
+    allowed.forEach(key => {
+      if (req.body[key] !== undefined) {
+        // لا تحدث كلمة السر إذا كانت النقاط
+        if (req.body[key] === '••••••••') return
+        updates[key] = req.body[key]
+      }
+    })
+
+    const settings = await Setting.findOneAndUpdate(
+      {},
+      { $set: updates },
+      { new: true, upsert: true }
+    )
+
+    res.json({ success: true, message: 'Settings saved.', ...settings.toObject() })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
 
 module.exports = router;

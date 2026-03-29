@@ -1,37 +1,71 @@
 // src/components/home/ExchangeForm.jsx
 // ═══════════════════════════════════════════════════════
 // نموذج التبادل — متصل بالـ API
-// يعرض فقط الوسائل التي فعّلها الأدمن
+// الأسعار حقيقية من الأدمن
 // ═══════════════════════════════════════════════════════
 import { useState, useEffect, useMemo } from 'react'
 import ConfirmModal from './ConfirmModal'
 import { paymentAPI } from '../../services/api'
 
-// ── Fallback إذا فشل الـ API ─────────────────────────
-const FALLBACK = {
-  cryptos: [],
-  wallets: [],
+const API = import.meta.env.VITE_API_URL
+
+const FALLBACK = { cryptos: [], wallets: [] }
+
+// ══════════════════════════════════════════════
+// دالة مساعدة: حساب السعر الصحيح
+// حسب نوع الإرسال والاستلام
+// ══════════════════════════════════════════════
+function resolveRate(rates, sendType, recvType, sendItem, recvItem) {
+  if (!rates) return 50 // fallback مؤقت
+
+  // محفظة → crypto  (مستخدم يرسل EGP ويستلم USDT)
+  if (sendType === 'wallet' && recvType === 'crypto') {
+    // نستخدم السعر حسب نوع المحفظة
+    if (sendItem?.key === 'vodafone') return rates.vodafoneBuyRate
+    if (sendItem?.key === 'instapay') return rates.instaPayRate
+    if (sendItem?.key === 'fawry')    return rates.fawryRate
+    if (sendItem?.key === 'orange')   return rates.orangeRate
+    return rates.usdtSellRate // fallback
+  }
+
+  // crypto → محفظة  (مستخدم يرسل USDT ويستلم EGP)
+  if (sendType === 'crypto' && recvType === 'wallet') {
+    return rates.usdtBuyRate
+  }
+
+  // crypto → crypto  (USDT → USDT شبكة مختلفة)
+  if (sendType === 'crypto' && recvType === 'crypto') {
+    return 1
+  }
+
+  // wallet → wallet
+  if (sendType === 'wallet' && recvType === 'wallet') {
+    return 1
+  }
+
+  return rates.usdtBuyRate
 }
 
 function ExchangeForm() {
   // ── بيانات من الـ API ──────────────────────────────
-  const [methods,   setMethods]   = useState(null)   // { cryptos, wallets }
+  const [methods,    setMethods]    = useState(null)
+  const [rates,      setRates]      = useState(null)   // ← الأسعار الحقيقية
   const [apiLoading, setApiLoading] = useState(true)
   const [apiError,   setApiError]   = useState(false)
 
   // ── اختيار المستخدم ───────────────────────────────
-  const [sendType,   setSendType]   = useState('wallet') // 'wallet' | 'crypto'
-  const [sendItem,   setSendItem]   = useState(null)     // الوسيلة المختارة للإرسال
-  const [recvType,   setRecvType]   = useState('crypto') // 'crypto' | 'wallet'
-  const [recvItem,   setRecvItem]   = useState(null)     // الوسيلة المختارة للاستلام
+  const [sendType, setSendType] = useState('wallet')
+  const [sendItem, setSendItem] = useState(null)
+  const [recvType, setRecvType] = useState('crypto')
+  const [recvItem, setRecvItem] = useState(null)
 
   // ── المبالغ ────────────────────────────────────────
   const [sendAmount, setSendAmount] = useState('100')
 
   // ── بيانات المستخدم ────────────────────────────────
   const [email,       setEmail]       = useState('')
-  const [userPhone,   setUserPhone]   = useState('')   // رقم المرسل (محافظ فقط)
-  const [recipientId, setRecipientId] = useState('')   // عنوان/معرف الاستلام
+  const [userPhone,   setUserPhone]   = useState('')
+  const [recipientId, setRecipientId] = useState('')
   const [amlChecked,  setAmlChecked]  = useState(false)
   const [tosChecked,  setTosChecked]  = useState(false)
 
@@ -44,20 +78,39 @@ function ExchangeForm() {
   const [rateDir,    setRateDir]    = useState(null)
 
   // ══════════════════════════════════════════════════
-  // جلب وسائل الدفع من الـ API
+  // جلب وسائل الدفع + الأسعار معاً
   // ══════════════════════════════════════════════════
   useEffect(() => {
-    const fetch = async () => {
+    const loadAll = async () => {
       try {
-        const { data } = await paymentAPI.getMethods()
+        // نجلب الاثنين بالتوازي
+        const [methodsRes, ratesRes] = await Promise.all([
+          paymentAPI.getMethods(),
+          fetch(`${API}/api/public/rates`).then(r => r.json()),
+        ])
+
+        const data = methodsRes.data
         setMethods(data)
 
-        // اختيار أول وسيلة تلقائياً
-        if (data.wallets?.length > 0) setSendItem(data.wallets[0])
-        else if (data.cryptos?.length > 0) { setSendType('crypto'); setSendItem(data.cryptos[0]) }
+        // الأسعار
+        if (ratesRes.success) setRates(ratesRes)
 
-        if (data.cryptos?.length > 0) setRecvItem(data.cryptos[0])
-        else if (data.wallets?.length > 0) { setRecvType('wallet'); setRecvItem(data.wallets[0]) }
+        // اختيار أول وسيلة تلقائياً
+        if (data.wallets?.length > 0) {
+          setSendItem(data.wallets[0])
+          setSendType('wallet')
+        } else if (data.cryptos?.length > 0) {
+          setSendItem(data.cryptos[0])
+          setSendType('crypto')
+        }
+
+        if (data.cryptos?.length > 0) {
+          setRecvItem(data.cryptos[0])
+          setRecvType('crypto')
+        } else if (data.wallets?.length > 0) {
+          setRecvItem(data.wallets[0])
+          setRecvType('wallet')
+        }
 
       } catch {
         setApiError(true)
@@ -66,10 +119,10 @@ function ExchangeForm() {
         setApiLoading(false)
       }
     }
-    fetch()
+    loadAll()
   }, [])
 
-  // ── Rate fluctuation ───────────────────────────────
+  // ── Rate fluctuation animation ─────────────────────
   useEffect(() => {
     const t = setInterval(() => {
       const change = (Math.random() - 0.5) * 0.002
@@ -80,18 +133,20 @@ function ExchangeForm() {
     return () => clearInterval(t)
   }, [])
 
-  // ── السعر الحالي ───────────────────────────────────
-  // بسيط: نستخدم سعر وهمي حتى تربطه بالـ rates API
-  const baseRate    = 50  // مثال: 1 USDT = 50 EGP
+  // ── السعر الحقيقي ──────────────────────────────────
+  const baseRate    = resolveRate(rates, sendType, recvType, sendItem, recvItem)
   const currentRate = baseRate * rateFactor
   const rateColor   = rateDir === 'up' ? 'var(--green)' : rateDir === 'dn' ? 'var(--red)' : 'var(--gold)'
+
+  // ── الحد الأدنى والأقصى من الـ rates ──────────────
+  const minOrder = rates?.minOrderUsdt || 10
+  const maxOrder = rates?.maxOrderUsdt || 5000
 
   const receiveAmount = useMemo(() => {
     const amt = parseFloat(sendAmount) || 0
     return amt > 0 ? (amt * currentRate).toFixed(2) : ''
   }, [sendAmount, currentRate])
 
-  // ── هل وسيلة الإرسال محفظة إلكترونية ─────────────
   const sendIsWallet = sendType === 'wallet'
   const sendIsCrypto = sendType === 'crypto'
 
@@ -99,21 +154,24 @@ function ExchangeForm() {
   // Submit
   // ══════════════════════════════════════════════════
   const handleSubmit = () => {
-    if (!email)                         return alert('يرجى إدخال البريد الإلكتروني')
-    if (sendIsWallet && !userPhone)     return alert(`يرجى إدخال رقم هاتفك على ${sendItem?.name}`)
-    if (!recipientId)                   return alert('يرجى إدخال بيانات الاستلام')
-    if (!amlChecked || !tosChecked)     return alert('يرجى الموافقة على الشروط')
-    if (parseFloat(sendAmount) < 10)   return alert('الحد الأدنى 10 وحدة')
+    const amt = parseFloat(sendAmount)
+    if (!email)                     return alert('يرجى إدخال البريد الإلكتروني')
+    if (sendIsWallet && !userPhone) return alert(`يرجى إدخال رقم هاتفك على ${sendItem?.name}`)
+    if (!recipientId)               return alert('يرجى إدخال بيانات الاستلام')
+    if (!amlChecked || !tosChecked) return alert('يرجى الموافقة على الشروط')
+    if (amt < minOrder)             return alert(`الحد الأدنى ${minOrder} وحدة`)
+    if (amt > maxOrder)             return alert(`الحد الأقصى ${maxOrder} وحدة`)
 
     setOrderData({
       sendItem, recvItem, sendType, recvType,
       sendAmount, receiveAmount,
       email, userPhone, recipientId,
+      rate: currentRate,
     })
     setModalOpen(true)
   }
 
-  // ── Loading State ──────────────────────────────────
+  // ── Loading ────────────────────────────────────────
   if (apiLoading) return (
     <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
       <div style={{ textAlign: 'center' }}>
@@ -125,7 +183,6 @@ function ExchangeForm() {
     </div>
   )
 
-  // ── No Methods ──────────────────────────────────────
   const hasAnything = (methods?.wallets?.length || 0) + (methods?.cryptos?.length || 0) > 0
   if (!hasAnything) return (
     <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 260, flexDirection: 'column', gap: 12 }}>
@@ -149,20 +206,15 @@ function ExchangeForm() {
 
         <div style={{ padding: 22 }}>
 
-          {/* ── خطأ الـ API ─────────────────────── */}
           {apiError && (
-            <div style={errorBanner}>
-              ⚠ تعذّر الاتصال — يُعرض الوضع المؤقت
-            </div>
+            <div style={errorBanner}>⚠ تعذّر الاتصال — يُعرض الوضع المؤقت</div>
           )}
 
-          {/* ══════════════════════════════════════
-              قسم الإرسال
-          ══════════════════════════════════════ */}
+          {/* ── قسم الإرسال ─────────────────────── */}
           <div style={amountBox}>
             <div style={boxLabel}>
               <span>أنت ترسل · SEND</span>
-              <span>MIN: 10</span>
+              <span>MIN: {minOrder} / MAX: {maxOrder}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
               <input
@@ -172,7 +224,6 @@ function ExchangeForm() {
                 placeholder="0.00"
                 style={amountInput}
               />
-              {/* اختيار وسيلة الإرسال */}
               <MethodPicker
                 wallets={methods?.wallets || []}
                 cryptos={methods?.cryptos || []}
@@ -188,20 +239,17 @@ function ExchangeForm() {
             </div>
           </div>
 
-          {/* ── سهم التبادل ───────────────────── */}
+          {/* ── سهم التبادل ─────────────────────── */}
           <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}>
             <div style={swapArrow}>↕</div>
           </div>
 
-          {/* ══════════════════════════════════════
-              قسم الاستلام
-          ══════════════════════════════════════ */}
+          {/* ── قسم الاستلام ────────────────────── */}
           <div style={{ ...amountBox, marginBottom: 13 }}>
             <div style={boxLabel}>
               <span>أنت تستلم · RECEIVE</span>
               <span style={{ color: rateColor, transition: 'color 0.4s' }}>
-                1 {sendItem?.coin || sendItem?.name || '—'} ={' '}
-                {currentRate.toFixed(4)} {recvItem?.coin || recvItem?.name || '—'}
+                1 {sendItem?.coin || sendItem?.name || '—'} = {currentRate.toFixed(4)} {recvItem?.coin || recvItem?.name || '—'}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
@@ -224,13 +272,14 @@ function ExchangeForm() {
 
           {/* ── شريط السعر ─────────────────────── */}
           <div style={rateBar}>
-            <span style={{ color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.68rem' }}>EXCHANGE RATE</span>
+            <span style={{ color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.68rem' }}>
+              EXCHANGE RATE {!rates && '(مؤقت)'}
+            </span>
             <span style={{ color: rateColor, fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: '0.82rem', transition: 'color 0.4s' }}>
               1 {sendItem?.coin || sendItem?.name || '—'} = {currentRate.toFixed(4)} {recvItem?.coin || recvItem?.name || '—'}
             </span>
           </div>
 
-          {/* ── فاصل ────────────────────────────── */}
           <div style={{ borderTop: '1px solid var(--border-1)', margin: '18px 0' }} />
           <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", letterSpacing: 1, marginBottom: 13 }}>
             RECIPIENT · بيانات الطلب
@@ -238,27 +287,17 @@ function ExchangeForm() {
 
           {/* ── البريد الإلكتروني ──────────────── */}
           <Field label="EMAIL · البريد الإلكتروني">
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="example@email.com"
-              style={inp}
-              onFocus={focusOn} onBlur={focusOff}
-            />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="example@email.com" style={inp} onFocus={focusOn} onBlur={focusOff} />
           </Field>
 
-          {/* ── رقم هاتف المرسل (محافظ فقط) ───── */}
+          {/* ── رقم هاتف المرسل ─────────────────── */}
           {sendIsWallet && sendItem && (
             <Field label={`رقم هاتفك على ${sendItem.name}`}>
-              <input
-                type="tel"
-                value={userPhone}
-                onChange={e => setUserPhone(e.target.value)}
+              <input type="tel" value={userPhone} onChange={e => setUserPhone(e.target.value)}
                 placeholder="01XXXXXXXXX"
                 style={{ ...inp, direction: 'ltr', textAlign: 'left' }}
-                onFocus={focusOn} onBlur={focusOff}
-              />
+                onFocus={focusOn} onBlur={focusOff} />
               <Hint text="ℹ️ هذا الرقم للتحقق من هويتك فقط" />
             </Field>
           )}
@@ -281,56 +320,41 @@ function ExchangeForm() {
               ? `عنوان محفظة ${recvItem?.coin || ''} ${recvItem?.network || ''} للاستلام`
               : `معرّف ${recvItem?.name || ''} للاستلام`
           }>
-            <input
-              type="text"
-              value={recipientId}
-              onChange={e => setRecipientId(e.target.value)}
+            <input type="text" value={recipientId} onChange={e => setRecipientId(e.target.value)}
               placeholder={
                 recvType === 'crypto'
                   ? `T... أو 0x... — عنوان ${recvItem?.network || ''}`
                   : recvItem?.placeholder || 'رقم أو معرّف الاستلام'
               }
               style={{ ...inp, direction: 'ltr', textAlign: 'left', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.8rem' }}
-              onFocus={focusOn} onBlur={focusOff}
-            />
+              onFocus={focusOn} onBlur={focusOff} />
           </Field>
 
           {/* ── الموافقات ────────────────────────── */}
           <CheckRow id="aml" checked={amlChecked} onChange={setAmlChecked}>
-            أقر بأن الأموال مشروعة وأوافق على{' '}
-            <span style={{ color: 'var(--cyan)' }}>سياسة AML</span>
+            أقر بأن الأموال مشروعة وأوافق على <span style={{ color: 'var(--cyan)' }}>سياسة AML</span>
           </CheckRow>
           <CheckRow id="tos" checked={tosChecked} onChange={setTosChecked}>
-            أوافق على{' '}
-            <span style={{ color: 'var(--cyan)' }}>شروط الخدمة</span> و
-            <span style={{ color: 'var(--cyan)' }}>سياسة الخصوصية</span>
+            أوافق على <span style={{ color: 'var(--cyan)' }}>شروط الخدمة</span> و<span style={{ color: 'var(--cyan)' }}>سياسة الخصوصية</span>
           </CheckRow>
 
           {/* ── زر الإرسال ──────────────────────── */}
-          <button
-            onClick={handleSubmit}
-            style={submitBtn}
+          <button onClick={handleSubmit} style={submitBtn}
             onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 34px rgba(0,210,255,0.38)' }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)';    e.currentTarget.style.boxShadow = '0 4px 22px rgba(0,159,192,0.22)' }}
-          >
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)';    e.currentTarget.style.boxShadow = '0 4px 22px rgba(0,159,192,0.22)' }}>
             إرسال طلب التبادل ←
           </button>
 
         </div>
       </div>
 
-      <ConfirmModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        orderData={orderData}
-      />
+      <ConfirmModal isOpen={modalOpen} onClose={() => setModalOpen(false)} orderData={orderData} />
     </>
   )
 }
 
 // ══════════════════════════════════════════════════════════
-// MethodPicker — اختيار وسيلة الإرسال/الاستلام
-// يعرض فقط ما فعّله الأدمن
+// MethodPicker
 // ══════════════════════════════════════════════════════════
 function MethodPicker({ wallets, cryptos, selectedType, selectedItem, onSelect }) {
   const [open, setOpen] = useState(false)
@@ -343,12 +367,10 @@ function MethodPicker({ wallets, cryptos, selectedType, selectedItem, onSelect }
 
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        style={pickerBtn}
-      >
+      <button onClick={() => setOpen(v => !v)} style={pickerBtn}>
         <span style={{ fontSize: 13, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}>
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
@@ -357,21 +379,12 @@ function MethodPicker({ wallets, cryptos, selectedType, selectedItem, onSelect }
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
           <div style={pickerDropdown}>
-
-            {/* المحافظ الإلكترونية */}
             {wallets.length > 0 && (
               <>
                 <div style={pickerGroupLabel}>📱 محافظ إلكترونية</div>
                 {wallets.map(w => (
-                  <button
-                    key={w.id}
-                    style={{
-                      ...pickerItem,
-                      background: selectedType === 'wallet' && selectedItem?.id === w.id
-                        ? 'var(--cyan-dim)' : 'transparent',
-                    }}
-                    onClick={() => { onSelect('wallet', w); setOpen(false) }}
-                  >
+                  <button key={w.id} style={{ ...pickerItem, background: selectedType === 'wallet' && selectedItem?.id === w.id ? 'var(--cyan-dim)' : 'transparent' }}
+                    onClick={() => { onSelect('wallet', w); setOpen(false) }}>
                     <span style={{ fontSize: 16 }}>{w.icon}</span>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>{w.name}</div>
@@ -381,21 +394,12 @@ function MethodPicker({ wallets, cryptos, selectedType, selectedItem, onSelect }
                 ))}
               </>
             )}
-
-            {/* العملات الرقمية */}
             {cryptos.length > 0 && (
               <>
                 <div style={{ ...pickerGroupLabel, marginTop: wallets.length ? 8 : 0 }}>🔗 عملات رقمية</div>
                 {cryptos.map(c => (
-                  <button
-                    key={c.id}
-                    style={{
-                      ...pickerItem,
-                      background: selectedType === 'crypto' && selectedItem?.id === c.id
-                        ? 'var(--cyan-dim)' : 'transparent',
-                    }}
-                    onClick={() => { onSelect('crypto', c); setOpen(false) }}
-                  >
+                  <button key={c.id} style={{ ...pickerItem, background: selectedType === 'crypto' && selectedItem?.id === c.id ? 'var(--cyan-dim)' : 'transparent' }}
+                    onClick={() => { onSelect('crypto', c); setOpen(false) }}>
                     <span style={{ fontSize: 16, color: c.color, fontWeight: 800 }}>{c.icon}</span>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>{c.label}</div>
@@ -405,7 +409,6 @@ function MethodPicker({ wallets, cryptos, selectedType, selectedItem, onSelect }
                 ))}
               </>
             )}
-
           </div>
         </>
       )}
@@ -413,8 +416,7 @@ function MethodPicker({ wallets, cryptos, selectedType, selectedItem, onSelect }
   )
 }
 
-// ── Sub-components ─────────────────────────────────────────
-
+// ── Sub-components ──────────────────────────────────────
 function Field({ label, children }) {
   return (
     <div style={{ marginBottom: 12 }}>
@@ -425,11 +427,9 @@ function Field({ label, children }) {
     </div>
   )
 }
-
 function Hint({ text }) {
   return <div style={{ marginTop: 5, fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>{text}</div>
 }
-
 function CheckRow({ id, checked, onChange, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 8 }}>
@@ -441,7 +441,6 @@ function CheckRow({ id, checked, onChange, children }) {
     </div>
   )
 }
-
 function LiveBadge() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'JetBrains Mono',monospace", fontSize: '0.66rem', color: 'var(--green)', background: 'rgba(0,229,160,0.07)', border: '1px solid rgba(0,229,160,0.14)', padding: '2px 8px', borderRadius: 20 }}>
@@ -451,35 +450,25 @@ function LiveBadge() {
   )
 }
 
-// ── Styles ─────────────────────────────────────────────────
+// ── Styles ──────────────────────────────────────────────
 const focusOn  = e => { e.target.style.borderColor = 'var(--border-2)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,210,255,0.05)' }
 const focusOff = e => { e.target.style.borderColor = 'var(--border-1)'; e.target.style.boxShadow = 'none' }
-
 const card = { background: 'var(--card)', border: '1px solid var(--border-1)', borderRadius: 20, backdropFilter: 'blur(16px)' }
-
 const cardHeader = { padding: '17px 22px', borderBottom: '1px solid var(--border-1)', display: 'flex', alignItems: 'center', gap: 11 }
 const cardHeaderIcon = { width: 33, height: 33, borderRadius: 9, background: 'var(--cyan-dim)', border: '1px solid rgba(0,210,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }
-
 const amountBox = { background: 'rgba(0,210,255,0.03)', border: '1px solid var(--border-1)', borderRadius: 14, padding: 15, marginBottom: 4 }
 const boxLabel  = { display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 10 }
 const amountInput = { flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: "'JetBrains Mono',monospace", fontSize: '1.55rem', fontWeight: 700, color: 'var(--text-1)', direction: 'ltr', minWidth: 0 }
-
 const rateBar = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(200,168,75,0.05)', border: '1px dashed rgba(200,168,75,0.2)', borderRadius: 9, padding: '9px 13px', marginBottom: 18 }
-
 const inp = { width: '100%', padding: '10px 13px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-1)', borderRadius: 9, color: 'var(--text-1)', fontFamily: "'Tajawal',sans-serif", fontSize: '0.88rem', outline: 'none', textAlign: 'right', transition: 'border-color 0.22s, box-shadow 0.22s', boxSizing: 'border-box' }
-
 const infoBanner = { marginBottom: 12, background: 'rgba(0,210,255,0.03)', border: '1px solid var(--border-1)', borderRadius: 9, padding: '10px 13px' }
 const errorBanner = { marginBottom: 12, padding: '10px 14px', borderRadius: 9, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', fontSize: '0.8rem', fontFamily: "'JetBrains Mono',monospace" }
-
 const submitBtn = { width: '100%', padding: 13, marginTop: 13, background: 'linear-gradient(135deg,#009fc0,#006e9e)', border: 'none', borderRadius: 12, fontFamily: "'Tajawal',sans-serif", fontSize: '1.02rem', fontWeight: 800, color: '#fff', cursor: 'pointer', transition: 'all 0.3s', boxShadow: '0 4px 22px rgba(0,159,192,0.22)' }
-
 const swapArrow = { width: 44, height: 44, borderRadius: 12, background: 'rgba(0,210,255,0.07)', border: '1px solid var(--border-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--cyan)', fontSize: 18 }
-
 const pickerBtn = { display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--border-1)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-1)', cursor: 'pointer', fontFamily: "'Tajawal',sans-serif", fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap', transition: 'all 0.2s', minWidth: 130 }
 const pickerDropdown = { position: 'absolute', left: 0, top: 'calc(100% + 6px)', minWidth: 220, zIndex: 50, background: 'var(--card)', border: '1px solid var(--border-2)', borderRadius: 14, overflow: 'hidden', boxShadow: '0 16px 48px rgba(0,0,0,0.45)', padding: '8px 0' }
 const pickerGroupLabel = { padding: '6px 14px', fontSize: '0.65rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", letterSpacing: 1, fontWeight: 700 }
 const pickerItem = { width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', border: 'none', cursor: 'pointer', textAlign: 'right', fontFamily: "'Tajawal',sans-serif", transition: 'background 0.15s' }
-
 const spinner = { width: 28, height: 28, borderRadius: '50%', border: '3px solid var(--border-1)', borderTop: '3px solid var(--cyan)', animation: 'spin 0.8s linear infinite', margin: '0 auto' }
 
 export default ExchangeForm
