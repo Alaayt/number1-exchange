@@ -86,6 +86,13 @@ app.post('/api/telegram/webhook', async (req, res) => {
   }
 });
 
+// 🧪 اختبار تليغرام مؤقت — احذفه بعد الاختبار
+app.get('/api/test-telegram', async (req, res) => {
+  const telegramService = require('./services/telegram')
+  const result = await telegramService.sendMessage('🧪 اختبار مباشر من السيرفر')
+  res.json(result)
+})
+
 app.use('/api/admin',  require('./routes/admin'));
 
 // ─── Health Check ─────────────────────────────
@@ -115,9 +122,3 @@ app.listen(PORT, () => {
   console.log(`🚀 Number1 Server running on port ${PORT}`);
 });
 
-// 🧪 اختبار تليغرام مؤقت — احذفه بعد الاختبار
-app.get('/api/test-telegram', async (req, res) => {
-  const telegramService = require('./services/telegram')
-  const result = await telegramService.sendMessage('🧪 اختبار مباشر من السيرفر')
-  res.json(result)
-})
