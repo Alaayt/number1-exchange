@@ -258,6 +258,64 @@ router.get('/rates', async (req, res) => {
 
 // ─── PUT /api/admin/rates ─────────────────────
 // تحديث الأسعار
+
+router.put('/settings', async (req, res) => {
+  try {
+    const allowed = [
+      // عام
+      'platformName', 'platformActive', 'maintenanceMode',
+      'platformNameAr', 'platformNameEn', 'platformUrl',
+      'platformEnabled', 'registrationEnabled',
+      'supportEmail', 'supportTelegram',
+
+      // بيانات التواصل
+      'contactTelegram', 'contactWhatsapp',
+      'contactEmail', 'contactWebsite',
+
+      // إشعارات
+      'telegramNotifications', 'emailNotifications',
+      'telegramBotToken', 'telegramChatId',
+
+      // SMTP
+      'smtpHost', 'smtpPort', 'smtpEmail', 'smtpPassword',
+
+      // الطلبات
+      'minOrderUsdt', 'maxOrderUsdt', 'orderExpiryMins',
+      'minOrderUsd', 'maxOrderUsd', 'orderExpiryMinutes',
+      'usdtOrdersEnabled', 'walletOrdersEnabled',
+      'bankTransferEnabled', 'maxDailyOrdersUser',
+
+      // API
+      'moneygoApiKey', 'moneygoApiUrl', 'cryptoApiKey',
+      'webhookUrl', 'environment',
+
+      // أمان
+      'jwtRefreshEnabled', 'twoFactorAdmin', 'auditLogEnabled',
+      'sessionExpireHours', 'maxLoginAttempts',
+      'ipBanMinutes', 'maxConcurrentSessions',
+    ]
+
+    const updates = {}
+    allowed.forEach(key => {
+      if (req.body[key] !== undefined) {
+        if (req.body[key] === '••••••••') return
+        updates[key] = req.body[key]
+      }
+    })
+
+    const settings = await Setting.findOneAndUpdate(
+      {},
+      { $set: updates },
+      { new: true, upsert: true }
+    )
+
+    res.json({ success: true, message: 'Settings saved.', ...settings.toObject() })
+  } catch (error) {
+    console.error('Settings save error:', error)
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+
 router.put('/rates', async (req, res) => {
   try {
     const allowed = [
