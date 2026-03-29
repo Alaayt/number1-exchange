@@ -59,7 +59,7 @@ router.post('/register', async (req, res) => {
       emailVerificationToken: verificationToken,
       emailVerificationExpires: verificationExpires,
       // في البيئة التطويرية، نتجاوز التحقق مؤقتاً
-      isVerified: process.env.NODE_ENV === 'development' ? true : false
+isVerified: true
     });
 
     const token = generateToken(user._id);

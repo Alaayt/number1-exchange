@@ -985,15 +985,16 @@ function ExchangeForm() {
     if(!recipientId){alert(lang==="ar"?`يرجى إدخال ${recipientLabel}`:`Please enter ${recipientLabel}`);return}
     if(!aml||!tos){alert(lang==="ar"?"يرجى الموافقة على الشروط":"Please agree to the terms");return}
     if(parseFloat(sendAmount)<10){alert(lang==="ar"?"الحد الأدنى 10 وحدة":"Minimum is 10 units");return}
-    setOrderData({
+setOrderData({
   sendMethod,
-  receiveMethod, 
+  receiveMethod,
   sendAmount,
   receiveAmount,
-  email,       
-  userPhone,    
+  email,
+  userPhone,
   recipientId,
 })
+setModalOpen(true)
   }
 
   // ── sec-label helper ──
