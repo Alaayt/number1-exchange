@@ -463,4 +463,121 @@ router.patch('/users/:id/block', async (req, res) => {
   }
 });
 
+// ============================================
+// Wallet Admin Routes — أضفها في routes/admin.js
+// ============================================
+const Wallet      = require('../models/Wallet')
+const Transaction = require('../models/Transaction')
+
+// ─── GET /api/admin/wallets ───────────────────
+// كل المحافظ
+router.get('/wallets', async (req, res) => {
+  try {
+    const wallets = await Wallet.find()
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 })
+
+    res.json({ success: true, wallets })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+
+// ─── GET /api/admin/wallets/:userId ───────────
+// محفظة مستخدم محدد
+router.get('/wallets/:userId', async (req, res) => {
+  try {
+    let wallet = await Wallet.findOne({ user: req.params.userId })
+      .populate('user', 'name email')
+
+    // إنشاء محفظة إذا ما عندهش
+    if (!wallet) {
+      wallet = await Wallet.create({ user: req.params.userId })
+      await wallet.populate('user', 'name email')
+    }
+
+    const transactions = await Transaction.find({ user: req.params.userId })
+      .sort({ createdAt: -1 })
+      .limit(20)
+
+    res.json({ success: true, wallet, transactions })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+
+// ─── POST /api/admin/wallets/:userId/deposit ──
+// الأدمن يضيف رصيد لمستخدم
+router.post('/wallets/:userId/deposit', async (req, res) => {
+  try {
+    const { amount, note } = req.body
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid amount.' })
+    }
+
+    // جلب أو إنشاء المحفظة
+    let wallet = await Wallet.findOne({ user: req.params.userId })
+    if (!wallet) {
+      wallet = await Wallet.create({ user: req.params.userId })
+    }
+
+    if (!wallet.isActive) {
+      return res.status(400).json({ success: false, message: 'Wallet is inactive.' })
+    }
+
+    const balanceBefore = wallet.balance
+
+    // إضافة الرصيد
+    wallet.balance        += parseFloat(amount)
+    wallet.totalDeposited += parseFloat(amount)
+    await wallet.save()
+
+    // تسجيل المعاملة
+    const transaction = await Transaction.create({
+      user:          req.params.userId,
+      wallet:        wallet._id,
+      type:          'deposit',
+      amount:        parseFloat(amount),
+      balanceBefore,
+      balanceAfter:  wallet.balance,
+      status:        'completed',
+      performedBy:   `admin:${req.user.email}`,
+      note:          note || 'Admin deposit'
+    })
+
+    res.json({
+      success: true,
+      message: `تم إيداع ${amount} USDT بنجاح.`,
+      balance: wallet.balance,
+      transaction
+    })
+
+  } catch (error) {
+    console.error('Admin deposit error:', error)
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+
+// ─── PATCH /api/admin/wallets/:userId/toggle ──
+// تفعيل/تعطيل المحفظة
+router.patch('/wallets/:userId/toggle', async (req, res) => {
+  try {
+    const wallet = await Wallet.findOne({ user: req.params.userId })
+    if (!wallet) {
+      return res.status(404).json({ success: false, message: 'Wallet not found.' })
+    }
+
+    wallet.isActive = !wallet.isActive
+    await wallet.save()
+
+    res.json({
+      success:  true,
+      message:  wallet.isActive ? 'Wallet activated.' : 'Wallet deactivated.',
+      isActive: wallet.isActive
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
 module.exports = router;

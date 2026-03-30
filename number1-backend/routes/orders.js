@@ -5,9 +5,7 @@
 const express        = require('express')
 const router         = express.Router()
 const Order          = require('../models/Order')
-const { protect }    = require('../middleware/auth')
-const telegramService = require('../services/telegram')
-const trongridService = require('../services/trongrid')
+const { protect, optionalProtect } = require('../middleware/auth')
 const { upload }     = require('../services/cloudinary')  // ← مرة واحدة فقط
 
 // ══════════════════════════════════════════════
@@ -111,7 +109,7 @@ router.get('/my', protect, async (req, res) => {
 
 // ─── POST /api/orders ─────────────────────────
 // إنشاء طلب جديد
-router.post('/', async (req, res) => {
+router.post('/', optionalProtect, async (req, res) => {
   try {
     const {
       customerName,

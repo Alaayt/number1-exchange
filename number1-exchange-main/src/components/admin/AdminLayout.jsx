@@ -32,6 +32,9 @@ const NAV = [
       </svg>
     ),
   },
+  { path: '/admin/wallets',
+    label: 'المحافظ',
+    icon: '💰' },
   {
     path:  '/admin/rates',
     label: 'Rates',

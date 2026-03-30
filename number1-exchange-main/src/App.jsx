@@ -16,6 +16,9 @@ import FAQ        from './pages/FAQ'
 import About      from './pages/About'
 import OrderTrack from './pages/OrderTrack'
 import NotFound   from './pages/NotFound'
+import MyOrders from './pages/MyOrders'
+import WalletPage    from './pages/Wallet'
+import AdminWallets  from './pages/admin/AdminWallets'
 
 import AdminDashboard      from './pages/admin/AdminDashboard'
 import AdminOrders         from './pages/admin/AdminOrders'
@@ -125,6 +128,7 @@ function App() {
         <Route path="/admin/payment-methods" element={<AdminRoute><AdminPaymentMethods /></AdminRoute>} />
         <Route path="/admin/users"           element={<AdminRoute><AdminUsers          /></AdminRoute>} />
         <Route path="/admin/settings"        element={<AdminRoute><AdminSettings       /></AdminRoute>} />
+        <Route path="/admin/wallets" element={<AdminRoute><AdminWallets /></AdminRoute>} />
       </Routes>
     )
   }
@@ -138,6 +142,7 @@ function App() {
       <main style={{ flex: 1 }}>
         <Routes>
           <Route path="/"             element={<Home onOpenAuth={openAuth} />} />
+          <Route path="/wallet" element={<WalletPage />} />
           <Route path="/rates"        element={<Rates />}      />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/reviews"      element={<Reviews />}    />
@@ -150,6 +155,7 @@ function App() {
           <Route path="/aml"          element={<AML />}        />
           <Route path="/cookies"      element={<Cookies />}    />
           <Route path="*"             element={<NotFound />}   />
+          <Route path="/my-orders" element={<MyOrders />} />
         </Routes>
       </main>
       <Footer />

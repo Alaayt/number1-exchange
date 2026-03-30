@@ -74,3 +74,31 @@ export const adminAPI = {
   getPaymentMethods:  ()     => request('/admin/payment-methods'),
   savePaymentMethods: (body) => request('/admin/payment-methods', { method: 'PUT', body: JSON.stringify(body) }),
 }
+
+// ─── Wallet ───────────────────────────────────────────────
+export const walletAPI = {
+  // جلب الرصيد + آخر المعاملات
+  getWallet: () =>
+    request('/wallet'),
+
+  // كل المعاملات
+  getTransactions: (params = {}) =>
+    request(`/wallet/transactions?${new URLSearchParams(params)}`),
+
+  // طلب سحب
+  withdraw: (body) =>
+    request('/wallet/withdraw', { method: 'POST', body: JSON.stringify(body) }),
+
+  // ── Admin ────────────────────────────────────
+  getAllWallets: () =>
+    request('/admin/wallets'),
+
+  getUserWallet: (userId) =>
+    request(`/admin/wallets/${userId}`),
+
+  adminDeposit: (userId, body) =>
+    request(`/admin/wallets/${userId}/deposit`, { method: 'POST', body: JSON.stringify(body) }),
+
+  toggleWallet: (userId) =>
+    request(`/admin/wallets/${userId}/toggle`, { method: 'PATCH' }),
+}

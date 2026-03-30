@@ -123,6 +123,7 @@ userSchema.methods.toSafeObject = function() {
     phone: this.phone,
     role: this.role,
     isVerified: this.isVerified,
+    isActive: this.isActive,
     totalOrders: this.totalOrders,
     createdAt: this.createdAt
   };

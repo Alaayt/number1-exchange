@@ -9,6 +9,9 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
+const walletRoutes = require('./routes/wallet')
+app.use('/api/wallet', walletRoutes)
+
 const app = express();
 
 // ✅ FIX: Railway يستخدم proxy — لازم نخبر Express يثق فيه
