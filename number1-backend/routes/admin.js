@@ -432,4 +432,35 @@ router.put('/payment-methods', async (req, res) => {
 // ─── GET /api/payment-methods (public) ────────
 // للمستخدمين — يجلب الوسائل المفعّلة فقط
 
+// ─── PATCH /api/admin/users/:id/block ────────
+// حظر أو رفع حظر مستخدم
+router.patch('/users/:id/block', async (req, res) => {
+  try {
+    const { isBlocked } = req.body;
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    // لا تحظر الأدمن
+    if (user.role === 'admin') {
+      return res.status(400).json({ success: false, message: 'Cannot block admin users.' });
+    }
+
+    user.isActive = !isBlocked; // isBlocked=true → isActive=false
+    await user.save({ validateBeforeSave: false });
+
+    res.json({
+      success: true,
+      message: isBlocked ? 'User blocked.' : 'User unblocked.',
+      user: user.toSafeObject()
+    });
+
+  } catch (error) {
+    console.error('Block user error:', error);
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
 module.exports = router;

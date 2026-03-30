@@ -1,8 +1,4 @@
 // src/pages/admin/AdminUsers.jsx
-// =============================================
-// Admin Users - View, search, block/unblock users
-// =============================================
-
 import { useEffect, useState, useCallback } from "react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import {
@@ -13,13 +9,13 @@ import {
 const API = import.meta.env.VITE_API_URL;
 
 export default function AdminUsers() {
-  const [users,      setUsers]      = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [search,     setSearch]     = useState("");
-  const [filter,     setFilter]     = useState("");   // "" | "active" | "blocked" | "admin"
-  const [page,       setPage]       = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [selected,   setSelected]   = useState(null);
+  const [users,         setUsers]         = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [search,        setSearch]        = useState("");
+  const [filter,        setFilter]        = useState("");
+  const [page,          setPage]          = useState(1);
+  const [totalPages,    setTotalPages]    = useState(1);
+  const [selected,      setSelected]      = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const LIMIT = 20;
@@ -27,7 +23,8 @@ export default function AdminUsers() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const token  = localStorage.getItem("token");
+      // ✅ إصلاح 1: n1_token بدل token
+      const token  = localStorage.getItem("n1_token");
       const params = new URLSearchParams({
         page,
         limit: LIMIT,
@@ -49,11 +46,11 @@ export default function AdminUsers() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  // ── Toggle block status ───────────────────────────
   const toggleBlock = async (userId, isBlocked) => {
     setActionLoading(true);
     try {
-      const token = localStorage.getItem("token");
+      // ✅ إصلاح 1: n1_token
+      const token = localStorage.getItem("n1_token");
       await fetch(`${API}/api/admin/users/${userId}/block`, {
         method: "PATCH",
         headers: {
@@ -74,15 +71,14 @@ export default function AdminUsers() {
   };
 
   const FILTER_TABS = [
-    { value: "",        label: "الكل"      },
-    { value: "active",  label: "نشطون"     },
-    { value: "blocked", label: "محظورون"   },
-    { value: "admin",   label: "مشرفون"    },
+    { value: "",        label: "الكل"    },
+    { value: "active",  label: "نشطون"   },
+    { value: "blocked", label: "محظورون" },
+    { value: "admin",   label: "مشرفون"  },
   ];
 
   return (
     <AdminLayout>
-      {/* Header */}
       <div style={styles.pageHeader}>
         <h2 style={styles.pageTitle}>إدارة المستخدمين</h2>
         <button style={styles.refreshBtn} onClick={fetchUsers}>
@@ -90,7 +86,6 @@ export default function AdminUsers() {
         </button>
       </div>
 
-      {/* Tabs */}
       <div style={styles.tabs}>
         {FILTER_TABS.map((t) => (
           <button
@@ -103,7 +98,6 @@ export default function AdminUsers() {
         ))}
       </div>
 
-      {/* Search */}
       <div style={styles.searchRow}>
         <div style={styles.searchBox}>
           <Search size={15} style={{ color: "#6e7681" }} />
@@ -116,7 +110,6 @@ export default function AdminUsers() {
         </div>
       </div>
 
-      {/* Table */}
       <div style={styles.card}>
         {loading ? (
           <div style={styles.loading}>جاري التحميل...</div>
@@ -135,55 +128,58 @@ export default function AdminUsers() {
                   <td colSpan={7} style={styles.empty}>لا يوجد مستخدمون</td>
                 </tr>
               ) : (
-                users.map((user) => (
-                  <tr key={user._id} style={styles.tr}>
-                    <td style={styles.td}>
-                      <div style={styles.userCell}>
-                        <div style={styles.avatar}>{(user.name || "U")[0].toUpperCase()}</div>
-                        <span>{user.name || "—"}</span>
-                      </div>
-                    </td>
-                    <td style={styles.td}>{user.email}</td>
-                    <td style={styles.td}>
-                      {new Date(user.createdAt).toLocaleDateString("ar-EG")}
-                    </td>
-                    <td style={styles.td}>
-                      <span style={styles.orderCount}>{user.orderCount ?? 0}</span>
-                    </td>
-                    <td style={styles.td}>
-                      {user.role === "admin" ? (
-                        <span style={styles.adminBadge}><Shield size={12} /> مشرف</span>
-                      ) : (
-                        <span style={styles.userBadge}>مستخدم</span>
-                      )}
-                    </td>
-                    <td style={styles.td}>
-                      <span style={user.isBlocked ? styles.blockedBadge : styles.activeBadge}>
-                        {user.isBlocked ? "محظور" : "نشط"}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <button style={styles.viewBtn} onClick={() => setSelected(user)} title="عرض">
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          style={user.isBlocked ? styles.unblockBtn : styles.blockBtn}
-                          onClick={() => toggleBlock(user._id, user.isBlocked)}
-                          title={user.isBlocked ? "رفع الحظر" : "حظر"}
-                        >
-                          {user.isBlocked ? <UserCheck size={14} /> : <UserX size={14} />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                users.map((user) => {
+                  // ✅ إصلاح 2: الموديل يستخدم isActive مش isBlocked
+                  const isBlocked = !user.isActive;
+                  return (
+                    <tr key={user._id} style={styles.tr}>
+                      <td style={styles.td}>
+                        <div style={styles.userCell}>
+                          <div style={styles.avatar}>{(user.name || "U")[0].toUpperCase()}</div>
+                          <span>{user.name || "—"}</span>
+                        </div>
+                      </td>
+                      <td style={styles.td}>{user.email}</td>
+                      <td style={styles.td}>
+                        {new Date(user.createdAt).toLocaleDateString("ar-EG")}
+                      </td>
+                      <td style={styles.td}>
+                        <span style={styles.orderCount}>{user.totalOrders ?? 0}</span>
+                      </td>
+                      <td style={styles.td}>
+                        {user.role === "admin" ? (
+                          <span style={styles.adminBadge}><Shield size={12} /> مشرف</span>
+                        ) : (
+                          <span style={styles.userBadge}>مستخدم</span>
+                        )}
+                      </td>
+                      <td style={styles.td}>
+                        <span style={isBlocked ? styles.blockedBadge : styles.activeBadge}>
+                          {isBlocked ? "محظور" : "نشط"}
+                        </span>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button style={styles.viewBtn} onClick={() => setSelected({ ...user, isBlocked })} title="عرض">
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            style={isBlocked ? styles.unblockBtn : styles.blockBtn}
+                            onClick={() => toggleBlock(user._id, isBlocked)}
+                            title={isBlocked ? "رفع الحظر" : "حظر"}
+                          >
+                            {isBlocked ? <UserCheck size={14} /> : <UserX size={14} />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div style={styles.pagination}>
             <button style={styles.pageBtn} disabled={page === 1} onClick={() => setPage(p => p - 1)}>
@@ -197,7 +193,6 @@ export default function AdminUsers() {
         )}
       </div>
 
-      {/* User Detail Modal */}
       {selected && (
         <UserDetailModal
           user={selected}
@@ -210,16 +205,15 @@ export default function AdminUsers() {
   );
 }
 
-// ── UserDetailModal ────────────────────────────────────
 function UserDetailModal({ user, onClose, onToggleBlock, loading }) {
   const rows = [
-    ["الاسم",           user.name     || "—"],
-    ["الإيميل",         user.email    || "—"],
-    ["رقم الهاتف",      user.phone    || "—"],
-    ["تاريخ التسجيل",   new Date(user.createdAt).toLocaleString("ar-EG")],
-    ["إجمالي الطلبات",  user.orderCount ?? 0],
-    ["الدور",           user.role     || "user"],
-    ["الحالة",          user.isBlocked ? "محظور" : "نشط"],
+    ["الاسم",          user.name  || "—"],
+    ["الإيميل",        user.email || "—"],
+    ["رقم الهاتف",     user.phone || "—"],
+    ["تاريخ التسجيل",  new Date(user.createdAt).toLocaleString("ar-EG")],
+    ["إجمالي الطلبات", user.totalOrders ?? 0],
+    ["الدور",          user.role  || "user"],
+    ["الحالة",         user.isBlocked ? "محظور" : "نشط"],
   ];
 
   return (
@@ -227,16 +221,13 @@ function UserDetailModal({ user, onClose, onToggleBlock, loading }) {
       <div style={modal.box} onClick={(e) => e.stopPropagation()}>
         <div style={modal.header}>
           <span style={modal.title}>تفاصيل المستخدم</span>
-          <button style={modal.closeBtn} onClick={onClose}><svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.5' strokeLinecap='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button>
+          <button style={modal.closeBtn} onClick={onClose}>✕</button>
         </div>
-
-        {/* Avatar */}
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <div style={modal.bigAvatar}>{(user.name || "U")[0].toUpperCase()}</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#e6edf3", marginTop: 8 }}>{user.name}</div>
           <div style={{ fontSize: 13, color: "#6e7681" }}>{user.email}</div>
         </div>
-
         <div style={modal.infoGrid}>
           {rows.map(([label, value]) => (
             <div key={label} style={modal.infoRow}>
@@ -245,19 +236,13 @@ function UserDetailModal({ user, onClose, onToggleBlock, loading }) {
             </div>
           ))}
         </div>
-
-        {/* Block / Unblock */}
         {user.role !== "admin" && (
           <button
             style={user.isBlocked ? modal.unblockBtn : modal.blockBtn}
             disabled={loading}
             onClick={() => onToggleBlock(user._id, user.isBlocked)}
           >
-            {user.isBlocked ? (
-              <><UserCheck size={16} /> رفع الحظر</>
-            ) : (
-              <><UserX size={16} /> حظر المستخدم</>
-            )}
+            {user.isBlocked ? <><UserCheck size={16} /> رفع الحظر</> : <><UserX size={16} /> حظر المستخدم</>}
           </button>
         )}
       </div>
@@ -265,45 +250,44 @@ function UserDetailModal({ user, onClose, onToggleBlock, loading }) {
   );
 }
 
-// ── Styles ─────────────────────────────────────────────
 const styles = {
-  pageHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  pageTitle:  { fontSize: 20, fontWeight: 700, color: "#e6edf3", margin: 0 },
-  refreshBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, border: "1px solid #21262d", borderRadius: 8, background: "#161b22", color: "#8b949e", cursor: "pointer" },
-  tabs:       { display: "flex", gap: 4, marginBottom: 16 },
-  tab:        { padding: "7px 16px", borderRadius: 8, border: "1px solid #21262d", background: "none", color: "#8b949e", cursor: "pointer", fontSize: 13 },
-  tabActive:  { background: "#1e3a5f", color: "#2563eb", borderColor: "#2563eb" },
-  searchRow:  { marginBottom: 16 },
-  searchBox:  { display: "flex", alignItems: "center", gap: 8, background: "#161b22", border: "1px solid #21262d", borderRadius: 8, padding: "8px 14px", maxWidth: 400 },
-  searchInput:{ background: "none", border: "none", outline: "none", color: "#e6edf3", fontSize: 14, flex: 1 },
-  card:       { backgroundColor: "#161b22", border: "1px solid #21262d", borderRadius: 12, overflow: "hidden" },
-  loading:    { padding: 40, textAlign: "center", color: "#6e7681" },
-  table:      { width: "100%", borderCollapse: "collapse" },
-  th:         { textAlign: "right", padding: "10px 14px", fontSize: 12, color: "#6e7681", borderBottom: "1px solid #21262d", fontWeight: 500 },
-  td:         { padding: "11px 14px", fontSize: 13, color: "#c9d1d9", borderBottom: "1px solid #161b22" },
-  tr:         {},
-  empty:      { padding: 40, textAlign: "center", color: "#6e7681" },
-  userCell:   { display: "flex", alignItems: "center", gap: 10 },
-  avatar:     { width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#2563eb,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 },
-  orderCount: { background: "#21262d", padding: "2px 10px", borderRadius: 10, fontSize: 12, fontWeight: 600 },
+  pageHeader:  { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  pageTitle:   { fontSize: 20, fontWeight: 700, color: "#e6edf3", margin: 0 },
+  refreshBtn:  { display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, border: "1px solid #21262d", borderRadius: 8, background: "#161b22", color: "#8b949e", cursor: "pointer" },
+  tabs:        { display: "flex", gap: 4, marginBottom: 16 },
+  tab:         { padding: "7px 16px", borderRadius: 8, border: "1px solid #21262d", background: "none", color: "#8b949e", cursor: "pointer", fontSize: 13 },
+  tabActive:   { background: "#1e3a5f", color: "#2563eb", borderColor: "#2563eb" },
+  searchRow:   { marginBottom: 16 },
+  searchBox:   { display: "flex", alignItems: "center", gap: 8, background: "#161b22", border: "1px solid #21262d", borderRadius: 8, padding: "8px 14px", maxWidth: 400 },
+  searchInput: { background: "none", border: "none", outline: "none", color: "#e6edf3", fontSize: 14, flex: 1 },
+  card:        { backgroundColor: "#161b22", border: "1px solid #21262d", borderRadius: 12, overflow: "hidden" },
+  loading:     { padding: 40, textAlign: "center", color: "#6e7681" },
+  table:       { width: "100%", borderCollapse: "collapse" },
+  th:          { textAlign: "right", padding: "10px 14px", fontSize: 12, color: "#6e7681", borderBottom: "1px solid #21262d", fontWeight: 500 },
+  td:          { padding: "11px 14px", fontSize: 13, color: "#c9d1d9", borderBottom: "1px solid #161b22" },
+  tr:          {},
+  empty:       { padding: 40, textAlign: "center", color: "#6e7681" },
+  userCell:    { display: "flex", alignItems: "center", gap: 10 },
+  avatar:      { width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#2563eb,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 },
+  orderCount:  { background: "#21262d", padding: "2px 10px", borderRadius: 10, fontSize: 12, fontWeight: 600 },
   adminBadge:  { display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#d97706", background: "#451a03", padding: "2px 8px", borderRadius: 10 },
   userBadge:   { fontSize: 11, color: "#6e7681", background: "#21262d", padding: "2px 8px", borderRadius: 10 },
   activeBadge: { fontSize: 11, color: "#059669", background: "#064e3b", padding: "2px 8px", borderRadius: 10, fontWeight: 600 },
   blockedBadge:{ fontSize: 11, color: "#f85149", background: "#3d0a0a", padding: "2px 8px", borderRadius: 10, fontWeight: 600 },
-  viewBtn:    { background: "#21262d", border: "none", color: "#8b949e", borderRadius: 6, padding: "5px 8px", cursor: "pointer", display: "flex", alignItems: "center" },
-  blockBtn:   { background: "#3d0a0a", border: "none", color: "#f85149", borderRadius: 6, padding: "5px 8px", cursor: "pointer", display: "flex", alignItems: "center" },
-  unblockBtn: { background: "#064e3b", border: "none", color: "#059669", borderRadius: 6, padding: "5px 8px", cursor: "pointer", display: "flex", alignItems: "center" },
-  pagination: { display: "flex", alignItems: "center", justifyContent: "center", gap: 16, padding: 16 },
-  pageBtn:    { background: "#21262d", border: "none", color: "#8b949e", borderRadius: 6, padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center" },
-  pageInfo:   { fontSize: 13, color: "#8b949e" },
+  viewBtn:     { background: "#21262d", border: "none", color: "#8b949e", borderRadius: 6, padding: "5px 8px", cursor: "pointer", display: "flex", alignItems: "center" },
+  blockBtn:    { background: "#3d0a0a", border: "none", color: "#f85149", borderRadius: 6, padding: "5px 8px", cursor: "pointer", display: "flex", alignItems: "center" },
+  unblockBtn:  { background: "#064e3b", border: "none", color: "#059669", borderRadius: 6, padding: "5px 8px", cursor: "pointer", display: "flex", alignItems: "center" },
+  pagination:  { display: "flex", alignItems: "center", justifyContent: "center", gap: 16, padding: 16 },
+  pageBtn:     { background: "#21262d", border: "none", color: "#8b949e", borderRadius: 6, padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center" },
+  pageInfo:    { fontSize: 13, color: "#8b949e" },
 };
 
 const modal = {
-  overlay: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 },
-  box:     { backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: 14, padding: 24, width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto" },
-  header:  { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  title:   { fontSize: 16, fontWeight: 700, color: "#e6edf3" },
-  closeBtn:{ background: "none", border: "none", color: "#6e7681", cursor: "pointer", fontSize: 18 },
+  overlay:   { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 },
+  box:       { backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: 14, padding: 24, width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto" },
+  header:    { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  title:     { fontSize: 16, fontWeight: 700, color: "#e6edf3" },
+  closeBtn:  { background: "none", border: "none", color: "#6e7681", cursor: "pointer", fontSize: 18 },
   bigAvatar: { width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg,#2563eb,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff", margin: "0 auto" },
   infoGrid:  { display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 },
   infoRow:   { display: "flex", justifyContent: "space-between", borderBottom: "1px solid #21262d", paddingBottom: 8 },
