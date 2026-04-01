@@ -3,8 +3,6 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import useLang from "../context/useLang"
 import { SEND_METHODS, RECEIVE_METHODS, EXCHANGE_RATES, TRANSFER_INFO } from "../data/currencies"
-import { useAuth } from '../context/AuthContext'   // أو المسار الصح عندك
-import AuthModal from '../components/common/AuthModal'
 import useAuth from '../context/useAuth'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
