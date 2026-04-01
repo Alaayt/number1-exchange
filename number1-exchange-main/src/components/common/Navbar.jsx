@@ -224,6 +224,31 @@ function UserMenu({ user, onLogout, isAr, onNavigate }) {
               </button>
             )}
 
+            {!isAdmin && (
+  <button
+    onClick={() => { onNavigate('/wallet'); setOpen(false) }}
+    style={{
+      width:'100%', padding:'10px 14px',
+      background:'transparent', border:'none',
+      textAlign: isAr ? 'right' : 'left',
+      fontFamily:"'Tajawal',sans-serif", fontSize:'0.85rem',
+      fontWeight:700, color:'var(--text-2)',
+      cursor:'pointer', transition:'all 0.18s',
+      display:'flex', alignItems:'center', gap:8,
+      borderBottom:'1px solid var(--border-1)',
+    }}
+    onMouseEnter={e => { e.currentTarget.style.background='var(--cyan-dim)'; e.currentTarget.style.color='var(--cyan)' }}
+    onMouseLeave={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--text-2)' }}
+  >
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M21 12V7H5a2 2 0 010-4h14v4"/>
+      <path d="M3 5v14a2 2 0 002 2h16v-5"/>
+      <path d="M18 12a2 2 0 000 4h4v-4z"/>
+    </svg>
+    {isAr ? 'محفظتي' : 'My Wallet'}
+  </button>
+)}
+
             {/* Logout */}
             <button
               onClick={() => { onLogout(); setOpen(false) }}
