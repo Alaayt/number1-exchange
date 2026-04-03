@@ -722,6 +722,24 @@ function ExchangeForm() {
   const [openPicker,setOpenPicker]=useState(null)
   const [swapping,setSwapping]=useState(false)
   const [adminMethods,setAdminMethods]=useState({cryptos:[],wallets:[]})
+  const [emailErr,setEmailErr]=useState('')
+  const [phoneErr,setPhoneErr]=useState('')
+  const [recipientErr,setRecipientErr]=useState('')
+
+  const validateEmail=v=>{
+    if(!v) return lang==='ar'?'البريد الإلكتروني مطلوب':'Email is required'
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return lang==='ar'?'صيغة البريد غير صحيحة':'Invalid email format'
+    return ''
+  }
+  const validatePhone=v=>{
+    if(!v) return lang==='ar'?'رقم الهاتف مطلوب':'Phone is required'
+    if(!/^\+?[0-9\s\-]{7,20}$/.test(v.trim())) return lang==='ar'?'رقم الهاتف غير صحيح (أرقام فقط)':'Invalid phone number'
+    return ''
+  }
+  const validateRecipient=v=>{
+    if(!v||v.trim().length<5) return lang==='ar'?'يجب إدخال 5 أحرف على الأقل':'At least 5 characters required'
+    return ''
+  }
   const closePicker=useCallback(()=>setOpenPicker(null),[])
 
   useEffect(()=>{
@@ -752,12 +770,13 @@ function ExchangeForm() {
   const recipientPh=receiveMethod.id==="mgo-recv"?"MGO-XXXXXXXXX":"T... — TRC20"
 
   const handleSubmit=()=>{
-    if(!email){alert(lang==="ar"?"يرجى إدخال البريد الإلكتروني":"Please enter your email");return}
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){alert(lang==="ar"?"البريد الإلكتروني غير صحيح":"Invalid email address");return}
-    if(isEgp&&!userPhone){alert(lang==="ar"?`يرجى إدخال رقم هاتفك على ${sendMethod.name}`:`Enter your ${sendMethod.name} phone number`);return}
-    if(!recipientId){alert(lang==="ar"?`يرجى إدخال ${recipientLabel}`:`Please enter ${recipientLabel}`);return}
-    if(!aml||!tos){alert(lang==="ar"?"يرجى الموافقة على الشروط":"Please agree to the terms");return}
-    if(parseFloat(sendAmount)<10){alert(lang==="ar"?"الحد الأدنى 10 وحدة":"Minimum is 10 units");return}
+    const eErr=validateEmail(email)
+    const pErr=isEgp?validatePhone(userPhone):''
+    const rErr=validateRecipient(recipientId)
+    setEmailErr(eErr); setPhoneErr(pErr); setRecipientErr(rErr)
+    if(eErr||pErr||rErr) return
+    if(!aml||!tos){alert(lang==="ar"?"يرجى الموافقة على الشروط والسياسات":"Please agree to the terms");return}
+    if(parseFloat(sendAmount)<10){alert(lang==="ar"?"الحد الأدنى للتحويل 10 وحدة":"Minimum transfer is 10 units");return}
     // إيجاد وسيلة الدفع من لوحة التحكم بالمطابقة عبر الـ id
     let sendItem = null
     if(sendMethod.type==='crypto'){
@@ -789,16 +808,26 @@ function ExchangeForm() {
             <label style={{display:"block",fontSize:"10.5px",fontWeight:700,textTransform:"uppercase",letterSpacing:".9px",color:"var(--text-3)",marginBottom:5}}>{t("ex_email")}</label>
             <div style={{position:"relative"}}>
               <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"var(--text-3)",display:"flex",alignItems:"center",pointerEvents:"none"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
-              <input className="ex-inp" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder={t("ex_email_ph")}/>
+              <input className="ex-inp" type="email" value={email}
+                onChange={e=>{setEmail(e.target.value);if(emailErr)setEmailErr(validateEmail(e.target.value))}}
+                onBlur={e=>setEmailErr(validateEmail(e.target.value))}
+                style={emailErr?{borderColor:'rgba(239,68,68,0.6)'}:{}}
+                placeholder={t("ex_email_ph")}/>
             </div>
+            {emailErr&&<div style={{marginTop:4,fontSize:'0.68rem',color:'#f87171',display:'flex',alignItems:'center',gap:4,fontFamily:"'JetBrains Mono',monospace"}}>⚠ {emailErr}</div>}
           </div>
           {isEgp&&(
             <div style={{marginBottom:11}}>
               <label style={{display:"block",fontSize:"10.5px",fontWeight:700,textTransform:"uppercase",letterSpacing:".9px",color:"var(--text-3)",marginBottom:5}}>{t("ex_phone_lbl")} ({sendMethod.name})</label>
               <div style={{position:"relative"}}>
                 <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"var(--text-3)",display:"flex",alignItems:"center",pointerEvents:"none"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 014.07 8.63 19.79 19.79 0 011.08 2a2 2 0 012-2.18h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 6.91a16 16 0 006 6l.22-.22a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg></span>
-                <input className="ex-inp ltr" type="tel" value={userPhone} onChange={e=>setUserPhone(e.target.value)} placeholder={t("ex_phone_ph")}/>
+                <input className="ex-inp ltr" type="tel" value={userPhone}
+                  onChange={e=>{setUserPhone(e.target.value);if(phoneErr)setPhoneErr(validatePhone(e.target.value))}}
+                  onBlur={e=>setPhoneErr(validatePhone(e.target.value))}
+                  style={phoneErr?{borderColor:'rgba(239,68,68,0.6)'}:{}}
+                  placeholder={t("ex_phone_ph")}/>
               </div>
+              {phoneErr&&<div style={{marginTop:4,fontSize:'0.68rem',color:'#f87171',display:'flex',alignItems:'center',gap:4,fontFamily:"'JetBrains Mono',monospace"}}>⚠ {phoneErr}</div>}
               <div style={{marginTop:5,fontSize:"0.68rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace"}}>{t("ex_phone_hint")}</div>
             </div>
           )}
@@ -812,8 +841,13 @@ function ExchangeForm() {
             <label style={{display:"block",fontSize:"10.5px",fontWeight:700,textTransform:"uppercase",letterSpacing:".9px",color:"var(--text-3)",marginBottom:5}}>{recipientLabel}</label>
             <div style={{position:"relative"}}>
               <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"var(--text-3)",display:"flex",alignItems:"center",pointerEvents:"none"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3h-8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/><circle cx="18" cy="14" r="1" fill="currentColor"/></svg></span>
-              <input className="ex-inp ltr" type="text" value={recipientId} onChange={e=>setRecipientId(e.target.value)} placeholder={recipientPh}/>
+              <input className="ex-inp ltr" type="text" value={recipientId}
+                onChange={e=>{setRecipientId(e.target.value);if(recipientErr)setRecipientErr(validateRecipient(e.target.value))}}
+                onBlur={e=>setRecipientErr(validateRecipient(e.target.value))}
+                style={recipientErr?{borderColor:'rgba(239,68,68,0.6)'}:{}}
+                placeholder={recipientPh}/>
             </div>
+            {recipientErr&&<div style={{marginTop:4,fontSize:'0.68rem',color:'#f87171',display:'flex',alignItems:'center',gap:4,fontFamily:"'JetBrains Mono',monospace"}}>⚠ {recipientErr}</div>}
           </div>
           <div className="ex-chk" style={{margin:"13px 0"}}>
             <label style={{display:"flex",alignItems:"flex-start",gap:9,fontSize:"0.75rem",color:"var(--text-2)",marginBottom:9,cursor:"pointer",lineHeight:1.55}}>
