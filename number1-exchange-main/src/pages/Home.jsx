@@ -11,11 +11,18 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 // ══ Currency Icon — صورة حقيقية مع fallback للدائرة الملونة ══
 function CurrencyIcon({ method, size = 26 }) {
   const [imgErr, setImgErr] = useState(false)
-  const showImg = method.img && !imgErr
+  const isWalletType = method.type === 'wallet'
+  const showImg = method.img && !imgErr && !isWalletType
   return (
     <div style={{ width:size, height:size, borderRadius:"50%", background: showImg?"#fff":method.color, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:size*0.38+"px", fontWeight:700, color:"#fff", flexShrink:0, overflow:"hidden", border: showImg?"1.5px solid rgba(0,0,0,0.08)":"none" }}>
       {showImg ? (
         <img src={method.img} alt={method.name} loading="lazy" onError={()=>setImgErr(true)} style={{ width:"78%", height:"78%", objectFit:"contain" }} />
+      ) : isWalletType ? (
+        <svg width={size*0.55} height={size*0.55} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+          <circle cx="17" cy="16" r="1.5" fill="#fff" stroke="none"/>
+        </svg>
       ) : (
         method.symbol
       )}
@@ -1002,7 +1009,7 @@ function ExchangeForm() {
               <div style={{marginTop:5,fontSize:"0.68rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace"}}>{t("ex_phone_hint")}</div>
             </div>
           )}
-          {!isEgp&&(
+          {!isEgp&&!isWalletSend&&(
             <div style={{marginBottom:11,background:"rgba(0,210,255,0.03)",border:"1px solid var(--border-1)",borderRadius:9,padding:"9px 13px"}}>
               <div style={{fontSize:"0.68rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace",marginBottom:3}}>{isUSDT?"USDT TRC20":"MoneyGo USD"}</div>
               <div style={{fontSize:"0.78rem",color:"var(--text-2)",lineHeight:1.6}}>{isUSDT?t("ex_note_usdt"):t("ex_note_mgo")}</div>
@@ -1151,7 +1158,7 @@ function FeaturesSection() {
     {icon:<svg width="26" height="26" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="fch" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#00d2ff"/><stop offset="100%" stopColor="#004466"/></linearGradient></defs><rect x="4" y="14" width="4" height="7" rx="1" fill="url(#fch)" opacity="0.7"/><rect x="10" y="8" width="4" height="13" rx="1" fill="url(#fch)" opacity="0.85"/><rect x="16" y="4" width="4" height="17" rx="1" fill="url(#fch)"/></svg>,titleAr:"أزواج متنوعة",titleEn:"Diverse Pairs",descAr:"أكثر من 50 زوج تبادل متاح بين العملات الرقمية والمحافظ الإلكترونية",descEn:"50+ trading pairs available between digital currencies and e-wallets"},
   ]
   return (
-    <div style={{marginTop:60,position:"relative",top:-14,display:"flex",flexDirection:"row",flexWrap:"wrap",justifyContent:"flex-end",alignItems:"flex-start",color:"rgba(232, 244, 255, 1)",textAlign:"right"}}>
+    <div style={{marginTop:60,position:"relative",top:-14,display:"flex",flexDirection:"row",flexWrap:"wrap",justifyContent:"flex-end",alignItems:"flex-start",color:"var(--text-1)",textAlign:"right"}}>
       <div style={{textAlign:"center",marginBottom:48,width:"100%"}}>
         <div style={{display:"inline-block",fontFamily:"'JetBrains Mono',monospace",fontSize:"0.68rem",letterSpacing:3,textTransform:"uppercase",color:"var(--cyan)",marginBottom:11,padding:"3px 11px",border:"1px solid rgba(0,210,255,0.14)",borderRadius:20,background:"rgba(0,210,255,0.04)"}}>{t("features_badge")}</div>
         <h2 style={{fontSize:"clamp(1.55rem,2.8vw,2.3rem)",fontWeight:900,marginBottom:9,direction:lang==="ar"?"rtl":"ltr"}}>{t("features_title")}</h2>
