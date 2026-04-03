@@ -353,8 +353,17 @@ function ConfirmModal({isOpen, onClose, orderData}) {
 
   if (!isOpen || !orderData) return null
 
-  const info = TRANSFER_INFO[orderData.sendMethod.id]
   const isEgp = orderData.sendMethod.type === "egp"
+  const adminItem = orderData.sendItem
+  const fallback  = TRANSFER_INFO[orderData.sendMethod.id] || {}
+  // قيم العرض: من لوحة التحكم أولاً، ثم الـ fallback المحلي
+  const info = {
+    value:   adminItem ? (isEgp ? adminItem.number  : adminItem.address) : fallback.value,
+    labelAr: adminItem ? (isEgp ? `رقم ${adminItem.name||orderData.sendMethod.name} للتحويل` : `عنوان ${adminItem.coin||'USDT'} (${adminItem.network||'TRC20'})`) : fallback.labelAr,
+    labelEn: adminItem ? (isEgp ? `${adminItem.name||orderData.sendMethod.name} Number` : `${adminItem.coin||'USDT'} Address (${adminItem.network||'TRC20'})`) : fallback.labelEn,
+    noteAr:  adminItem?.note || (adminItem?.accountName ? `حوّل باسم: ${adminItem.accountName}` : fallback.noteAr),
+    noteEn:  adminItem?.accountName ? `Transfer to: ${adminItem.accountName}` : fallback.noteEn,
+  }
 
   const handleCopy = () => {
     navigator.clipboard.writeText(info.value)
@@ -373,10 +382,6 @@ function ConfirmModal({isOpen, onClose, orderData}) {
 
   // الدالة الصحيحة — ترسل للـ API الحقيقي
   const handleSubmit = async () => {
-    if (!receipt) {
-      alert(lang === "ar" ? "يرجى رفع صورة الإيصال أولاً" : "Please upload receipt")
-      return
-    }
     setLoading(true)
     try {
       // 1 — رفع الصورة
@@ -560,11 +565,11 @@ function ConfirmModal({isOpen, onClose, orderData}) {
                 <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={handleFile} style={{display:"none"}}/>
               </div>
 
-              <button onClick={handleSubmit} disabled={loading||!receipt}
-                style={{width:"100%",padding:13,background:!receipt?"rgba(0,159,192,0.4)":"linear-gradient(135deg,#009fc0,#006e9e)",border:"none",borderRadius:12,fontFamily:"'Tajawal',sans-serif",fontSize:"1.02rem",fontWeight:800,color:"#fff",cursor:!receipt||loading?"not-allowed":"pointer",transition:"all 0.3s",boxShadow:receipt?"0 4px 22px rgba(0,159,192,0.22)":"none"}}
-                onMouseEnter={e=>{if(receipt&&!loading){e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(0,210,255,0.35)"}}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow=receipt?"0 4px 22px rgba(0,159,192,0.22)":"none"}}>
-                {loading?t("confirm_loading"):!receipt?t("confirm_no_receipt"):t("confirm_submit")}
+              <button onClick={handleSubmit} disabled={loading}
+                style={{width:"100%",padding:13,background:"linear-gradient(135deg,#009fc0,#006e9e)",border:"none",borderRadius:12,fontFamily:"'Tajawal',sans-serif",fontSize:"1.02rem",fontWeight:800,color:"#fff",cursor:loading?"not-allowed":"pointer",transition:"all 0.3s",boxShadow:"0 4px 22px rgba(0,159,192,0.22)",opacity:loading?0.7:1}}
+                onMouseEnter={e=>{if(!loading){e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(0,210,255,0.35)"}}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 4px 22px rgba(0,159,192,0.22)"}}>
+                {loading?t("confirm_btn_loading"):t("confirm_btn_ready")}
               </button>
             </>
           )}
@@ -716,8 +721,15 @@ function ExchangeForm() {
   const [orderData,setOrderData]=useState(null)
   const [openPicker,setOpenPicker]=useState(null)
   const [swapping,setSwapping]=useState(false)
+  const [adminMethods,setAdminMethods]=useState({cryptos:[],wallets:[]})
   const closePicker=useCallback(()=>setOpenPicker(null),[])
-  
+
+  useEffect(()=>{
+    fetch(`${API}/api/public/payment-methods`)
+      .then(r=>r.json())
+      .then(d=>{ if(d.success) setAdminMethods(d) })
+      .catch(()=>{})
+  },[])
 
   const isEgp=sendMethod.type==="egp"
   const isUSDT=sendMethod.id==="usdt-trc"
@@ -745,7 +757,15 @@ function ExchangeForm() {
     if(!recipientId){alert(lang==="ar"?`يرجى إدخال ${recipientLabel}`:`Please enter ${recipientLabel}`);return}
     if(!aml||!tos){alert(lang==="ar"?"يرجى الموافقة على الشروط":"Please agree to the terms");return}
     if(parseFloat(sendAmount)<10){alert(lang==="ar"?"الحد الأدنى 10 وحدة":"Minimum is 10 units");return}
-    setOrderData({ sendMethod, receiveMethod, sendAmount, receiveAmount, email, userPhone, recipientId })
+    // إيجاد وسيلة الدفع من لوحة التحكم
+    let sendItem = null
+    if(sendMethod.type==='crypto'){
+      sendItem = adminMethods.cryptos[0] || null
+    } else {
+      const n=sendMethod.name.toLowerCase()
+      sendItem = adminMethods.wallets.find(w=>(w.name||'').toLowerCase().includes(n.split(' ')[0])) || null
+    }
+    setOrderData({ sendMethod, receiveMethod, sendAmount, receiveAmount, email, userPhone, recipientId, sendItem })
     setModalOpen(true)
   }
 
