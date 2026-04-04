@@ -39,8 +39,8 @@ export default function AdminLayout({ children, title }) {
 
   const SidebarContent = ({ isMobile = false }) => (
     <>
-      {/* Logo */}
-      <div className="al-logo-wrap">
+      {/* Logo — on mobile includes the close (X) button */}
+      <div className="al-logo-wrap" style={isMobile ? { justifyContent: 'space-between' } : {}}>
         {(!collapsed || isMobile) ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
             <div className="al-logo-icon">N1</div>
@@ -51,6 +51,11 @@ export default function AdminLayout({ children, title }) {
           </div>
         ) : (
           <div className="al-logo-icon" style={{ margin: '0 auto' }}>N1</div>
+        )}
+        {isMobile && (
+          <button className="al-mobile-close" onClick={() => setMobileOpen(false)}>
+            <X size={16} />
+          </button>
         )}
       </div>
 
@@ -342,18 +347,6 @@ export default function AdminLayout({ children, title }) {
 
       {/* ── Mobile sidebar drawer ── */}
       <aside className={`al-mobile-sidebar${mobileOpen ? ' open' : ''}`}>
-        <div className="al-logo-wrap" style={{ justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-            <div className="al-logo-icon">N1</div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#f1f5f9' }}>Number 1</div>
-              <div style={{ fontSize: 9, color: '#3b5ea6', letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono',monospace" }}>ADMIN</div>
-            </div>
-          </div>
-          <button className="al-mobile-close" onClick={() => setMobileOpen(false)}>
-            <X size={16} />
-          </button>
-        </div>
         <SidebarContent isMobile />
       </aside>
 

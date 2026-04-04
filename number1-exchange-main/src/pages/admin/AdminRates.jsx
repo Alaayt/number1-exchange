@@ -196,7 +196,7 @@ function RateField({ label, desc, unit, value, color, onChange }) {
 
 // ── Styles ─────────────────────────────────────────────
 const styles = {
-  pageHeader:  { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 },
+  pageHeader:  { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 },
   pageTitle:   { fontSize: 20, fontWeight: 700, color: "#e6edf3", margin: 0 },
   pageSub:     { fontSize: 13, color: "#6e7681", marginTop: 4 },
   refreshBtn:  {

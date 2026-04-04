@@ -229,6 +229,7 @@ const s = {
   stickyBar: {
     position: 'sticky', top: 0, zIndex: 20,
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    flexWrap: 'wrap', gap: 10,
     background: '#0f172a', borderBottom: '1px solid #1e293b',
     padding: '12px 0', marginBottom: 20,
   },

@@ -604,7 +604,7 @@ const s = {
   center:  { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 80 },
   spinner: { width: 32, height: 32, borderRadius: '50%', border: '3px solid #1e293b', borderTop: '3px solid #3b82f6', animation: 'spin 0.8s linear infinite' },
 
-  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 },
   pageDesc:   { fontSize: 14, color: '#64748b', margin: '4px 0 10px' },
   statsRow:   { display: 'flex', gap: 10, flexWrap: 'wrap' },
 
@@ -626,7 +626,7 @@ const s = {
 
   sectionHeader: {
     display: 'flex', justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'center', flexWrap: 'wrap', gap: 10,
     margin: '28px 0 14px',
     padding: '0 0 14px',
     borderBottom: '1px solid #1e293b',
@@ -637,7 +637,7 @@ const s = {
 
   cardsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
     gap: 14,
   },
 
