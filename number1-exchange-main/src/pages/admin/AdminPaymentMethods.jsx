@@ -1,11 +1,4 @@
 // src/pages/admin/AdminPaymentMethods.jsx
-// =============================================
-// وسائل الدفع — نظام ديناميكي كامل
-// الأدمن يضيف / يحذف / يعدّل:
-//   1. شبكات Crypto (USDT TRC20, BNB, etc.)
-//   2. محافظ إلكترونية (Vodafone, InstaPay, etc.)
-// =============================================
-
 import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout'
 import { adminAPI } from '../../services/api'
@@ -23,7 +16,6 @@ const WALLET_SUGGESTIONS = [
   { name: 'MoneyGo',       icon: '💵', color: '#22d3ee', placeholder: 'رقم المستخدم' },
 ]
 
-// ── Default empty items ───────────────────────────────────
 const newCrypto = (sug = {}) => ({
   id:      uid(),
   coin:    sug.coin    || '',
@@ -47,26 +39,24 @@ const newWallet = (sug = {}) => ({
 
 // ═══════════════════════════════════════════════════════════
 export default function AdminPaymentMethods() {
-  const [cryptos,  setCryptos]  = useState([])
-  const [wallets,  setWallets]  = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [saving,   setSaving]   = useState(false)
-  const [saved,    setSaved]    = useState(false)
-  const [error,    setError]    = useState('')
+  const [cryptos,        setCryptos]        = useState([])
+  const [wallets,        setWallets]        = useState([])
+  const [loading,        setLoading]        = useState(true)
+  const [saving,         setSaving]         = useState(false)
+  const [saved,          setSaved]          = useState(false)
+  const [error,          setError]          = useState('')
   const [showCryptoMenu, setShowCryptoMenu] = useState(false)
   const [showWalletMenu, setShowWalletMenu] = useState(false)
 
   useEffect(() => { fetchData() }, [])
 
-  // ── Fetch ─────────────────────────────────────────────
   const fetchData = async () => {
     setLoading(true)
     try {
       const { data } = await adminAPI.getPaymentMethods()
-      setCryptos(data.cryptos  || [])
-      setWallets(data.wallets  || [])
+      setCryptos(data.cryptos || [])
+      setWallets(data.wallets || [])
     } catch {
-      // أول مرة — ابدأ فارغ
       setCryptos([])
       setWallets([])
     } finally {
@@ -74,7 +64,6 @@ export default function AdminPaymentMethods() {
     }
   }
 
-  // ── Save ──────────────────────────────────────────────
   const handleSave = async () => {
     setSaving(true)
     setError('')
@@ -89,139 +78,218 @@ export default function AdminPaymentMethods() {
     }
   }
 
-  // ── Crypto CRUD ───────────────────────────────────────
-  const addCrypto  = (sug)  => { setCryptos(p => [...p, newCrypto(sug)]); setShowCryptoMenu(false); setSaved(false) }
-  const editCrypto = (id, field, val) => setCryptos(p => p.map(c => c.id === id ? { ...c, [field]: val } : c))
-  const removeCrypto = (id) => setCryptos(p => p.filter(c => c.id !== id))
-  const toggleCrypto = (id) => editCrypto(id, 'enabled', !cryptos.find(c => c.id === id)?.enabled)
+  const addCrypto    = (sug)          => { setCryptos(p => [...p, newCrypto(sug)]); setShowCryptoMenu(false); setSaved(false) }
+  const editCrypto   = (id, f, v)     => setCryptos(p => p.map(c => c.id === id ? { ...c, [f]: v } : c))
+  const removeCrypto = (id)           => setCryptos(p => p.filter(c => c.id !== id))
+  const toggleCrypto = (id)           => editCrypto(id, 'enabled', !cryptos.find(c => c.id === id)?.enabled)
 
-  // ── Wallet CRUD ───────────────────────────────────────
-  const addWallet  = (sug)  => { setWallets(p => [...p, newWallet(sug)]); setShowWalletMenu(false); setSaved(false) }
-  const editWallet = (id, field, val) => setWallets(p => p.map(w => w.id === id ? { ...w, [field]: val } : w))
-  const removeWallet = (id) => setWallets(p => p.filter(w => w.id !== id))
-  const toggleWallet = (id) => editWallet(id, 'enabled', !wallets.find(w => w.id === id)?.enabled)
+  const addWallet    = (sug)          => { setWallets(p => [...p, newWallet(sug)]); setShowWalletMenu(false); setSaved(false) }
+  const editWallet   = (id, f, v)     => setWallets(p => p.map(w => w.id === id ? { ...w, [f]: v } : w))
+  const removeWallet = (id)           => setWallets(p => p.filter(w => w.id !== id))
+  const toggleWallet = (id)           => editWallet(id, 'enabled', !wallets.find(w => w.id === id)?.enabled)
 
-  // ── Stats ─────────────────────────────────────────────
   const activeCryptos = cryptos.filter(c => c.enabled && c.address).length
   const activeWallets = wallets.filter(w => w.enabled && w.number).length
 
   if (loading) return (
     <AdminLayout title="وسائل الدفع">
-      <div style={s.center}><div style={s.spinner} /><span style={{ color: '#64748b' }}>جاري التحميل...</span></div>
+      <div className="pm-center"><div className="pm-spinner" /><span style={{ color: '#64748b' }}>جاري التحميل...</span></div>
     </AdminLayout>
   )
 
   return (
     <AdminLayout title="وسائل الدفع">
 
-      {/* ── Page Header ─────────────────────────── */}
-      <div style={s.pageHeader}>
+      {/* ── Responsive CSS ── */}
+      <style>{`
+        @keyframes pm-spin { to { transform: rotate(360deg) } }
+
+        /* ── Page header ── */
+        .pm-page-header {
+          display: flex; justify-content: space-between; align-items: flex-start;
+          margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+        }
+        .pm-stats-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+        /* ── Section header ── */
+        .pm-section-header {
+          display: flex; justify-content: space-between; align-items: center;
+          flex-wrap: wrap; gap: 10px;
+          margin: 28px 0 16px; padding-bottom: 14px;
+          border-bottom: 1px solid #1e293b;
+        }
+        .pm-section-left { display: flex; align-items: center; gap: 12px; }
+
+        /* ── Cards grid ── */
+        .pm-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+          gap: 14px;
+        }
+
+        /* ── Card ── */
+        .pm-card {
+          border: 1px solid; border-radius: 16px;
+          overflow: hidden; transition: all 0.2s;
+          display: flex; flex-direction: column;
+        }
+
+        /* Card top bar (accent color line) */
+        .pm-card-bar { height: 3px; flex-shrink: 0; }
+
+        /* Card body padding */
+        .pm-card-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+        /* ── Card header row ── */
+        .pm-card-head {
+          display: flex; align-items: center; gap: 10px;
+        }
+        .pm-card-head-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .pm-card-head-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+        /* ── Fields ── */
+        .pm-fields { display: flex; flex-direction: column; gap: 10px; }
+
+        /* Coin/Network row — 2 cols on mobile, 3 with icon */
+        .pm-cn-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr 56px;
+          gap: 8px;
+        }
+
+        /* ── Loading / empty ── */
+        .pm-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 80px 20px; }
+        .pm-spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid #1e293b; border-top: 3px solid #3b82f6; animation: pm-spin 0.8s linear infinite; }
+        .pm-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 36px 20px; background: #1e293b; border: 1px dashed #334155; border-radius: 14px; }
+
+        /* ── Save button (full width on mobile) ── */
+        .pm-save-wrap { display: flex; justify-content: flex-end; margin-top: 28px; }
+
+        /* ── Suggest menu (dropdown) ── */
+        .pm-suggest-menu {
+          position: absolute; left: 0; top: calc(100% + 6px);
+          min-width: 220px; max-width: 90vw; z-index: 50;
+          background: #1e293b; border: 1px solid #334155;
+          border-radius: 12px; overflow: hidden;
+          box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+          max-height: 320px; overflow-y: auto;
+        }
+
+        /* ── Mobile overrides ── */
+        @media (max-width: 520px) {
+          .pm-cn-row { grid-template-columns: 1fr 1fr; }
+          .pm-cn-icon { display: none; }          /* hide icon field on very small */
+          .pm-card-body { padding: 14px 12px; }
+          .pm-save-wrap { justify-content: stretch; }
+          .pm-save-wrap button { width: 100%; justify-content: center; }
+          .pm-section-header { margin-top: 20px; }
+        }
+      `}</style>
+
+      {/* ── Page Header ── */}
+      <div className="pm-page-header">
         <div>
-          <p style={s.pageDesc}>تحكم كامل في وسائل الدفع المقبولة وأرقام الاستلام</p>
-          <div style={s.statsRow}>
-            <Chip icon="₮" label={`${activeCryptos} شبكة crypto نشطة`} color="#26a17b" />
-            <Chip icon="📱" label={`${activeWallets} محفظة نشطة`}      color="#3b82f6" />
+          <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 8px' }}>
+            تحكم في وسائل الدفع المقبولة وأرقام الاستلام
+          </p>
+          <div className="pm-stats-row">
+            <Chip icon="₮" label={`${activeCryptos} شبكة نشطة`}  color="#26a17b" />
+            <Chip icon="📱" label={`${activeWallets} محفظة نشطة`} color="#3b82f6" />
           </div>
         </div>
         <SaveBtn saving={saving} saved={saved} onClick={handleSave} />
       </div>
 
-      {error  && <Banner type="error"   text={error} />}
-      {saved  && <Banner type="success" text="✓ تم حفظ جميع التغييرات بنجاح" />}
+      {error && <Banner type="error"   text={error} />}
+      {saved && <Banner type="success" text="✓ تم حفظ جميع التغييرات بنجاح" />}
 
-      {/* ═══════════════════════════════════════ */}
-      {/* SECTION 1 — Crypto Networks           */}
-      {/* ═══════════════════════════════════════ */}
-      <SectionHeader
-        icon="🔗"
-        title="شبكات العملات الرقمية"
-        desc="أضف أي عملة / شبكة تريد قبول التحويل عليها"
-        action={
-          <div style={{ position: 'relative' }}>
-            <AddBtn label="+ إضافة شبكة" onClick={() => { setShowCryptoMenu(v => !v); setShowWalletMenu(false) }} />
-            {showCryptoMenu && (
-              <SuggestMenu
-                items={CRYPTO_SUGGESTIONS}
-                onSelect={addCrypto}
-                onClose={() => setShowCryptoMenu(false)}
-                onCustom={() => { addCrypto({}); setShowCryptoMenu(false) }}
-                renderItem={s => (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 18, color: s.color, fontWeight: 800 }}>{s.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{s.label}</div>
-                      <div style={{ fontSize: 11, color: '#64748b' }}>{s.network}</div>
-                    </div>
-                  </div>
-                )}
-              />
-            )}
+      {/* ══ SECTION 1 — Crypto Networks ══ */}
+      <div className="pm-section-header">
+        <div className="pm-section-left">
+          <div style={s.sectionIcon}>🔗</div>
+          <div>
+            <div style={s.sectionTitle}>شبكات العملات الرقمية</div>
+            <div style={s.sectionDesc}>أضف أي عملة / شبكة تريد قبول التحويل عليها</div>
           </div>
-        }
-      />
-
-      {cryptos.length === 0 ? (
-        <EmptyState icon="🔗" text="لا يوجد شبكات — أضف شبكة للبدء" />
-      ) : (
-        <div style={s.cardsGrid}>
-          {cryptos.map(c => (
-            <CryptoCard
-              key={c.id}
-              item={c}
-              onToggle={() => toggleCrypto(c.id)}
-              onEdit={(f, v) => editCrypto(c.id, f, v)}
-              onRemove={() => removeCrypto(c.id)}
-            />
-          ))}
         </div>
-      )}
-
-      {/* ═══════════════════════════════════════ */}
-      {/* SECTION 2 — Electronic Wallets        */}
-      {/* ═══════════════════════════════════════ */}
-      <SectionHeader
-        icon="📱"
-        title="المحافظ الإلكترونية"
-        desc="أضف محافظ الدفع المحلية وأرقام الاستلام الخاصة بك"
-        action={
-          <div style={{ position: 'relative' }}>
-            <AddBtn label="+ إضافة محفظة" onClick={() => { setShowWalletMenu(v => !v); setShowCryptoMenu(false) }} />
-            {showWalletMenu && (
-              <SuggestMenu
-                items={WALLET_SUGGESTIONS}
-                onSelect={addWallet}
-                onClose={() => setShowWalletMenu(false)}
-                onCustom={() => { addWallet({}); setShowWalletMenu(false) }}
-                renderItem={s => (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 18 }}>{s.icon}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{s.name}</span>
+        <div style={{ position: 'relative' }}>
+          <AddBtn label="+ إضافة شبكة" onClick={() => { setShowCryptoMenu(v => !v); setShowWalletMenu(false) }} />
+          {showCryptoMenu && (
+            <SuggestMenu
+              items={CRYPTO_SUGGESTIONS}
+              onSelect={addCrypto}
+              onClose={() => setShowCryptoMenu(false)}
+              onCustom={() => { addCrypto({}); setShowCryptoMenu(false) }}
+              renderItem={s => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18, color: s.color, fontWeight: 800, minWidth: 24, textAlign: 'center' }}>{s.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{s.label}</div>
+                    <div style={{ fontSize: 11, color: '#64748b' }}>{s.network}</div>
                   </div>
-                )}
-              />
-            )}
-          </div>
-        }
-      />
-
-      {wallets.length === 0 ? (
-        <EmptyState icon="📱" text="لا يوجد محافظ — أضف محفظة للبدء" />
-      ) : (
-        <div style={s.cardsGrid}>
-          {wallets.map(w => (
-            <WalletCard
-              key={w.id}
-              item={w}
-              onToggle={() => toggleWallet(w.id)}
-              onEdit={(f, v) => editWallet(w.id, f, v)}
-              onRemove={() => removeWallet(w.id)}
+                </div>
+              )}
             />
-          ))}
+          )}
         </div>
-      )}
+      </div>
 
-      {/* ── Bottom Save ─────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 28 }}>
+      {cryptos.length === 0
+        ? <div className="pm-empty"><span style={{ fontSize: 28 }}>🔗</span><span style={{ color: '#475569', fontSize: 13 }}>لا يوجد شبكات — اضغط "إضافة شبكة" للبدء</span></div>
+        : <div className="pm-grid">
+            {cryptos.map(c => (
+              <CryptoCard key={c.id} item={c}
+                onToggle={() => toggleCrypto(c.id)}
+                onEdit={(f, v) => editCrypto(c.id, f, v)}
+                onRemove={() => removeCrypto(c.id)}
+              />
+            ))}
+          </div>
+      }
+
+      {/* ══ SECTION 2 — Electronic Wallets ══ */}
+      <div className="pm-section-header">
+        <div className="pm-section-left">
+          <div style={s.sectionIcon}>📱</div>
+          <div>
+            <div style={s.sectionTitle}>المحافظ الإلكترونية</div>
+            <div style={s.sectionDesc}>أضف محافظ الدفع المحلية وأرقام الاستلام</div>
+          </div>
+        </div>
+        <div style={{ position: 'relative' }}>
+          <AddBtn label="+ إضافة محفظة" onClick={() => { setShowWalletMenu(v => !v); setShowCryptoMenu(false) }} />
+          {showWalletMenu && (
+            <SuggestMenu
+              items={WALLET_SUGGESTIONS}
+              onSelect={addWallet}
+              onClose={() => setShowWalletMenu(false)}
+              onCustom={() => { addWallet({}); setShowWalletMenu(false) }}
+              renderItem={s => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18, minWidth: 24, textAlign: 'center' }}>{s.icon}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{s.name}</span>
+                </div>
+              )}
+            />
+          )}
+        </div>
+      </div>
+
+      {wallets.length === 0
+        ? <div className="pm-empty"><span style={{ fontSize: 28 }}>📱</span><span style={{ color: '#475569', fontSize: 13 }}>لا يوجد محافظ — اضغط "إضافة محفظة" للبدء</span></div>
+        : <div className="pm-grid">
+            {wallets.map(w => (
+              <WalletCard key={w.id} item={w}
+                onToggle={() => toggleWallet(w.id)}
+                onEdit={(f, v) => editWallet(w.id, f, v)}
+                onRemove={() => removeWallet(w.id)}
+              />
+            ))}
+          </div>
+      }
+
+      {/* ── Bottom Save ── */}
+      <div className="pm-save-wrap">
         <SaveBtn saving={saving} saved={saved} onClick={handleSave} large />
       </div>
 
@@ -233,107 +301,107 @@ export default function AdminPaymentMethods() {
 // CryptoCard
 // ═══════════════════════════════════════════════════════════
 function CryptoCard({ item, onToggle, onEdit, onRemove }) {
-  const [focused, setFocused] = useState(false)
-  const [confirm, setConfirm] = useState(false)
+  const [focusedAddr, setFocusedAddr] = useState(false)
+  const [confirm,     setConfirm]     = useState(false)
+  const [copied,      setCopied]      = useState(false)
 
   const isReady = item.enabled && item.address
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(item.address)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const accentColor = item.enabled ? item.color : '#475569'
+
   return (
-    <div style={{
-      ...s.card,
-      borderColor: item.enabled ? `${item.color}44` : '#334155',
-      background:  item.enabled ? `${item.color}08` : '#1e293b',
-    }}>
-      {/* Header */}
-      <div style={s.cardTop}>
-        <div style={s.cardTopLeft}>
-          <div style={{ ...s.coinIcon, background: `${item.color}22`, color: item.color }}>
-            {item.icon}
+    <div className="pm-card" style={{ borderColor: item.enabled ? `${item.color}40` : '#334155', background: item.enabled ? `${item.color}06` : '#161b22' }}>
+
+      {/* Top accent bar */}
+      <div className="pm-card-bar" style={{ background: isReady ? item.color : item.enabled ? '#f59e0b' : '#334155' }} />
+
+      <div className="pm-card-body">
+
+        {/* ── Header row ── */}
+        <div className="pm-card-head">
+          {/* Icon circle */}
+          <div style={{ ...s.iconCircle, background: `${item.color}20`, color: item.color, border: `1.5px solid ${item.color}40` }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>
           </div>
-          {/* Editable label */}
-          <input
-            style={{ ...s.inlineInput, color: item.enabled ? item.color : '#64748b', fontWeight: 800 }}
-            value={item.label}
-            onChange={e => onEdit('label', e.target.value)}
-            placeholder="اسم الشبكة"
-          />
+
+          {/* Name + meta */}
+          <div className="pm-card-head-info">
+            <input
+              style={{ ...s.nameInput, color: accentColor }}
+              value={item.label}
+              onChange={e => onEdit('label', e.target.value)}
+              placeholder="اسم الشبكة"
+            />
+            <div style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>
+              {item.coin || '—'} · {item.network || '—'}
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="pm-card-head-controls">
+            <Toggle value={item.enabled} onChange={onToggle} color={item.color} />
+            <DeleteBtn confirm={confirm} onConfirm={onRemove} onRequest={() => setConfirm(true)} onCancel={() => setConfirm(false)} />
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <Toggle value={item.enabled} onChange={onToggle} color={item.color} />
-          <DeleteBtn confirm={confirm} onConfirm={onRemove} onRequest={() => setConfirm(true)} onCancel={() => setConfirm(false)} />
+
+        {/* ── Fields ── */}
+        <div className="pm-fields">
+
+          {/* Coin / Network / Icon */}
+          <div className="pm-cn-row">
+            <div>
+              <Label>العملة</Label>
+              <input style={s.input} placeholder="USDT" value={item.coin} onChange={e => onEdit('coin', e.target.value)} />
+            </div>
+            <div>
+              <Label>الشبكة</Label>
+              <input style={s.input} placeholder="TRC20" value={item.network} onChange={e => onEdit('network', e.target.value)} />
+            </div>
+            <div className="pm-cn-icon">
+              <Label>رمز</Label>
+              <input style={{ ...s.input, textAlign: 'center', fontSize: 16, padding: '9px 4px' }} value={item.icon} onChange={e => onEdit('icon', e.target.value)} maxLength={2} />
+            </div>
+          </div>
+
+          {/* Address */}
+          <div>
+            <Label>عنوان المحفظة</Label>
+            <div style={{ position: 'relative' }}>
+              <input
+                style={{
+                  ...s.input,
+                  direction: 'ltr', textAlign: 'left',
+                  fontFamily: 'monospace', fontSize: 12,
+                  paddingLeft: item.address ? 52 : 12,
+                  borderColor: focusedAddr && item.enabled ? item.color : '#334155',
+                  boxShadow:   focusedAddr && item.enabled ? `0 0 0 3px ${item.color}22` : 'none',
+                  opacity:     item.enabled ? 1 : 0.5,
+                }}
+                placeholder="0x... أو T..."
+                value={item.address}
+                onChange={e => onEdit('address', e.target.value)}
+                disabled={!item.enabled}
+                onFocus={() => setFocusedAddr(true)}
+                onBlur={() => setFocusedAddr(false)}
+              />
+              {item.address && (
+                <button style={s.copyBtn} onClick={handleCopy}>
+                  {copied ? '✓' : 'نسخ'}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* ── Status footer ── */}
+        <StatusRow ready={isReady} enabled={item.enabled} missingText="أدخل عنوان المحفظة" readyText={`${item.coin} ${item.network} — جاهز للاستلام`} />
       </div>
-
-      {/* Fields */}
-      <div style={s.fields}>
-        {/* Coin + Network row */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <Label>العملة</Label>
-            <input
-              style={s.input}
-              placeholder="USDT"
-              value={item.coin}
-              onChange={e => onEdit('coin', e.target.value)}
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <Label>الشبكة</Label>
-            <input
-              style={s.input}
-              placeholder="TRC20"
-              value={item.network}
-              onChange={e => onEdit('network', e.target.value)}
-            />
-          </div>
-          <div style={{ width: 60 }}>
-            <Label>أيقونة</Label>
-            <input
-              style={{ ...s.input, textAlign: 'center', fontSize: 18 }}
-              value={item.icon}
-              onChange={e => onEdit('icon', e.target.value)}
-              maxLength={2}
-            />
-          </div>
-        </div>
-
-        {/* Address */}
-        <div>
-          <Label>عنوان المحفظة</Label>
-          <div style={{ position: 'relative' }}>
-            <input
-              style={{
-                ...s.input,
-                direction: 'ltr', textAlign: 'left',
-                fontFamily: 'monospace', fontSize: 12,
-                borderColor: focused && item.enabled ? item.color : '#334155',
-                boxShadow:   focused && item.enabled ? `0 0 0 3px ${item.color}22` : 'none',
-                paddingLeft: item.address ? 56 : 12,
-              }}
-              placeholder="0x... أو T..."
-              value={item.address}
-              onChange={e => onEdit('address', e.target.value)}
-              disabled={!item.enabled}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-            />
-            {item.address && (
-              <button
-                style={s.copyBtn}
-                onClick={() => navigator.clipboard.writeText(item.address)}
-              >نسخ</button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Status */}
-      <StatusRow
-        ready={isReady}
-        enabled={item.enabled}
-        missingText="أدخل عنوان المحفظة"
-        readyText={`${item.coin} ${item.network} — جاهز للاستلام`}
-      />
     </div>
   )
 }
@@ -342,148 +410,152 @@ function CryptoCard({ item, onToggle, onEdit, onRemove }) {
 // WalletCard
 // ═══════════════════════════════════════════════════════════
 function WalletCard({ item, onToggle, onEdit, onRemove }) {
-  const [focused, setFocused] = useState(false)
-  const [confirm, setConfirm] = useState(false)
+  const [focusedNum, setFocusedNum] = useState(false)
+  const [confirm,    setConfirm]    = useState(false)
+  const [copied,     setCopied]     = useState(false)
 
   const isReady = item.enabled && item.number
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(item.number)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const accentColor = item.enabled ? item.color : '#475569'
+
   return (
-    <div style={{
-      ...s.card,
-      borderColor: item.enabled ? `${item.color}44` : '#334155',
-      background:  item.enabled ? `${item.color}08` : '#1e293b',
-    }}>
-      {/* Header */}
-      <div style={s.cardTop}>
-        <div style={s.cardTopLeft}>
-          {/* Editable emoji */}
-          <input
-            style={{ ...s.emojiInput }}
-            value={item.icon}
-            onChange={e => onEdit('icon', e.target.value)}
-            maxLength={2}
-            title="تغيير الأيقونة"
-          />
-          {/* Editable name */}
-          <input
-            style={{ ...s.inlineInput, color: item.enabled ? item.color : '#64748b', fontWeight: 800 }}
-            value={item.name}
-            onChange={e => onEdit('name', e.target.value)}
-            placeholder="اسم المحفظة"
-          />
-        </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <Toggle value={item.enabled} onChange={onToggle} color={item.color} />
-          <DeleteBtn confirm={confirm} onConfirm={onRemove} onRequest={() => setConfirm(true)} onCancel={() => setConfirm(false)} />
-        </div>
-      </div>
+    <div className="pm-card" style={{ borderColor: item.enabled ? `${item.color}40` : '#334155', background: item.enabled ? `${item.color}06` : '#161b22' }}>
 
-      {/* Fields */}
-      <div style={s.fields}>
-        {/* Number */}
-        <div>
-          <Label>رقم الاستلام</Label>
-          <input
-            style={{
-              ...s.input,
-              direction: 'ltr', textAlign: 'left',
-              borderColor: focused && item.enabled ? item.color : '#334155',
-              boxShadow:   focused && item.enabled ? `0 0 0 3px ${item.color}22` : 'none',
-            }}
-            placeholder={item.placeholder || 'رقم الاستلام'}
-            value={item.number}
-            onChange={e => onEdit('number', e.target.value)}
-            disabled={!item.enabled}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-          />
-        </div>
+      {/* Top accent bar */}
+      <div className="pm-card-bar" style={{ background: isReady ? item.color : item.enabled ? '#f59e0b' : '#334155' }} />
 
-        {/* Account Name */}
-        <div>
-          <Label>اسم الحساب (يظهر للمستخدم)</Label>
-          <input
-            style={s.input}
-            placeholder="مثال: NUMBER 1 EXCHANGE"
-            value={item.accountName || ''}
-            onChange={e => onEdit('accountName', e.target.value)}
-            disabled={!item.enabled}
-          />
-        </div>
+      <div className="pm-card-body">
 
-        {/* Notes (optional) */}
-        <div>
-          <Label>ملاحظة للمستخدم (اختياري)</Label>
-          <input
-            style={s.input}
-            placeholder="مثال: حوّل المبلغ خلال 30 دقيقة"
-            value={item.note || ''}
-            onChange={e => onEdit('note', e.target.value)}
-            disabled={!item.enabled}
-          />
-        </div>
-      </div>
-
-      {/* Status */}
-      <StatusRow
-        ready={isReady}
-        enabled={item.enabled}
-        missingText="أدخل رقم الاستلام"
-        readyText={`${item.name} — ${item.number}`}
-      />
-    </div>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════
-// Shared Sub-components
-// ═══════════════════════════════════════════════════════════
-
-function SectionHeader({ icon, title, desc, action }) {
-  return (
-    <div style={s.sectionHeader}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={s.sectionHeaderIcon}>{icon}</div>
-        <div>
-          <h2 style={s.sectionHeaderTitle}>{title}</h2>
-          <p style={s.sectionHeaderDesc}>{desc}</p>
-        </div>
-      </div>
-      {action}
-    </div>
-  )
-}
-
-function SuggestMenu({ items, onSelect, onClose, onCustom, renderItem }) {
-  return (
-    <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
-      <div style={s.suggestMenu}>
-        <div style={s.suggestHeader}>اختر من القائمة</div>
-        {items.map((item, i) => (
-          <button key={i} style={s.suggestItem} onClick={() => onSelect(item)}>
-            {renderItem(item)}
+        {/* ── Header row ── */}
+        <div className="pm-card-head">
+          {/* Emoji icon — editable */}
+          <button
+            style={{ ...s.iconCircle, background: `${item.color}20`, border: `1.5px solid ${item.color}40`, cursor: 'text', fontSize: 20 }}
+            title="انقر لتغيير الأيقونة"
+            onClick={e => { const el = e.currentTarget.querySelector('span'); if (el) el.focus() }}
+          >
+            <span
+              contentEditable suppressContentEditableWarning
+              style={{ outline: 'none', userSelect: 'text', fontSize: 20, lineHeight: 1 }}
+              onBlur={e => onEdit('icon', e.currentTarget.textContent.slice(0, 2) || '📱')}
+            >
+              {item.icon}
+            </span>
           </button>
-        ))}
-        <div style={s.suggestDivider} />
-        <button style={{ ...s.suggestItem, color: '#3b82f6' }} onClick={onCustom}>
-          ✏ إضافة مخصصة (يدوي)
-        </button>
+
+          {/* Name */}
+          <div className="pm-card-head-info">
+            <input
+              style={{ ...s.nameInput, color: accentColor }}
+              value={item.name}
+              onChange={e => onEdit('name', e.target.value)}
+              placeholder="اسم المحفظة"
+            />
+            <div style={{ fontSize: 11, color: '#475569' }}>
+              {item.number ? item.number : 'لم يُدخَل رقم بعد'}
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="pm-card-head-controls">
+            <Toggle value={item.enabled} onChange={onToggle} color={item.color} />
+            <DeleteBtn confirm={confirm} onConfirm={onRemove} onRequest={() => setConfirm(true)} onCancel={() => setConfirm(false)} />
+          </div>
+        </div>
+
+        {/* ── Fields ── */}
+        <div className="pm-fields">
+
+          {/* Number */}
+          <div>
+            <Label>رقم الاستلام</Label>
+            <div style={{ position: 'relative' }}>
+              <input
+                style={{
+                  ...s.input,
+                  direction: 'ltr', textAlign: 'left',
+                  borderColor: focusedNum && item.enabled ? item.color : '#334155',
+                  boxShadow:   focusedNum && item.enabled ? `0 0 0 3px ${item.color}22` : 'none',
+                  opacity:     item.enabled ? 1 : 0.5,
+                  paddingLeft: item.number ? 52 : 12,
+                }}
+                placeholder={item.placeholder || 'رقم الاستلام'}
+                value={item.number}
+                onChange={e => onEdit('number', e.target.value)}
+                disabled={!item.enabled}
+                onFocus={() => setFocusedNum(true)}
+                onBlur={() => setFocusedNum(false)}
+              />
+              {item.number && (
+                <button style={s.copyBtn} onClick={handleCopy}>
+                  {copied ? '✓' : 'نسخ'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Account Name */}
+          <div>
+            <Label>اسم الحساب (يظهر للمستخدم)</Label>
+            <input
+              style={{ ...s.input, opacity: item.enabled ? 1 : 0.5 }}
+              placeholder="NUMBER 1 EXCHANGE"
+              value={item.accountName || ''}
+              onChange={e => onEdit('accountName', e.target.value)}
+              disabled={!item.enabled}
+            />
+          </div>
+
+          {/* Note */}
+          <div>
+            <Label>ملاحظة للمستخدم (اختياري)</Label>
+            <input
+              style={{ ...s.input, opacity: item.enabled ? 1 : 0.5 }}
+              placeholder="مثال: حوّل المبلغ خلال 30 دقيقة"
+              value={item.note || ''}
+              onChange={e => onEdit('note', e.target.value)}
+              disabled={!item.enabled}
+            />
+          </div>
+        </div>
+
+        {/* ── Status footer ── */}
+        <StatusRow ready={isReady} enabled={item.enabled} missingText="أدخل رقم الاستلام" readyText={`${item.name} — ${item.number}`} />
       </div>
-    </>
+    </div>
   )
 }
 
-function AddBtn({ label, onClick }) {
-  const [hov, setHov] = useState(false)
+// ═══════════════════════════════════════════════════════════
+// Shared sub-components
+// ═══════════════════════════════════════════════════════════
+
+function StatusRow({ ready, enabled, missingText, readyText }) {
+  const color = ready ? '#4ade80' : enabled ? '#fbbf24' : '#475569'
+  const dot   = ready ? '#22c55e' : enabled ? '#f59e0b' : '#475569'
+  const text  = !enabled ? 'معطّل — لا يظهر للمستخدمين' : !ready ? `⚠ ${missingText}` : `✓ ${readyText}`
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7, paddingTop: 10, borderTop: '1px solid #1e293b' }}>
+      <div style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: dot, boxShadow: ready ? '0 0 6px rgba(34,197,94,0.5)' : 'none' }} />
+      <span style={{ fontSize: 11, color, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{text}</span>
+    </div>
+  )
+}
+
+function Toggle({ value, onChange, color = '#3b82f6' }) {
   return (
     <button
-      style={{ ...s.addBtn, background: hov ? '#1d4ed8' : '#2563eb' }}
-      onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+      onClick={onChange}
+      title={value ? 'تعطيل' : 'تفعيل'}
+      style={{ width: 42, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: value ? color : '#334155', position: 'relative', transition: 'background 0.25s', flexShrink: 0, boxShadow: value ? `0 0 8px ${color}44` : 'none' }}
     >
-      {label}
+      <span style={{ position: 'absolute', top: 3, right: value ? 3 : 'auto', left: value ? 'auto' : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'all 0.2s', display: 'block', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
     </button>
   )
 }
@@ -492,11 +564,11 @@ function DeleteBtn({ confirm, onConfirm, onRequest, onCancel }) {
   if (confirm) return (
     <div style={{ display: 'flex', gap: 4 }}>
       <button style={{ ...s.smallBtn, background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }} onClick={onConfirm}>حذف</button>
-      <button style={{ ...s.smallBtn, background: '#1e293b', color: '#64748b', border: '1px solid #334155' }} onClick={onCancel}>إلغاء</button>
+      <button style={{ ...s.smallBtn, background: 'transparent', color: '#64748b', border: '1px solid #334155' }} onClick={onCancel}>إلغاء</button>
     </div>
   )
   return (
-    <button style={{ ...s.smallBtn, background: 'transparent', color: '#475569', border: '1px solid #334155' }} onClick={onRequest} title="حذف">
+    <button style={{ ...s.smallBtn, background: 'transparent', color: '#475569', border: '1px solid #2d3748', padding: '5px 9px' }} onClick={onRequest} title="حذف">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
         <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
       </svg>
@@ -504,54 +576,33 @@ function DeleteBtn({ confirm, onConfirm, onRequest, onCancel }) {
   )
 }
 
-function StatusRow({ ready, enabled, missingText, readyText }) {
+function SuggestMenu({ items, onSelect, onClose, onCustom, renderItem }) {
   return (
-    <div style={s.statusRow}>
-      <div style={{
-        ...s.statusDot,
-        background: ready ? '#22c55e' : enabled ? '#f59e0b' : '#475569',
-        boxShadow:  ready ? '0 0 6px rgba(34,197,94,0.5)' : 'none',
-      }} />
-      <span style={{ fontSize: 11, color: ready ? '#4ade80' : enabled ? '#fbbf24' : '#475569' }}>
-        {!enabled ? 'معطّل — لا يظهر للمستخدمين'
-         : !ready  ? `⚠ ${missingText}`
-         :           `✓ ${readyText}`}
-      </span>
-    </div>
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
+      <div className="pm-suggest-menu">
+        <div style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#64748b', borderBottom: '1px solid #334155', letterSpacing: 1 }}>اختر من القائمة</div>
+        {items.map((item, i) => (
+          <button key={i} style={s.suggestItem} onClick={() => onSelect(item)}>
+            {renderItem(item)}
+          </button>
+        ))}
+        <div style={{ height: 1, background: '#334155', margin: '4px 0' }} />
+        <button style={{ ...s.suggestItem, color: '#3b82f6' }} onClick={onCustom}>✏ إضافة مخصصة (يدوي)</button>
+      </div>
+    </>
   )
 }
 
-function Toggle({ value, onChange, color = '#3b82f6' }) {
+function AddBtn({ label, onClick }) {
   return (
-    <button onClick={onChange} style={{
-      width: 40, height: 22, borderRadius: 11,
-      border: 'none', cursor: 'pointer',
-      background: value ? color : '#334155',
-      position: 'relative',
-      transition: 'background 0.25s',
-      flexShrink: 0,
-      boxShadow: value ? `0 0 8px ${color}44` : 'none',
-    }}>
-      <span style={{
-        position: 'absolute', top: 3,
-        right: value ? 3 : 'auto',
-        left:  value ? 'auto' : 3,
-        width: 16, height: 16,
-        borderRadius: '50%', background: '#fff',
-        transition: 'all 0.2s', display: 'block',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-      }} />
-    </button>
+    <button style={s.addBtn} onClick={onClick}>{label}</button>
   )
-}
-
-function Label({ children }) {
-  return <label style={s.fieldLabel}>{children}</label>
 }
 
 function Chip({ icon, label, color }) {
   return (
-    <span style={{ ...s.chip, borderColor: `${color}33`, color }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, background: '#1e293b', border: `1px solid ${color}33`, borderRadius: 8, padding: '4px 10px', color }}>
       <span>{icon}</span> {label}
     </span>
   )
@@ -560,37 +611,14 @@ function Chip({ icon, label, color }) {
 function Banner({ type, text }) {
   const isErr = type === 'error'
   return (
-    <div style={{
-      padding: '12px 16px', borderRadius: 10, marginBottom: 16,
-      fontSize: 14, fontWeight: 600,
-      background: isErr ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
-      border: `1px solid ${isErr ? 'rgba(239,68,68,0.25)' : 'rgba(34,197,94,0.25)'}`,
-      color: isErr ? '#f87171' : '#4ade80',
-    }}>{text}</div>
-  )
-}
-
-function EmptyState({ icon, text }) {
-  return (
-    <div style={s.emptyState}>
-      <span style={{ fontSize: 32 }}>{icon}</span>
-      <span style={{ color: '#475569', fontSize: 14 }}>{text}</span>
-    </div>
+    <div style={{ padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600, background: isErr ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${isErr ? 'rgba(239,68,68,0.25)' : 'rgba(34,197,94,0.25)'}`, color: isErr ? '#f87171' : '#4ade80' }}>{text}</div>
   )
 }
 
 function SaveBtn({ saving, saved, onClick, large }) {
   return (
     <button
-      style={{
-        ...s.saveBtn,
-        padding: large ? '12px 36px' : '10px 22px',
-        fontSize: large ? 15 : 14,
-        opacity: saving ? 0.7 : 1,
-        background: saved
-          ? 'linear-gradient(135deg,#22c55e,#16a34a)'
-          : 'linear-gradient(135deg,#3b82f6,#1d4ed8)',
-      }}
+      style={{ ...s.saveBtn, padding: large ? '12px 32px' : '10px 22px', fontSize: large ? 15 : 14, opacity: saving ? 0.7 : 1, background: saved ? 'linear-gradient(135deg,#22c55e,#16a34a)' : 'linear-gradient(135deg,#3b82f6,#1d4ed8)' }}
       onClick={onClick}
       disabled={saving}
     >
@@ -599,92 +627,33 @@ function SaveBtn({ saving, saved, onClick, large }) {
   )
 }
 
+function Label({ children }) {
+  return <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 5, letterSpacing: 0.3 }}>{children}</label>
+}
+
 // ── Styles ────────────────────────────────────────────────
 const s = {
-  center:  { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 80 },
-  spinner: { width: 32, height: 32, borderRadius: '50%', border: '3px solid #1e293b', borderTop: '3px solid #3b82f6', animation: 'spin 0.8s linear infinite' },
+  sectionIcon:  { width: 36, height: 36, borderRadius: 10, background: '#1e293b', border: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 },
+  sectionTitle: { fontSize: 15, fontWeight: 800, color: '#f1f5f9', margin: 0 },
+  sectionDesc:  { fontSize: 12, color: '#64748b', margin: '2px 0 0' },
 
-  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 },
-  pageDesc:   { fontSize: 14, color: '#64748b', margin: '4px 0 10px' },
-  statsRow:   { display: 'flex', gap: 10, flexWrap: 'wrap' },
-
-  chip: {
-    display: 'inline-flex', alignItems: 'center', gap: 6,
-    fontSize: 12, fontWeight: 600,
-    background: '#1e293b', border: '1px solid',
-    borderRadius: 8, padding: '4px 12px',
-  },
-
-  saveBtn: {
-    display: 'flex', alignItems: 'center', gap: 8,
-    borderRadius: 10, border: 'none',
-    color: '#fff', cursor: 'pointer', fontWeight: 700,
-    boxShadow: '0 4px 14px rgba(59,130,246,0.3)',
-    transition: 'all 0.2s',
-    fontFamily: "'Cairo','Tajawal',sans-serif",
-  },
-
-  sectionHeader: {
-    display: 'flex', justifyContent: 'space-between',
-    alignItems: 'center', flexWrap: 'wrap', gap: 10,
-    margin: '28px 0 14px',
-    padding: '0 0 14px',
-    borderBottom: '1px solid #1e293b',
-  },
-  sectionHeaderIcon:  { width: 38, height: 38, borderRadius: 10, background: '#1e293b', border: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 },
-  sectionHeaderTitle: { fontSize: 16, fontWeight: 800, color: '#f1f5f9', margin: 0 },
-  sectionHeaderDesc:  { fontSize: 12, color: '#64748b', margin: '3px 0 0' },
-
-  cardsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
-    gap: 14,
-  },
-
-  card: {
-    border: '1px solid',
-    borderRadius: 14,
-    padding: 18,
-    transition: 'all 0.2s',
-  },
-
-  cardTop:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  cardTopLeft:{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
-
-  coinIcon: {
-    width: 36, height: 36, borderRadius: 10,
+  iconCircle: {
+    width: 44, height: 44, borderRadius: 12, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 16, fontWeight: 900, flexShrink: 0,
   },
 
-  inlineInput: {
+  nameInput: {
     background: 'transparent', border: 'none', outline: 'none',
-    fontSize: 14, fontFamily: "'Cairo','Tajawal',sans-serif",
-    width: '100%', minWidth: 0,
-    transition: 'color 0.2s',
-  },
-
-  emojiInput: {
-    width: 36, height: 36, borderRadius: 8,
-    background: '#0f172a', border: '1px solid #334155',
-    textAlign: 'center', fontSize: 20,
-    cursor: 'pointer', outline: 'none',
-    flexShrink: 0,
-    fontFamily: 'inherit',
+    fontSize: 15, fontWeight: 800,
+    fontFamily: "'Cairo','Tajawal',sans-serif",
+    width: '100%', minWidth: 0, padding: 0,
     color: '#e2e8f0',
-  },
-
-  fields: { display: 'flex', flexDirection: 'column', gap: 10 },
-
-  fieldLabel: {
-    display: 'block', fontSize: 11, fontWeight: 600,
-    color: '#64748b', marginBottom: 5, letterSpacing: 0.3,
   },
 
   input: {
     width: '100%', padding: '9px 12px',
-    background: '#0f172a',
-    border: '1px solid #334155', borderRadius: 8,
+    background: '#0d1117',
+    border: '1px solid #334155', borderRadius: 9,
     color: '#e2e8f0', fontSize: 13, outline: 'none',
     transition: 'border-color 0.2s, box-shadow 0.2s',
     boxSizing: 'border-box',
@@ -696,50 +665,37 @@ const s = {
     padding: '3px 8px', borderRadius: 5,
     border: '1px solid #334155', background: '#1e293b',
     color: '#3b82f6', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+    fontFamily: "'Cairo',sans-serif",
   },
 
-  statusRow: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, paddingTop: 10, borderTop: '1px solid #1e293b' },
-  statusDot: { width: 7, height: 7, borderRadius: '50%', flexShrink: 0, transition: 'all 0.3s' },
-
-  addBtn: {
-    padding: '8px 16px', borderRadius: 8, border: 'none',
-    color: '#fff', fontWeight: 700, fontSize: 13,
-    cursor: 'pointer', transition: 'background 0.15s',
-    fontFamily: "'Cairo','Tajawal',sans-serif",
+  saveBtn: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    borderRadius: 10, border: 'none', color: '#fff',
+    cursor: 'pointer', fontWeight: 700,
+    boxShadow: '0 4px 14px rgba(59,130,246,0.3)',
+    transition: 'all 0.2s', fontFamily: "'Cairo','Tajawal',sans-serif",
     whiteSpace: 'nowrap',
   },
 
-  suggestMenu: {
-    position: 'absolute', left: 0, top: 'calc(100% + 6px)',
-    minWidth: 220, zIndex: 50,
-    background: '#1e293b', border: '1px solid #334155',
-    borderRadius: 12, overflow: 'hidden',
-    boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
-    maxHeight: 360, overflowY: 'auto',
+  addBtn: {
+    padding: '9px 16px', borderRadius: 8, border: 'none',
+    background: '#2563eb', color: '#fff',
+    fontWeight: 700, fontSize: 13, cursor: 'pointer',
+    fontFamily: "'Cairo','Tajawal',sans-serif", whiteSpace: 'nowrap',
   },
-  suggestHeader: { padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#64748b', borderBottom: '1px solid #334155', letterSpacing: 1 },
+
+  smallBtn: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+    padding: '5px 10px', borderRadius: 7,
+    cursor: 'pointer', fontSize: 12, fontWeight: 600,
+    fontFamily: "'Cairo','Tajawal',sans-serif", whiteSpace: 'nowrap',
+  },
+
   suggestItem: {
     width: '100%', padding: '10px 14px',
     background: 'transparent', border: 'none',
     textAlign: 'right', cursor: 'pointer',
-    transition: 'background 0.15s',
     fontFamily: "'Cairo','Tajawal',sans-serif",
-  },
-  suggestDivider: { height: 1, background: '#334155', margin: '4px 0' },
-
-  smallBtn: {
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-    padding: '5px 10px', borderRadius: 6,
-    cursor: 'pointer', fontSize: 12, fontWeight: 600,
-    fontFamily: "'Cairo','Tajawal',sans-serif",
-    whiteSpace: 'nowrap',
-  },
-
-  emptyState: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    justifyContent: 'center', gap: 10,
-    padding: '40px 20px',
-    background: '#1e293b', border: '1px dashed #334155',
-    borderRadius: 14, marginBottom: 4,
+    color: '#e2e8f0',
   },
 }
