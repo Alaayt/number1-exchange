@@ -86,14 +86,17 @@ function StepCanvas({ activeStep }) {
       ctx.clearRect(0, 0, W, H)
       t += 0.016
 
+      // ── Light-mode detection for full contrast ──
+      const isLight = document.documentElement.classList.contains('light')
+
       const cx = W / 2
       const cy = H / 2
       const R  = Math.min(W, H) * 0.27
       const ac = COLORS[step]
 
-      // outer glow
+      // outer glow — stronger in light mode so it reads
       const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.9)
-      grd.addColorStop(0, ac + '18')
+      grd.addColorStop(0, ac + (isLight ? '30' : '18'))
       grd.addColorStop(1, 'transparent')
       ctx.fillStyle = grd
       ctx.beginPath()
@@ -104,7 +107,7 @@ function StepCanvas({ activeStep }) {
       ctx.save()
       ctx.translate(cx, cy)
       ctx.rotate(t * 0.35)
-      ctx.strokeStyle = ac + '28'
+      ctx.strokeStyle = ac + (isLight ? '50' : '28')
       ctx.lineWidth = 1.5
       ctx.setLineDash([5, 9])
       ctx.beginPath()
@@ -113,37 +116,37 @@ function StepCanvas({ activeStep }) {
       ctx.setLineDash([])
       ctx.restore()
 
-      // progress arc (how many steps done)
+      // progress arc
       const arcFrac = (step + 1) / 5
       ctx.strokeStyle = ac
       ctx.lineWidth = 3
       ctx.lineCap = 'round'
       ctx.shadowColor = ac
-      ctx.shadowBlur = 14
+      ctx.shadowBlur = isLight ? 6 : 14
       ctx.beginPath()
       ctx.arc(cx, cy, R * 1.08, -Math.PI / 2, -Math.PI / 2 + arcFrac * Math.PI * 2)
       ctx.stroke()
       ctx.shadowBlur = 0
 
-      // inner filled circle
+      // inner filled circle — more saturated in light mode
       const ig = ctx.createRadialGradient(cx - R * 0.18, cy - R * 0.18, 0, cx, cy, R)
-      ig.addColorStop(0, ac + 'cc')
-      ig.addColorStop(1, ac + '44')
+      ig.addColorStop(0, ac + (isLight ? 'ee' : 'cc'))
+      ig.addColorStop(1, ac + (isLight ? '88' : '44'))
       ctx.fillStyle = ig
       ctx.beginPath()
       ctx.arc(cx, cy, R, 0, Math.PI * 2)
       ctx.fill()
 
-      // step number text
-      ctx.fillStyle = '#000a'
+      // step number — always dark on the colored circle
+      ctx.fillStyle = isLight ? 'rgba(5,15,30,0.95)' : 'rgba(0,0,0,0.75)'
       ctx.font = `bold ${Math.round(R * 0.52)}px "Orbitron", monospace`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillText(NUMS[step], cx, cy)
 
-      // label below circle
-      ctx.fillStyle = '#e8f4ff'
-      ctx.font = `600 ${Math.max(11, Math.round(R * 0.21))}px "Tajawal", sans-serif`
+      // label below circle — DARK in light mode (opposite of filter)
+      ctx.fillStyle = isLight ? '#0d1b2a' : '#e8f4ff'
+      ctx.font = `700 ${Math.max(11, Math.round(R * 0.21))}px "Tajawal", sans-serif`
       ctx.fillText(LABELS[step], cx, cy + R * 1.52)
 
       // progress dots
@@ -156,8 +159,8 @@ function StepCanvas({ activeStep }) {
         ctx.beginPath()
         ctx.arc(dx, dotY, cur ? 6 : 3.5, 0, Math.PI * 2)
         ctx.fillStyle = i <= step
-          ? (cur ? ac : ac + '66')
-          : 'rgba(255,255,255,0.10)'
+          ? (cur ? ac : ac + '88')
+          : (isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.10)')
         if (cur) { ctx.shadowColor = ac; ctx.shadowBlur = 8 }
         ctx.fill()
         ctx.shadowBlur = 0
@@ -213,6 +216,16 @@ function useCountUp(target, suffix = '', go = false) {
 /* ─── Main ─── */
 export default function HowItWorks() {
   const isPhone = useIsPhone()
+  const [isLight, setIsLight] = useState(() =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('light')
+  )
+  useEffect(() => {
+    const obs = new MutationObserver(() =>
+      setIsLight(document.documentElement.classList.contains('light'))
+    )
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => obs.disconnect()
+  }, [])
   useEffect(() => { window.scrollTo(0, 0) }, [])
 
   /* scroll-stop — سطح المكتب والتابلت العريض فقط (ليس الهاتف) */
@@ -245,9 +258,9 @@ export default function HowItWorks() {
   useEffect(() => {
     if (isPhone) return undefined
 
-    const SNAP_ZONE  = 0.065
-    const HOLD       = 530
-    const SNAP_PTS   = [0.10, 0.28, 0.50, 0.72, 0.90]
+    const SNAP_ZONE  = 0.08
+    const HOLD       = 480
+    const SNAP_PTS   = [0.08, 0.28, 0.50, 0.72, 0.92]
     let lastSnap     = -1
 
     function onScroll() {
@@ -338,9 +351,17 @@ export default function HowItWorks() {
   const v1 = useCountUp(50000, '+', specsOn)
   const v2 = useCountUp(99.9,  '%', specsOn)
   const v3 = useCountUp(2.4,   'M', specsOn)
-  const v4 = useCountUp(180,   '+', specsOn)
+  // country stat removed
 
   const ac = STEPS[activeStep].color
+  // Darker accent shade used for TEXT in light mode (better contrast)
+  const LIGHT_SHADES = {
+    '#00d2ff': '#005f8a',
+    '#00e5a0': '#0d6e47',
+    '#a78bfa': '#4e28c4',
+    '#f59e0b': '#8a5a00',
+  }
+  const acText = isLight ? (LIGHT_SHADES[ac] || ac) : ac
 
   return (
     <div style={{ direction: 'rtl', position: 'relative' }}>
@@ -396,7 +417,7 @@ export default function HowItWorks() {
         ref={sectionRef}
         className="hiw-steps-section"
         style={{
-          height: isPhone ? 'auto' : '550vh',
+          height: isPhone ? 'auto' : '280vh',
           position: 'relative',
           zIndex: 1,
         }}
@@ -454,8 +475,8 @@ export default function HowItWorks() {
             {/* Step info */}
             <div style={{ flex: 1, minWidth: 0, width: isPhone ? '100%' : undefined }}>
               {/* step tag */}
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 14px', borderRadius: 8, marginBottom: 16, border: `1px solid ${ac}40`, background: `${ac}10`, transition: 'all .4s' }}>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '0.62rem', letterSpacing: 2, color: ac, transition: 'color .4s' }}>STEP {STEPS[activeStep].num}</span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 14px', borderRadius: 8, marginBottom: 16, border: `1px solid ${acText}55`, background: isLight ? `${acText}12` : `${ac}10`, transition: 'all .4s' }}>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '0.62rem', letterSpacing: 2, color: acText, transition: 'color .4s' }}>STEP {STEPS[activeStep].num}</span>
               </div>
 
               {/* title */}
@@ -513,10 +534,10 @@ export default function HowItWorks() {
                 display: 'inline-flex', alignItems: 'center', gap: 14,
                 padding: '13px 20px',
                 background: 'var(--card)',
-                border: `1px solid ${ac}35`,
+                border: `1px solid ${acText}45`,
                 borderRadius: 12, transition: 'border-color .4s',
               }}>
-                <span style={{ color: ac, display: 'flex', transition: 'color .4s' }}>{STEPS[activeStep].icon}</span>
+                <span style={{ color: acText, display: 'flex', transition: 'color .4s' }}>{STEPS[activeStep].icon}</span>
                 <span style={{ fontFamily: "'Tajawal',sans-serif", fontSize: '0.88rem', color: 'var(--text-2)' }}>
                   {STEPS[activeStep].title}
                 </span>
@@ -569,7 +590,7 @@ export default function HowItWorks() {
             { val: v1, label: 'تاجر نشط على المنصة', color: 'var(--cyan)' },
             { val: v2, label: 'وقت تشغيل مضمون',    color: 'var(--green)' },
             { val: v3, label: 'تحويل ناجح شهرياً',   color: 'var(--purple)' },
-            { val: v4, label: 'دولة مدعومة',          color: 'var(--gold)' },
+            // country stat removed
           ].map((s, i) => (
             <div key={i} style={{ background: 'var(--card)', border: '1px solid var(--border-1)', borderRadius: 16, padding: '30px 18px', transition: 'border-color .25s, transform .25s', cursor: 'default' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-2)'; e.currentTarget.style.transform = 'translateY(-3px)' }}

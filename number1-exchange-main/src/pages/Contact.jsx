@@ -1,5 +1,6 @@
 // src/pages/Contact.jsx — Professional redesign
 import { useState, useEffect } from 'react'
+import useLang from '../context/useLang'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
@@ -13,6 +14,8 @@ const IcClock = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none
 const IcArrow = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
 
 export default function Contact() {
+  const { lang } = useLang()
+  const isEn = lang === 'en'
   const [form, setForm]       = useState({ name:'', email:'', subject:'', message:'' })
   const [sent, setSent]       = useState(false)
   const [loading, setLoading] = useState(false)
@@ -35,11 +38,10 @@ export default function Contact() {
       glow: 'rgba(0,136,204,0.35)',
       border: 'rgba(0,136,204,0.3)',
       cardBg: 'rgba(0,136,204,0.07)',
-      name: 'تيليجرام',
-      nameEn: 'Telegram',
+      name: isEn ? 'Telegram' : 'تيليجرام',
       value: contacts?.contactTelegram || '@Number1Exchange',
       link: `https://t.me/${(contacts?.contactTelegram || 'Number1Exchange').replace('@','')}`,
-      badge: 'رد خلال دقائق',
+      badge: isEn ? 'Reply within minutes' : 'رد خلال دقائق',
       badgeCol: '#0088cc',
     },
     {
@@ -49,11 +51,10 @@ export default function Contact() {
       glow: 'rgba(37,211,102,0.35)',
       border: 'rgba(37,211,102,0.3)',
       cardBg: 'rgba(37,211,102,0.07)',
-      name: 'واتساب',
-      nameEn: 'WhatsApp',
+      name: isEn ? 'WhatsApp' : 'واتساب',
       value: contacts?.contactWhatsapp || '+XXX XXX XXXX',
       link: `https://wa.me/${(contacts?.contactWhatsapp||'').replace(/\D/g,'')}`,
-      badge: 'استفسارات سريعة',
+      badge: isEn ? 'Quick inquiries' : 'استفسارات سريعة',
       badgeCol: '#25d366',
     },
     {
@@ -63,11 +64,10 @@ export default function Contact() {
       glow: 'rgba(0,184,217,0.35)',
       border: 'rgba(0,184,217,0.3)',
       cardBg: 'rgba(0,184,217,0.07)',
-      name: 'البريد الإلكتروني',
-      nameEn: 'Email',
+      name: isEn ? 'Email' : 'البريد الإلكتروني',
       value: contacts?.contactEmail || 'support@number1exchange.com',
       link: `mailto:${contacts?.contactEmail || 'support@number1exchange.com'}`,
-      badge: 'رد خلال 24 ساعة',
+      badge: isEn ? 'Reply within 24 hours' : 'رد خلال 24 ساعة',
       badgeCol: '#00b8d9',
     },
   ]
@@ -85,12 +85,12 @@ export default function Contact() {
     borderRadius: 12, color:'var(--text-1)',
     fontFamily:"'Tajawal',sans-serif", fontSize:'.9rem',
     outline:'none', transition:'all .2s',
-    boxSizing:'border-box', textAlign:'right',
+    boxSizing:'border-box', textAlign: isEn ? 'left' : 'right',
     boxShadow: focused===name ? '0 0 0 3px rgba(0,210,255,0.08)' : 'none',
   })
 
   return (
-    <div style={{ minHeight:'80vh', padding:'60px 24px', maxWidth:920, margin:'0 auto', direction:'rtl' }}>
+    <div style={{ minHeight:'80vh', padding:'60px 24px', maxWidth:920, margin:'0 auto', direction: isEn ? 'ltr' : 'rtl' }}>
 
       {/* ── Header ── */}
       <div style={{ textAlign:'center', marginBottom:56 }}>
@@ -99,10 +99,10 @@ export default function Contact() {
           <span style={{ fontSize:'.68rem', color:'var(--cyan)', fontFamily:"'JetBrains Mono',monospace", letterSpacing:2 }}>CONTACT US</span>
         </div>
         <h1 style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'clamp(1.5rem,4vw,2.2rem)', fontWeight:900, color:'var(--text-1)', margin:'0 0 14px' }}>
-          تواصل معنا
+          {isEn ? 'Contact Us' : 'تواصل معنا'}
         </h1>
         <p style={{ fontSize:'.98rem', color:'var(--text-3)', maxWidth:420, margin:'0 auto', fontFamily:"'Tajawal',sans-serif", lineHeight:1.85 }}>
-          فريق الدعم متاح على مدار الساعة للإجابة على استفساراتك
+          {isEn ? 'Our support team is available around the clock to answer your inquiries' : 'فريق الدعم متاح على مدار الساعة للإجابة على استفساراتك'}
         </p>
       </div>
 
@@ -151,21 +151,21 @@ export default function Contact() {
               <IcSend/>
             </div>
             <div>
-              <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'.9rem', fontWeight:700, color:'var(--text-1)', letterSpacing:.5 }}>أرسل رسالة مباشرة</div>
-              <div style={{ fontSize:'.72rem', color:'var(--text-3)', fontFamily:"'Tajawal',sans-serif", marginTop:3 }}>سنرد عليك في أقرب وقت ممكن</div>
+              <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'.9rem', fontWeight:700, color:'var(--text-1)', letterSpacing:.5 }}>{isEn ? 'Send a Direct Message' : 'أرسل رسالة مباشرة'}</div>
+              <div style={{ fontSize:'.72rem', color:'var(--text-3)', fontFamily:"'Tajawal',sans-serif", marginTop:3 }}>{isEn ? 'We will reply as soon as possible' : 'سنرد عليك في أقرب وقت ممكن'}</div>
             </div>
           </div>
 
           {sent ? (
             <div style={{ textAlign:'center', padding:'44px 20px' }}>
               <div style={{ color:'var(--green)', marginBottom:16, display:'flex', justifyContent:'center' }}><IcCheck/></div>
-              <h3 style={{ fontFamily:"'Tajawal',sans-serif", color:'var(--text-1)', margin:'0 0 8px', fontSize:'1.1rem' }}>تم إرسال رسالتك!</h3>
+              <h3 style={{ fontFamily:"'Tajawal',sans-serif", color:'var(--text-1)', margin:'0 0 8px', fontSize:'1.1rem' }}>{isEn ? 'Message Sent!' : 'تم إرسال رسالتك!'}</h3>
               <p style={{ color:'var(--text-3)', fontFamily:"'Tajawal',sans-serif", fontSize:'.88rem', lineHeight:1.7, maxWidth:320, margin:'0 auto 20px' }}>
-                سنرد عليك خلال 24 ساعة على أقصى تقدير. شكراً لتواصلك معنا.
+                {isEn ? 'We will reply within 24 hours at most. Thank you for reaching out.' : 'سنرد عليك خلال 24 ساعة على أقصى تقدير. شكراً لتواصلك معنا.'}
               </p>
               <button onClick={()=>{ setSent(false); setForm({name:'',email:'',subject:'',message:''}) }}
                 style={{ padding:'10px 26px', borderRadius:12, border:'1px solid rgba(0,210,255,0.3)', background:'var(--cyan-dim)', color:'var(--cyan)', fontFamily:"'Tajawal',sans-serif", fontSize:'.9rem', cursor:'pointer', fontWeight:700, transition:'all .2s' }}>
-                إرسال رسالة أخرى
+                {isEn ? 'Send Another Message' : 'إرسال رسالة أخرى'}
               </button>
             </div>
           ) : (
@@ -173,13 +173,13 @@ export default function Contact() {
               {/* Row 1 */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                 <div>
-                  <label style={{ display:'block', fontSize:'.68rem', color:'var(--text-3)', fontFamily:"'JetBrains Mono',monospace", marginBottom:7, letterSpacing:1 }}>الاسم *</label>
+                  <label style={{ display:'block', fontSize:'.68rem', color:'var(--text-3)', fontFamily:"'JetBrains Mono',monospace", marginBottom:7, letterSpacing:1 }}>{isEn ? 'Name *' : 'الاسم *'}</label>
                   <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
-                    placeholder="اسمك الكامل" style={fieldStyle('name')}
+                    placeholder={isEn ? 'Your full name' : 'اسمك الكامل'} style={fieldStyle('name')}
                     onFocus={()=>setFocused('name')} onBlur={()=>setFocused(null)}/>
                 </div>
                 <div>
-                  <label style={{ display:'block', fontSize:'.68rem', color:'var(--text-3)', fontFamily:"'JetBrains Mono',monospace", marginBottom:7, letterSpacing:1 }}>البريد الإلكتروني *</label>
+                  <label style={{ display:'block', fontSize:'.68rem', color:'var(--text-3)', fontFamily:"'JetBrains Mono',monospace", marginBottom:7, letterSpacing:1 }}>{isEn ? 'Email *' : 'البريد الإلكتروني *'}</label>
                   <input type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}
                     placeholder="email@example.com" style={{...fieldStyle('email'), direction:'ltr', textAlign:'left'}}
                     onFocus={()=>setFocused('email')} onBlur={()=>setFocused(null)}/>
@@ -187,16 +187,16 @@ export default function Contact() {
               </div>
               {/* Subject */}
               <div>
-                <label style={{ display:'block', fontSize:'.68rem', color:'var(--text-3)', fontFamily:"'JetBrains Mono',monospace", marginBottom:7, letterSpacing:1 }}>الموضوع</label>
+                <label style={{ display:'block', fontSize:'.68rem', color:'var(--text-3)', fontFamily:"'JetBrains Mono',monospace", marginBottom:7, letterSpacing:1 }}>{isEn ? 'Subject' : 'الموضوع'}</label>
                 <input value={form.subject} onChange={e=>setForm(f=>({...f,subject:e.target.value}))}
-                  placeholder="موضوع رسالتك" style={fieldStyle('subject')}
+                  placeholder={isEn ? 'Message subject' : 'موضوع رسالتك'} style={fieldStyle('subject')}
                   onFocus={()=>setFocused('subject')} onBlur={()=>setFocused(null)}/>
               </div>
               {/* Message */}
               <div>
-                <label style={{ display:'block', fontSize:'.68rem', color:'var(--text-3)', fontFamily:"'JetBrains Mono',monospace", marginBottom:7, letterSpacing:1 }}>الرسالة *</label>
+                <label style={{ display:'block', fontSize:'.68rem', color:'var(--text-3)', fontFamily:"'JetBrains Mono',monospace", marginBottom:7, letterSpacing:1 }}>{isEn ? 'Message *' : 'الرسالة *'}</label>
                 <textarea value={form.message} onChange={e=>setForm(f=>({...f,message:e.target.value}))}
-                  placeholder="اكتب رسالتك هنا..." rows={4}
+                  placeholder={isEn ? 'Write your message here...' : 'اكتب رسالتك هنا...'} rows={4}
                   style={{...fieldStyle('message'), resize:'vertical', minHeight:110}}
                   onFocus={()=>setFocused('message')} onBlur={()=>setFocused(null)}/>
               </div>
@@ -207,13 +207,13 @@ export default function Contact() {
                   onMouseEnter={e=>{ if(!e.currentTarget.disabled) e.currentTarget.style.transform='translateY(-1px)' }}
                   onMouseLeave={e=>e.currentTarget.style.transform='translateY(0)'}>
                   {loading ? (
-                    <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{animation:'spin .8s linear infinite'}}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> جاري الإرسال...</>
+                    <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{animation:'spin .8s linear infinite'}}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> {isEn ? 'Sending...' : 'جاري الإرسال...'}</>
                   ) : (
-                    <><IcSend/> إرسال الرسالة</>
+                    <><IcSend/> {isEn ? 'Send Message' : 'إرسال الرسالة'}</>
                   )}
                 </button>
                 <div style={{ fontSize:'.72rem', color:'var(--text-3)', fontFamily:"'Tajawal',sans-serif", textAlign:'center', lineHeight:1.5 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:4, justifyContent:'center' }}><IcClock/> رد خلال 24 ساعة</div>
+                  <div style={{ display:'flex', alignItems:'center', gap:4, justifyContent:'center' }}><IcClock/> {isEn ? 'Reply within 24 hours' : 'رد خلال 24 ساعة'}</div>
                 </div>
               </div>
               <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>

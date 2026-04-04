@@ -154,7 +154,9 @@ html.light [style*="1px solid rgba(255,255,255,0.08)"] {
   border-color: rgba(0,0,0,0.07) !important;
 }
 /* إخفاء الشبكة في الوضع النهاري */
-html.light canvas { opacity: 0.5; }
+/* Star/bg canvases only — step canvas is always fully opaque */
+html.light canvas:not(.hiw-step-canvas) { opacity: 0.4; }
+html.light canvas.hiw-step-canvas { opacity: 1 !important; }
 
 /* SCROLLBAR */
 ::-webkit-scrollbar       { width:5px; }

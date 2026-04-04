@@ -787,3 +787,430 @@
     min-width: 120px !important;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   HOW IT WORKS — Light Mode Canvas Fix
+   ════════════════════════════════════════════════════════════════ */
+
+/* Ensure step canvas is fully visible in all modes */
+canvas.hiw-step-canvas {
+  opacity: 1 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TABLET SIDEBAR (769–1024px) — Full Sidebar Navigation
+   ════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 769px) and (max-width: 1024px) {
+
+  /* Show tablet sidebar, hide bottom nav */
+  .n1-tablet-sidebar {
+    display: flex !important;
+    flex-direction: column;
+    width: 220px;
+    position: fixed;
+    top: 60px;
+    right: 0;
+    bottom: 0;
+    background: var(--card);
+    border-left: 1px solid var(--border-1);
+    padding: 16px 10px;
+    gap: 4px;
+    z-index: 200;
+    overflow-y: auto;
+    backdrop-filter: blur(16px) saturate(150%);
+    box-shadow: -4px 0 24px rgba(0,0,0,0.3);
+  }
+
+  /* Content shifts left to make room for sidebar */
+  .n1-main-pad {
+    padding-right: 228px !important;
+    padding-bottom: 20px !important;
+  }
+
+  /* Hide bottom nav on tablet — sidebar replaces it */
+  .n1-bottom-nav {
+    display: none !important;
+  }
+
+  /* Tablet sidebar nav item */
+  .n1-tablet-sidebar__item {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-3);
+    font-family: 'Tajawal', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+    min-height: 44px;
+    width: 100%;
+    text-align: right;
+  }
+
+  .n1-tablet-sidebar__item:hover {
+    background: rgba(0,210,255,0.06);
+    border-color: var(--border-1);
+    color: var(--text-2);
+  }
+
+  .n1-tablet-sidebar__item--active {
+    background: rgba(0,210,255,0.09) !important;
+    border-color: rgba(0,210,255,0.2) !important;
+    color: var(--cyan) !important;
+  }
+
+  /* Horizontal layout for tablet home */
+  .mobile-home-layout {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 16px !important;
+  }
+
+  .mobile-order-exchange {
+    flex: 1 1 420px !important;
+    max-width: 100% !important;
+  }
+
+  .mobile-order-sidebars {
+    flex: 1 1 300px !important;
+  }
+
+  .mobile-sidebars-col {
+    flex-direction: column !important;
+    overflow-x: unset !important;
+    overflow-y: visible !important;
+    scroll-snap-type: unset !important;
+  }
+
+  .mobile-sidebars-col > * {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   FULL-WIDTH BUTTONS (Mobile Touch Friendly)
+   ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+
+  /* Primary action buttons go full-width */
+  .ex-submit-btn {
+    width: 100% !important;
+    min-height: 52px !important;
+    font-size: 15px !important;
+    border-radius: 16px !important;
+    padding: 14px !important;
+  }
+
+  /* Auth modal buttons */
+  [style*="maxWidth:480"] button,
+  [style*="max-width:480"] button {
+    min-height: 48px !important;
+    border-radius: 14px !important;
+  }
+
+  /* All n1-btn in mobile */
+  .n1-btn {
+    min-height: 48px !important;
+    border-radius: 14px !important;
+  }
+
+  .n1-btn--full {
+    width: 100% !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   RESPONSIVE CARDS — All sections get Card treatment
+   ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1024px) {
+
+  /* Exchange form as a proper card */
+  .ex-card {
+    background: var(--card) !important;
+    border: 1px solid var(--border-1) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18) !important;
+    overflow: hidden;
+  }
+
+  /* Features section cards */
+  .n1-card {
+    border-radius: 20px !important;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.12) !important;
+  }
+
+  /* Review cards on mobile */
+  .review-card {
+    border-radius: 18px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15) !important;
+  }
+
+  /* Rate cards */
+  .rate-card {
+    border-radius: 18px !important;
+  }
+
+  /* Order cards */
+  .order-card {
+    border-radius: 18px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1) !important;
+  }
+
+  /* Stats cards */
+  .stat-card {
+    border-radius: 18px !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TABLES → CARDS on mobile
+   ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+
+  /* Make admin tables horizontally scrollable */
+  .n1-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 16px !important;
+    border: 1px solid var(--border-1) !important;
+  }
+
+  .n1-table {
+    min-width: 600px;
+  }
+
+  /* Order history as cards instead of table */
+  .orders-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: thin !important;
+    border-radius: 16px !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ICON SYSTEM — Remove emoji fallbacks
+   ════════════════════════════════════════════════════════════════ */
+
+/* Standardize SVG icon sizes */
+@media (max-width: 1024px) {
+  svg[width="22"][height="22"] {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  svg[width="18"][height="18"] {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  /* Nav icons */
+  .n1-bottom-nav__ico svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SMOOTH HOVER TRANSITIONS (App-like)
+   ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1024px) {
+
+  /* Remove hover on touch devices, use active instead */
+  .n1-card:hover,
+  .stat-card:hover,
+  .order-card:hover {
+    transform: none !important;
+    box-shadow: unset !important;
+  }
+
+  .n1-card:active,
+  .stat-card:active,
+  .order-card:active {
+    transform: scale(0.985) !important;
+    transition: transform 0.1s !important;
+  }
+
+  button:active:not(:disabled) {
+    transform: scale(0.97) !important;
+    transition: transform 0.08s !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   HOW IT WORKS — Responsive Fixes
+   ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* Step scroller on mobile */
+  .hiw-steps-section {
+    height: auto !important;
+  }
+
+  /* Larger touch targets for step buttons */
+  .hiw-phone-nav__btn {
+    min-height: 52px !important;
+    min-width: 100px !important;
+    font-size: 0.9rem !important;
+    border-radius: 16px !important;
+    padding: 0 20px !important;
+  }
+
+  /* Step canvas readable size */
+  canvas.hiw-step-canvas {
+    min-height: 220px !important;
+  }
+
+  /* Step text larger on phone */
+  .hiw-step-animate {
+    font-size: clamp(1.1rem, 5vw, 1.5rem) !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   STACKED LAYOUT MOBILE / HORIZONTAL TABLET
+   ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* Hero section stacked */
+  .n1-hero-block {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 16px !important;
+    text-align: center !important;
+  }
+
+  /* Stats 2-column grid on mobile */
+  [style*="gridTemplateColumns:'repeat(4,1fr)'"],
+  [style*="grid-template-columns:repeat(4,1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* Payment method cards stack */
+  [style*="gridTemplateColumns:'repeat(auto-fill,minmax(175px,1fr))'"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* Comfortable spacing */
+  section {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+
+  /* Tablet: 2-col grids */
+  [style*="gridTemplateColumns:'repeat(auto-fill,minmax(175px,1fr))'"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  /* Tablet: form and sidebar side by side */
+  .hiw-layout {
+    flex-direction: row !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   COMFORTABLE SPACING — All screen sizes
+   ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+
+  /* Very small phones */
+  :root {
+    --mob-pad: 12px;
+    --mob-gap: 10px;
+  }
+
+  /* Stack payment methods single column */
+  [style*="gridTemplateColumns:'repeat(auto-fill,minmax(175px,1fr))'"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Tighter card padding */
+  .ex-card {
+    padding: 14px !important;
+  }
+
+  /* Smaller hero text */
+  h1 {
+    font-size: clamp(1.2rem, 5vw, 1.8rem) !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   LIGHT MODE — Extra Canvas / Filter Fixes
+   ════════════════════════════════════════════════════════════════ */
+
+html.light {
+  /* Ensure step section bg is readable */
+  --hiw-label-color: #1a2a3a;
+  --hiw-dot-inactive: rgba(0,0,0,0.12);
+}
+
+/* Light mode: scanlines not needed */
+html.light canvas:not(.hiw-step-canvas) {
+  opacity: 0.35 !important;
+}
+
+/* Step canvas ALWAYS fully opaque, both modes */
+canvas.hiw-step-canvas {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   APP-LIKE MICRO INTERACTIONS
+   ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1024px) {
+
+  /* Ripple-ready interactive elements */
+  .n1-btn,
+  .ex-submit-btn,
+  .hiw-phone-nav__btn,
+  .n1-bottom-nav__item {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* Input focus rings */
+  .ex-amount-input:focus,
+  .ex-inp:focus,
+  .n1-input:focus {
+    border-color: var(--cyan) !important;
+    box-shadow: 0 0 0 3px rgba(0,210,255,0.12) !important;
+  }
+
+  /* Smooth page transitions */
+  main, .n1-page {
+    animation: pageIn 0.3s cubic-bezier(0.22,1,0.36,1) both;
+  }
+
+  /* Cards entrance animation */
+  .n1-card,
+  .ex-card,
+  .stat-card {
+    animation: pageIn 0.4s cubic-bezier(0.22,1,0.36,1) both;
+  }
+}
+
