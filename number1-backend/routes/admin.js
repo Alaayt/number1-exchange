@@ -518,4 +518,57 @@ router.get('/telegram/webhook-info', async (req, res) => {
   }
 })
 
+// ─── POST /api/admin/telegram/register-webhook ───────────────
+// يسجّل الـ Webhook في تليجرام يدوياً من لوحة التحكم
+router.post('/telegram/register-webhook', async (req, res) => {
+  try {
+    const { backendUrl } = req.body;
+    const s     = await Setting.getSingleton();
+    const token = s.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN;
+
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'لم يتم إعداد Bot Token. أضفه في الإعدادات أولاً.' });
+    }
+
+    // استخدم الـ URL المُرسَل من الفرونت، أو BACKEND_URL من .env
+    const base = (backendUrl || process.env.BACKEND_URL || '').replace(/\/$/, '');
+    if (!base) {
+      return res.status(400).json({ success: false, message: 'يرجى إدخال رابط السيرفر (BACKEND_URL).' });
+    }
+
+    const webhookUrl = `${base}/api/telegram/webhook`;
+    const axios = require('axios');
+
+    const response = await axios.post(
+      `https://api.telegram.org/bot${token}/setWebhook`,
+      { url: webhookUrl, drop_pending_updates: true }
+    );
+
+    if (response.data.ok) {
+      return res.json({ success: true, message: `✅ تم تسجيل Webhook بنجاح: ${webhookUrl}`, webhookUrl });
+    } else {
+      return res.status(400).json({ success: false, message: response.data.description || 'فشل التسجيل' });
+    }
+  } catch (err) {
+    console.error('register-webhook error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── GET /api/admin/telegram/webhook-info ────────────────────
+// يعرض معلومات الـ Webhook المسجَّل حالياً
+router.get('/telegram/webhook-info', async (req, res) => {
+  try {
+    const s     = await Setting.getSingleton();
+    const token = s.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) return res.json({ success: false, message: 'Bot Token غير مُعدّ' });
+
+    const axios = require('axios');
+    const response = await axios.get(`https://api.telegram.org/bot${token}/getWebhookInfo`);
+    res.json({ success: true, info: response.data.result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

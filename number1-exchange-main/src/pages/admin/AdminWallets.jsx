@@ -5,23 +5,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout'
 import { walletAPI, adminAPI } from '../../services/api'
+import { CRYPTO_PRESETS, uid } from '../../components/admin/adminConstants'
 
+// Used by raw-fetch deposit endpoints (not yet in adminAPI service)
 const API      = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 const getToken = () => localStorage.getItem('n1_token')
-
-// ── Deposit Networks helpers ──────────────────────────────────
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2)
-
-const CRYPTO_PRESETS = [
-  { coin:'USDT', network:'TRC20',   label:'USDT TRC20',  icon:'₮', color:'#26a17b' },
-  { coin:'USDT', network:'BEP20',   label:'USDT BEP20',  icon:'₮', color:'#f0b90b' },
-  { coin:'USDT', network:'ERC20',   label:'USDT ERC20',  icon:'₮', color:'#627eea' },
-  { coin:'BNB',  network:'BEP20',   label:'BNB BEP20',   icon:'◆', color:'#f0b90b' },
-  { coin:'BTC',  network:'Bitcoin', label:'Bitcoin',     icon:'₿', color:'#f7931a' },
-  { coin:'ETH',  network:'ERC20',   label:'ETH ERC20',   icon:'Ξ', color:'#627eea' },
-  { coin:'TRX',  network:'TRC20',   label:'TRX TRC20',   icon:'◈', color:'#ff060a' },
-  { coin:'USDC', network:'ERC20',   label:'USDC ERC20',  icon:'$', color:'#2775ca' },
-]
 
 const newNet = (s = {}) => ({
   id: uid(),

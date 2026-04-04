@@ -53,6 +53,15 @@ export const S = {
   toggleLabel: { fontSize: 14, fontWeight: 600, color: '#cbd5e1' },
   toggleDesc:  { fontSize: 12, color: '#64748b', marginTop: 3 },
 
+  outlineBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    padding: '8px 14px', borderRadius: 8,
+    border: '1px solid #334155', background: 'transparent',
+    color: '#94a3b8', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+    fontFamily: "'Cairo','Tajawal',sans-serif",
+    transition: 'all 0.15s',
+  },
+
   secretField: { position: 'relative' },
   eyeBtn: {
     position: 'absolute', left: 8, top: '50%',

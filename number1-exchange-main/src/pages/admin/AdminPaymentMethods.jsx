@@ -9,18 +9,7 @@
 import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout'
 import { adminAPI } from '../../services/api'
-
-// ── اقتراحات جاهزة للأدمن ────────────────────────────────
-const CRYPTO_SUGGESTIONS = [
-  { coin: 'USDT', network: 'TRC20',  label: 'USDT TRC20',  icon: '₮', color: '#26a17b' },
-  { coin: 'USDT', network: 'BEP20',  label: 'USDT BEP20',  icon: '₮', color: '#f0b90b' },
-  { coin: 'USDT', network: 'ERC20',  label: 'USDT ERC20',  icon: '₮', color: '#627eea' },
-  { coin: 'BNB',  network: 'BEP20',  label: 'BNB BEP20',   icon: '◆', color: '#f0b90b' },
-  { coin: 'ETH',  network: 'ERC20',  label: 'ETH ERC20',   icon: 'Ξ', color: '#627eea' },
-  { coin: 'TRX',  network: 'TRC20',  label: 'TRX TRC20',   icon: '◈', color: '#ff060a' },
-  { coin: 'BTC',  network: 'Bitcoin',label: 'Bitcoin',      icon: '₿', color: '#f7931a' },
-  { coin: 'USDC', network: 'ERC20',  label: 'USDC ERC20',  icon: '$', color: '#2775ca' },
-]
+import { CRYPTO_PRESETS as CRYPTO_SUGGESTIONS, uid } from '../../components/admin/adminConstants'
 
 const WALLET_SUGGESTIONS = [
   { name: 'Vodafone Cash', icon: '📱', color: '#ef4444', placeholder: '01XXXXXXXXX' },
@@ -33,9 +22,6 @@ const WALLET_SUGGESTIONS = [
   { name: 'Aman',          icon: '🏦', color: '#84cc16', placeholder: 'رقم Aman' },
   { name: 'MoneyGo',       icon: '💵', color: '#22d3ee', placeholder: 'رقم المستخدم' },
 ]
-
-// ── ID generator ──────────────────────────────────────────
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2)
 
 // ── Default empty items ───────────────────────────────────
 const newCrypto = (sug = {}) => ({

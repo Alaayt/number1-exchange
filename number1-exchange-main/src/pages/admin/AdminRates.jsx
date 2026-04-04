@@ -7,8 +7,7 @@
 import { useEffect, useState } from "react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import { Save, RefreshCw, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
-
-const API = import.meta.env.VITE_API_URL;
+import { adminAPI } from "../../services/api";
 
 // ── Rate Fields Config ─────────────────────────────────
 // Adjust these to match your DB fields exactly
@@ -60,11 +59,7 @@ export default function AdminRates() {
   const fetchRates = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("n1_token");
-      const res   = await fetch(`${API}/api/admin/rates`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data  = await res.json();
+      const { data } = await adminAPI.getRates();
       setRates(data || {});
     } catch (err) {
       console.error(err);
@@ -83,16 +78,7 @@ export default function AdminRates() {
     setSaving(true);
     setError("");
     try {
-      const token = localStorage.getItem("n1_token");
-      const res   = await fetch(`${API}/api/admin/rates`, {
-        method:  "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(rates),
-      });
-      if (!res.ok) throw new Error("فشل الحفظ");
+      await adminAPI.saveRates(rates);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {

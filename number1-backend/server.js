@@ -53,11 +53,20 @@ app.post('/api/telegram/webhook', async (req, res) => {
 
     const { data, id: callbackQueryId } = callback_query;
 
+    const telegramService = require('./services/telegram');
+
+    // ── Parse action + id safely ──────────────────────────────
+    // callback_data format: "action_id"  (e.g. "approve_63f...", "dep-approve_63f...")
+    // Some callbacks have no id (e.g. "transfer-done") — handle gracefully
     const underscoreIndex = data.indexOf('_');
+    if (underscoreIndex === -1) {
+      // Standalone action with no associated id — just acknowledge
+      await telegramService.answerCallbackQuery(callbackQueryId, '✅ تم التسجيل');
+      return res.json({ ok: true });
+    }
+
     const action  = data.substring(0, underscoreIndex);
     const orderId = data.substring(underscoreIndex + 1);
-
-    const telegramService = require('./services/telegram');
 
     // ─── معالجة طلبات إيداع المحفظة ──────────
     if (action === 'dep-approve' || action === 'dep-reject') {
