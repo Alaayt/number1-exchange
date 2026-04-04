@@ -40,7 +40,7 @@ export default function Contact() {
       cardBg: 'rgba(0,136,204,0.07)',
       name: isEn ? 'Telegram' : 'تيليجرام',
       value: contacts?.contactTelegram || '@nimber1',
-      link: `https://t.me/${(contacts?.contactTelegram || 'Number1Exchange').replace('@','')}`,
+      link: `https://t.me/${(contacts?.contactTelegram || 'nimber1').replace('@','')}`,
       badge: isEn ? 'Reply within minutes' : 'رد خلال دقائق',
       badgeCol: '#0088cc',
     },

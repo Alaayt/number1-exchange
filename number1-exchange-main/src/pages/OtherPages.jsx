@@ -494,7 +494,7 @@ export function Support() {
       desc: t('support_tg_desc'),
       badge: lang==='ar'?'سريع':'Fast',
       badgeColor: 'var(--cyan)',
-      action: () => window.open('https://t.me/Number1Exchange','_blank'),
+      action: () => window.open('https://t.me/nimber1','_blank'),
       actionLabel: lang==='ar'?'فتح تيليجرام':'Open Telegram',
     },
     {

@@ -867,7 +867,7 @@ export default function FAQ() {
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <a
-              href="https://t.me/Number1Exchange"
+              href="https://t.me/nimber1"
               target="_blank"
               rel="noopener noreferrer"
               style={{

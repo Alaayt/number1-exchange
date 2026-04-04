@@ -56,7 +56,7 @@ export default function TabGeneral({ settings, set, togglePlatform }) {
               style={{ ...S.input, direction: 'ltr', textAlign: 'left' }}
               value={settings.platformUrl || ''}
               onChange={e => set('platformUrl', e.target.value)}
-              placeholder="https://number1exchange.com"
+              placeholder="@nimber1"
             />
           </Field>
           <Field label="إيميل الدعم">

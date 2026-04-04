@@ -4,7 +4,7 @@ import useLang from '../../context/useLang'
 
 /* ─── constants ─────────────────────────────────────────── */
 const WA_NUMBER  = '9647XXXXXXXXX'
-const TG_USER    = 'Number1Exchange'
+const TG_USER    = 'nimber1'
 
 const BOT_QS = {
   ar: [
