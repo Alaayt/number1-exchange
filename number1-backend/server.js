@@ -17,8 +17,8 @@ app.set('trust proxy', 1);
 // ─── Middleware ───────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true,
+  origin: '*',
+  credentials: false,
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
