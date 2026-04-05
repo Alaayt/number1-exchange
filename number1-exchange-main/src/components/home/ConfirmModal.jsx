@@ -6,6 +6,50 @@
 import { useState, useRef } from 'react'
 import { ordersAPI } from '../../services/api'
 
+// ══════════════════════════════════════════════
+// مكوّن النقاط المتدفقة — بديل السهم
+// ══════════════════════════════════════════════
+function FlowDots() {
+  return (
+    <div style={flowWrap}>
+      <style>{`
+        @keyframes flowDot {
+          0%, 100% { opacity: 0.15; transform: scale(0.75); }
+          50%       { opacity: 1;    transform: scale(1);    }
+        }
+        .fd1 { animation: flowDot 1.5s ease-in-out infinite 0s;    }
+        .fd2 { animation: flowDot 1.5s ease-in-out infinite 0.35s; }
+        .fd3 { animation: flowDot 1.5s ease-in-out infinite 0.7s;  }
+        .fd4 { animation: flowDot 1.5s ease-in-out infinite 1.05s; }
+      `}</style>
+      <span className="fd1" style={dot('#1D9E75')} />
+      <span className="fd2" style={dot('#5DCAA5')} />
+      <span className="fd3" style={dot('#9FE1CB')} />
+      <span className="fd4" style={dot('#378ADD')} />
+    </div>
+  )
+}
+
+const flowWrap = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  padding: '0 10px',
+  flexShrink: 0,
+}
+
+const dot = (color) => ({
+  display: 'inline-block',
+  width: 8,
+  height: 8,
+  borderRadius: '50%',
+  background: color,
+  flexShrink: 0,
+})
+
+// ══════════════════════════════════════════════
+
 function ConfirmModal({ isOpen, onClose, orderData }) {
   const [copied,         setCopied]         = useState(false)
   const [receipt,        setReceipt]        = useState(null)
@@ -80,7 +124,6 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
   const resolvePaymentMethod = (sendType, sendItem) => {
     if (sendType === 'crypto') return 'USDT_TRC20'
 
-    // wallet — نطابق اسم الوسيلة مع الـ enum
     const name = (sendItem?.name || sendItem?.key || '').toLowerCase()
     if (name.includes('vodafone'))  return 'VODAFONE_CASH'
     if (name.includes('instapay') || name.includes('insta')) return 'INSTAPAY'
@@ -88,7 +131,7 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
     if (name.includes('fawry'))     return 'FAWRY'
     if (name.includes('we') || name.includes('wepay')) return 'WE_PAY'
     if (name.includes('meeza'))     return 'MEEZA'
-    return 'VODAFONE_CASH' // fallback
+    return 'VODAFONE_CASH'
   }
 
   // ✅ دالة مساعدة: تحويل نوع الطلب إلى enum صحيح للباك إند
@@ -99,36 +142,23 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
 
   // ── إرسال الطلب النهائي للـ API ───────────
   const handleFinalSubmit = async () => {
-
     setLoading(true)
     setError('')
 
     try {
-      console.log('🚀 1 — بدأ الإرسال')
-
-      // 1 — رفع صورة الإيصال
       let receiptImageUrl = ''
       try {
         receiptImageUrl = await uploadReceipt(receipt)
-        console.log('✅ 2 — رُفعت الصورة:', receiptImageUrl)
       } catch(e) {
-        console.warn('⚠️ 2 — فشل رفع الصورة:', e.message)
+        console.warn('⚠️ فشل رفع الصورة:', e.message)
       }
 
-      console.log('📦 3 — جاري تحضير الطلب...')
-
-      // 2 — تحضير بيانات الطلب بالشكل الصح للباك إند
       const payload = {
         customerName:  orderData.userName  || orderData.email?.split('@')[0] || 'مستخدم',
         customerEmail: orderData.email     || '',
         customerPhone: orderData.userPhone || '',
-
-        // ✅ orderType يطابق الـ enum في Model
         orderType: resolveOrderType(orderData.sendType),
-
-        // بيانات الدفع
         payment: {
-          // ✅ method يطابق الـ enum في Model
           method:        resolvePaymentMethod(orderData.sendType, orderData.sendItem),
           amountSent:    parseFloat(orderData.sendAmount),
           currencySent:  orderData.sendType === 'crypto' ? 'USDT' : 'EGP',
@@ -136,27 +166,18 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
           senderPhoneNumber: orderData.userPhone || '',
           txHash: txid.trim() || null,
         },
-
-        // بيانات الاستلام
         moneygo: {
           recipientName:  orderData.userName || orderData.email?.split('@')[0] || 'مستخدم',
           recipientPhone: orderData.recipientId || orderData.userPhone || '',
           amountUSD:      parseFloat(orderData.receiveAmount),
         },
-
-        // سعر الصرف
         exchangeRate: {
           appliedRate:    parseFloat(orderData.rate) || 1,
           finalAmountUSD: parseFloat(orderData.receiveAmount),
         },
       }
 
-      // 3 — إرسال الطلب
-      console.log('📤 4 — جاري الإرسال للـ API...')
       const { data } = await ordersAPI.create(payload)
-      console.log('🎉 5 — وصل الرد:', data)
-
-      // 4 — حفظ رقم الطلب وعرض شاشة النجاح
       setOrderNumber(data.order?.orderNumber || '')
       setSubmitted(true)
 
@@ -234,8 +255,40 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
               {/* ── ملخص الطلب ──────────────── */}
               <div style={summaryBox}>
                 <div style={sectionLabel}>ORDER SUMMARY</div>
-                <Row label="ترسل" value={`${orderData.sendAmount} ${orderData.sendItem?.coin || orderData.sendItem?.name || ''}`} />
-                <Row label="تستلم" value={`${orderData.receiveAmount} ${orderData.recvItem?.coin || orderData.recvItem?.name || ''}`} green />
+
+                {/* ── صف البطاقتين مع النقاط المتدفقة ── */}
+                <div style={summaryRow}>
+                  {/* بطاقة الإرسال */}
+                  <div style={summaryCard}>
+                    <div style={summaryCardLabel}>ترسل</div>
+                    <div style={summaryCardIcon}>
+                      {orderData.sendItem?.icon || (orderData.sendType === 'crypto' ? '₮' : '📱')}
+                    </div>
+                    <div style={summaryCardName}>
+                      {orderData.sendItem?.coin || orderData.sendItem?.name || '—'}
+                    </div>
+                    <div style={summaryCardAmount}>
+                      {orderData.sendAmount}
+                    </div>
+                  </div>
+
+                  {/* النقاط المتدفقة */}
+                  <FlowDots />
+
+                  {/* بطاقة الاستلام */}
+                  <div style={{ ...summaryCard, borderColor: 'rgba(0,229,160,0.2)', background: 'rgba(0,229,160,0.04)' }}>
+                    <div style={summaryCardLabel}>تستلم</div>
+                    <div style={summaryCardIcon}>
+                      {orderData.recvItem?.icon || (orderData.recvType === 'crypto' ? '₮' : '📱')}
+                    </div>
+                    <div style={summaryCardName}>
+                      {orderData.recvItem?.coin || orderData.recvItem?.name || '—'}
+                    </div>
+                    <div style={{ ...summaryCardAmount, color: 'var(--green)' }}>
+                      {orderData.receiveAmount}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* ── خطوة 1: معلومات التحويل ── */}
@@ -302,7 +355,7 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
                       }}
                     />
                     <div style={{ marginTop: 8, fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", lineHeight: 1.6 }}>
-                      ℹ️ أدخل الـ TXID لتسريع التحقق من طلبك — إذا لم يتأكد الطلب تلقائياً تواصل معنا وأرسل الـ TXID
+                      ℹ️ أدخل الـ TXID لتسريع التحقق من طلبك
                     </div>
                   </div>
                 </div>
@@ -375,15 +428,6 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
 
 // ── Sub-components ─────────────────────────────────────────
 
-function Row({ label, value, green }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.88rem' }}>
-      <span style={{ color: 'var(--text-2)' }}>{label}</span>
-      <span style={{ fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", color: green ? 'var(--green)' : 'var(--text-1)' }}>{value}</span>
-    </div>
-  )
-}
-
 function StepHeader({ n, text }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -394,25 +438,35 @@ function StepHeader({ n, text }) {
 }
 
 // ── Styles ─────────────────────────────────────────────────
-const overlay     = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(8px)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }
-const modal       = { background: 'var(--card)', border: '1px solid var(--border-2)', borderRadius: 22, width: '100%', maxWidth: 480, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative', boxShadow: '0 30px 80px rgba(0,0,0,0.7)' }
-const topLine     = { position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,var(--cyan),var(--purple),transparent)' }
-const modalHeader = { padding: '22px 24px 18px', borderBottom: '1px solid var(--border-1)', display: 'flex', alignItems: 'center', gap: 12 }
-const modalIcon   = { width: 40, height: 40, borderRadius: 11, background: 'var(--cyan-dim)', border: '1px solid rgba(0,210,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }
-const modalTitle  = { fontFamily: "'Orbitron',sans-serif", fontSize: '0.95rem', fontWeight: 700, color: 'var(--cyan)', letterSpacing: 1 }
+const overlay      = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(8px)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }
+const modal        = { background: 'var(--card)', border: '1px solid var(--border-2)', borderRadius: 22, width: '100%', maxWidth: 480, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative', boxShadow: '0 30px 80px rgba(0,0,0,0.7)' }
+const topLine      = { position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,var(--cyan),var(--purple),transparent)' }
+const modalHeader  = { padding: '22px 24px 18px', borderBottom: '1px solid var(--border-1)', display: 'flex', alignItems: 'center', gap: 12 }
+const modalIcon    = { width: 40, height: 40, borderRadius: 11, background: 'var(--cyan-dim)', border: '1px solid rgba(0,210,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }
+const modalTitle   = { fontFamily: "'Orbitron',sans-serif", fontSize: '0.95rem', fontWeight: 700, color: 'var(--cyan)', letterSpacing: 1 }
 const modalSubtitle = { fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }
-const closeBtn    = { width: 32, height: 32, borderRadius: 8, background: 'transparent', border: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }
-const content     = { padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }
-const summaryBox  = { background: 'rgba(0,210,255,0.04)', border: '1px solid var(--border-1)', borderRadius: 12, padding: '13px 16px' }
-const sectionLabel = { fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 10, letterSpacing: 1 }
-const transferBox = { background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-1)', borderRadius: 12, padding: '14px 16px' }
-const noteText    = { marginTop: 8, fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }
-const timeWarning = { marginTop: 10, background: 'rgba(200,168,75,0.06)', border: '1px dashed rgba(200,168,75,0.25)', borderRadius: 9, padding: '9px 13px', fontSize: '0.78rem', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 8 }
-const copyBtn     = { flexShrink: 0, padding: '8px 14px', border: '1px solid', borderRadius: 9, fontFamily: "'JetBrains Mono',monospace", fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.25s', whiteSpace: 'nowrap' }
-const errorBox    = { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 9, padding: '10px 14px', color: '#f87171', fontSize: '0.82rem', textAlign: 'center' }
-const successIcon = { width: 72, height: 72, borderRadius: '50%', background: 'rgba(0,229,160,0.1)', border: '2px solid rgba(0,229,160,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px', fontSize: '2rem' }
+const closeBtn     = { width: 32, height: 32, borderRadius: 8, background: 'transparent', border: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }
+const content      = { padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }
+
+// ── Summary Cards ──────────────────────────────────────────
+const summaryBox   = { background: 'rgba(0,210,255,0.04)', border: '1px solid var(--border-1)', borderRadius: 12, padding: '13px 16px' }
+const sectionLabel = { fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 12, letterSpacing: 1 }
+const summaryRow   = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }
+const summaryCard  = { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '10px 8px', background: 'rgba(0,210,255,0.04)', border: '1px solid var(--border-1)', borderRadius: 10 }
+const summaryCardLabel  = { fontSize: '0.62rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", letterSpacing: 0.5 }
+const summaryCardIcon   = { fontSize: '1.3rem', lineHeight: 1 }
+const summaryCardName   = { fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace" }
+const summaryCardAmount = { fontSize: '1rem', fontWeight: 800, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }
+
+// ── Other ──────────────────────────────────────────────────
+const transferBox  = { background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-1)', borderRadius: 12, padding: '14px 16px' }
+const noteText     = { marginTop: 8, fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }
+const timeWarning  = { marginTop: 10, background: 'rgba(200,168,75,0.06)', border: '1px dashed rgba(200,168,75,0.25)', borderRadius: 9, padding: '9px 13px', fontSize: '0.78rem', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 8 }
+const copyBtn      = { flexShrink: 0, padding: '8px 14px', border: '1px solid', borderRadius: 9, fontFamily: "'JetBrains Mono',monospace", fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.25s', whiteSpace: 'nowrap' }
+const errorBox     = { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 9, padding: '10px 14px', color: '#f87171', fontSize: '0.82rem', textAlign: 'center' }
+const successIcon  = { width: 72, height: 72, borderRadius: '50%', background: 'rgba(0,229,160,0.1)', border: '2px solid rgba(0,229,160,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px', fontSize: '2rem' }
 const successTitle = { fontFamily: "'Orbitron',sans-serif", fontSize: '1.1rem', fontWeight: 700, color: 'var(--green)', marginBottom: 8 }
-const orderNumBox = { background: 'rgba(0,210,255,0.06)', border: '1px solid var(--border-1)', borderRadius: 9, padding: '10px 16px', fontSize: '0.85rem', color: 'var(--text-2)', margin: '10px 0' }
-const successBtn  = { marginTop: 20, padding: '12px 30px', background: 'linear-gradient(135deg,#00c97a,#009960)', border: 'none', borderRadius: 12, color: '#fff', fontFamily: "'Tajawal',sans-serif", fontSize: '1rem', fontWeight: 800, cursor: 'pointer' }
+const orderNumBox  = { background: 'rgba(0,210,255,0.06)', border: '1px solid var(--border-1)', borderRadius: 9, padding: '10px 16px', fontSize: '0.85rem', color: 'var(--text-2)', margin: '10px 0' }
+const successBtn   = { marginTop: 20, padding: '12px 30px', background: 'linear-gradient(135deg,#00c97a,#009960)', border: 'none', borderRadius: 12, color: '#fff', fontFamily: "'Tajawal',sans-serif", fontSize: '1rem', fontWeight: 800, cursor: 'pointer' }
 
 export default ConfirmModal
