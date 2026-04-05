@@ -19,7 +19,8 @@ const STATUS_MAP = {
   cancelled:  { ar: 'ملغي',              color: '#f87171', bg: 'rgba(239,68,68,0.1)',   dot: '#f87171' },
 }
 
-const DONE_STATUSES = ['completed', 'rejected', 'cancelled']
+const DONE_STATUSES    = ['completed', 'rejected', 'cancelled']
+const APPROVED_STATUSES = ['verified', 'processing', 'completed']
 
 // ── Method icon ─────────────────────────────────────────
 function MethodIcon({ method, size = 34 }) {
@@ -116,8 +117,9 @@ export default function ExchangeOrder() {
 
   // ── Countdown (30 min) ──────────────────────────────
   const [secondsLeft, setSecondsLeft] = useState(ORDER_LIFETIME)
-  const expired = secondsLeft <= 0
-  const isDone  = DONE_STATUSES.includes(order?.status)
+  const expired    = secondsLeft <= 0
+  const isDone     = DONE_STATUSES.includes(order?.status)
+  const isApproved = APPROVED_STATUSES.includes(order?.status)
 
   // ── Fetch order ─────────────────────────────────────
   const fetchOrder = useCallback(async () => {
@@ -143,19 +145,19 @@ export default function ExchangeOrder() {
   // Initial fetch
   useEffect(() => { fetchOrder() }, [fetchOrder])
 
-  // Polling every 30 s (stop when done or expired)
+  // Polling every 30 s (stop when done, approved, or expired)
   useEffect(() => {
-    if (isDone || expired) return
+    if (isDone || isApproved || expired) return
     const id = setInterval(fetchOrder, POLL_INTERVAL)
     return () => clearInterval(id)
-  }, [fetchOrder, isDone, expired])
+  }, [fetchOrder, isDone, isApproved, expired])
 
-  // Countdown timer
+  // Countdown timer (stop when approved)
   useEffect(() => {
-    if (expired || isDone) return
+    if (expired || isDone || isApproved) return
     const id = setInterval(() => setSecondsLeft(s => Math.max(0, s - 1)), 1000)
     return () => clearInterval(id)
-  }, [expired, isDone])
+  }, [expired, isDone, isApproved])
 
   // ── Derived display values ──────────────────────────
   const displaySendMethod = sendMethod   // from state (richer)
@@ -232,8 +234,38 @@ export default function ExchangeOrder() {
             <StatusBadge status={currentStatus} />
           </div>
 
-          {/* Countdown or done */}
-          {!isDone && (
+          {/* Approved / Done banner */}
+          {isApproved ? (
+            <div style={{
+              marginTop: 12,
+              padding: '14px 16px',
+              borderRadius: 12,
+              background: 'linear-gradient(135deg,rgba(52,211,153,0.12),rgba(0,229,160,0.08))',
+              border: '1.5px solid rgba(52,211,153,0.35)',
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'rgba(52,211,153,0.15)',
+                border: '2px solid #34d399',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#34d399' }}>
+                  {currentStatus === 'completed' ? 'تم اكتمال الطلب بنجاح 🎉' : 'تمت الموافقة على الطلب ✅'}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 2 }}>
+                  {currentStatus === 'completed'
+                    ? 'العملية اكتملت، شكراً لثقتك بنا'
+                    : 'جارٍ معالجة طلبك الآن، ستصلك رسالة عند الاكتمال'}
+                </div>
+              </div>
+            </div>
+          ) : !isDone ? (
             <div className={`eo-timer ${expired ? 'eo-timer--expired' : secondsLeft < 300 ? 'eo-timer--warning' : ''}`}>
               {expired ? (
                 <><span>⏰</span> انتهت مهلة الطلب</>
@@ -244,13 +276,7 @@ export default function ExchangeOrder() {
                 </>
               )}
             </div>
-          )}
-          {isDone && currentStatus === 'completed' && (
-            <div className="eo-timer eo-timer--done">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-              تم اكتمال الطلب بنجاح
-            </div>
-          )}
+          ) : null}
 
           {/* Last refresh + manual refresh */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
