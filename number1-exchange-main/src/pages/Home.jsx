@@ -244,18 +244,196 @@ function ReceivePanel({ sendMethod, recvMethod, onSelect }) {
   )
 }
 
+// ══ هوك كشف الموبايل ══
+function useIsMobile(bp = 640) {
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== "undefined" && window.innerWidth <= bp
+  )
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${bp}px)`)
+    const cb = () => setMobile(mq.matches)
+    mq.addEventListener("change", cb)
+    return () => mq.removeEventListener("change", cb)
+  }, [bp])
+  return mobile
+}
+
+// ══ بطاقة شبكة موبايل (2×2) ══
+function MobileMethodCard({ method, selected, disabled, onClick }) {
+  const isSelected = selected?.id === method.id
+  const subtitle = method.type === "egp"
+    ? `EGP · ${method.network || "محفظة"}`
+    : method.type === "wallet"
+    ? "داخلي"
+    : `${method.symbol}${method.network ? " · " + method.network : ""}`
+
+  return (
+    <div
+      onClick={() => !disabled && onClick(method)}
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        gap: 8, padding: "14px 8px", borderRadius: 14,
+        cursor: disabled ? "not-allowed" : "pointer", textAlign: "center",
+        background: isSelected
+          ? "linear-gradient(135deg,rgba(0,210,255,0.12),rgba(124,92,252,0.10))"
+          : "transparent",
+        border: `1.5px solid ${isSelected ? "rgba(0,210,255,0.45)" : "rgba(255,255,255,0.06)"}`,
+        opacity: disabled ? 0.38 : 1,
+        transition: "all 0.2s",
+        position: "relative", overflow: "hidden",
+        minHeight: 110,
+      }}
+    >
+      {isSelected && (
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: 2,
+          background: "linear-gradient(90deg,transparent,var(--cyan),transparent)"
+        }} />
+      )}
+      <CurrencyIcon method={method} size={44} />
+      <div style={{
+        fontSize: "0.83rem", fontWeight: 800, lineHeight: 1.3,
+        color: isSelected ? "var(--cyan)" : "var(--text-1)",
+        whiteSpace: "normal", wordBreak: "break-word",
+      }}>
+        {method.name}
+      </div>
+      <div style={{
+        fontSize: "0.6rem", color: "var(--text-3)",
+        fontFamily: "'JetBrains Mono',monospace",
+      }}>
+        {subtitle}
+      </div>
+      {isSelected && (
+        <div style={{
+          position: "absolute", top: 6, left: 6,
+          width: 18, height: 18, borderRadius: "50%",
+          background: "var(--cyan)", display: "flex",
+          alignItems: "center", justifyContent: "center",
+        }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+            stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ══ تخطيط الموبايل: تاب + شبكة 2×2 ══
+function MobileExchangeSelector({
+  sendMethod, recvMethod, onSend, onRecv,
+  tab, setTab, bothReady, lang,
+}) {
+  const sendMethods = [
+    ...SEND_METHODS.filter(m => !m.walletOnly),
+    SEND_METHODS.find(m => m.id === "wallet-usdt"),
+  ].filter(Boolean)
+
+  const recvMethods = RECEIVE_METHODS.filter(
+    m => m.id !== "wallet-recv" || sendMethod?.id === "usdt-trc"
+  )
+
+  return (
+    <div style={{ background: "var(--card)", border: "1px solid var(--border-1)", borderRadius: 22, overflow: "hidden" }}>
+
+      {/* ── شريط التابات ── */}
+      <div style={{ display: "flex", borderBottom: "1px solid var(--border-1)" }}>
+        {[
+          { key: "send", label: "ترسل · SEND",  accent: "var(--cyan)" },
+          { key: "recv", label: "تستلم · RECV", accent: "var(--green)" },
+        ].map(({ key, label, accent }) => {
+          const active = tab === key
+          return (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              style={{
+                flex: 1, padding: "14px 8px", border: "none", cursor: "pointer",
+                background: active
+                  ? `linear-gradient(180deg,${accent}12,transparent)`
+                  : "transparent",
+                borderBottom: active ? `2px solid ${accent}` : "2px solid transparent",
+                color: active ? accent : "var(--text-3)",
+                fontFamily: "'Tajawal',sans-serif", fontSize: "0.85rem", fontWeight: 800,
+                transition: "all 0.22s", letterSpacing: 0.3,
+              }}
+            >
+              {label}
+              {key === "send" && sendMethod && (
+                <span style={{
+                  display: "inline-block", width: 6, height: 6, borderRadius: "50%",
+                  background: "var(--cyan)", marginRight: 6, verticalAlign: "middle",
+                }} />
+              )}
+              {key === "recv" && recvMethod && (
+                <span style={{
+                  display: "inline-block", width: 6, height: 6, borderRadius: "50%",
+                  background: "var(--green)", marginRight: 6, verticalAlign: "middle",
+                }} />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── شبكة 2×2 ── */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "1fr 1fr",
+        gap: 10, padding: "12px",
+      }}>
+        {tab === "send"
+          ? sendMethods.map(m => (
+              <MobileMethodCard key={m.id} method={m}
+                selected={sendMethod} disabled={false} onClick={onSend} />
+            ))
+          : recvMethods.map(m => (
+              <MobileMethodCard key={m.id} method={m}
+                selected={recvMethod}
+                disabled={sendMethod ? !isCompatible(sendMethod, m) : false}
+                onClick={onRecv} />
+            ))
+        }
+      </div>
+
+      {/* ── مؤشر الانتقال ── */}
+      {bothReady && (
+        <div style={{
+          padding: "10px 16px 14px",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+          animation: "n1FadeIn 0.3s ease",
+        }}>
+          <div style={{
+            width: 14, height: 14, borderRadius: "50%",
+            border: "2px solid rgba(0,210,255,0.2)",
+            borderTopColor: "var(--cyan)",
+            animation: "n1Spin 0.7s linear infinite",
+          }} />
+          <span style={{ fontSize: "0.78rem", color: "var(--cyan)", fontFamily: "'Tajawal',sans-serif", fontWeight: 700 }}>
+            {lang === "ar" ? "جاري الانتقال..." : "Redirecting..."}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ══ قسم الاختيار الكامل ══
 function ExchangeSelector() {
   const { lang } = useLang()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [sendMethod, setSendMethod] = useState(null)
   const [recvMethod, setRecvMethod] = useState(null)
+  const [mobileTab, setMobileTab] = useState("send")
   const navigating = useRef(false)
 
   const handleSelectSend = (method) => {
     navigating.current = false
     setSendMethod(method)
     if (recvMethod && !isCompatible(method, recvMethod)) setRecvMethod(null)
+    if (isMobile) setTimeout(() => setMobileTab("recv"), 400)
   }
 
   const handleSelectRecv = (method) => {
@@ -263,7 +441,6 @@ function ExchangeSelector() {
     setRecvMethod(method)
   }
 
-  // انتقال تلقائي فور اكتمال الاختيارين
   useEffect(() => {
     if (sendMethod && recvMethod && isCompatible(sendMethod, recvMethod) && !navigating.current) {
       navigating.current = true
@@ -276,47 +453,70 @@ function ExchangeSelector() {
 
   const bothReady = sendMethod && recvMethod && isCompatible(sendMethod, recvMethod)
 
+  const hint = (
+    <div style={{
+      textAlign: "center", marginBottom: 16,
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+      padding: "10px 20px", background: "rgba(0,210,255,0.04)",
+      border: "1px solid rgba(0,210,255,0.12)", borderRadius: 12,
+    }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)"
+        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+      <span style={{ fontSize: "0.78rem", color: "var(--text-2)", fontFamily: "'Tajawal',sans-serif" }}>
+        {lang === "ar"
+          ? "اختر وسيلة الإرسال والاستلام — سيتم الانتقال تلقائياً"
+          : "Select send & receive — you'll be redirected automatically"}
+      </span>
+    </div>
+  )
+
+  const styles = (
+    <style>{`
+      @keyframes n1FadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+      @keyframes n1Spin   { to { transform:rotate(360deg); } }
+      @keyframes blink    { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    `}</style>
+  )
+
+  /* ── موبايل ≤640px ── */
+  if (isMobile) {
+    return (
+      <div>
+        {hint}
+        <MobileExchangeSelector
+          sendMethod={sendMethod}
+          recvMethod={recvMethod}
+          onSend={handleSelectSend}
+          onRecv={handleSelectRecv}
+          tab={mobileTab}
+          setTab={setMobileTab}
+          bothReady={bothReady}
+          lang={lang}
+        />
+        {styles}
+      </div>
+    )
+  }
+
+  /* ── ديسكتوب: التخطيط الأصلي ── */
   return (
     <div>
-      {/* تلميح */}
-      <div style={{
-        textAlign: "center", marginBottom: 22,
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-        padding: "10px 20px", background: "rgba(0,210,255,0.04)",
-        border: "1px solid rgba(0,210,255,0.12)", borderRadius: 12,
-      }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)"
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
-        <span style={{ fontSize: "0.78rem", color: "var(--text-2)", fontFamily: "'Tajawal',sans-serif" }}>
-          {lang === "ar"
-            ? "اختر وسيلة الإرسال والاستلام — سيتم الانتقال تلقائياً لتفاصيل الطلب"
-            : "Select send & receive method — you'll be redirected to order details automatically"}
-        </span>
-      </div>
+      {hint}
 
-      {/* اللوحتان جنباً إلى جنب */}
-      <div style={{
-        display: "flex",
-        flexDirection: "row",
-        gap: 16, alignItems: "stretch",
-      }}>
-        {/* لوحة الإرسال — اليمين */}
+      <div style={{ display: "flex", flexDirection: "row", gap: 16, alignItems: "stretch" }}>
         <SendPanel sendMethod={sendMethod} recvMethod={recvMethod} onSelect={handleSelectSend} />
 
-        {/* فاصل بسهم */}
         <div style={{
           display: "flex", flexDirection: "column", alignItems: "center",
           justifyContent: "center", flexShrink: 0, gap: 6, paddingTop: 60,
         }}>
           <div style={{
             width: 46, height: 46, borderRadius: "50%",
-            background: bothReady
-              ? "linear-gradient(135deg,var(--cyan),var(--purple))"
-              : "var(--card)",
+            background: bothReady ? "linear-gradient(135deg,var(--cyan),var(--purple))" : "var(--card)",
             border: `1.5px solid ${bothReady ? "transparent" : "var(--border-1)"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             transition: "all 0.35s",
@@ -339,11 +539,9 @@ function ExchangeSelector() {
           </div>
         </div>
 
-        {/* لوحة الاستلام — اليسار */}
         <ReceivePanel sendMethod={sendMethod} recvMethod={recvMethod} onSelect={handleSelectRecv} />
       </div>
 
-      {/* مؤشر الانتقال */}
       {bothReady && (
         <div style={{
           marginTop: 20, textAlign: "center",
@@ -362,11 +560,7 @@ function ExchangeSelector() {
         </div>
       )}
 
-      <style>{`
-        @keyframes n1FadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
-        @keyframes n1Spin   { to { transform:rotate(360deg); } }
-        @keyframes blink    { 0%,100%{opacity:1} 50%{opacity:0.3} }
-      `}</style>
+      {styles}
     </div>
   )
 }
