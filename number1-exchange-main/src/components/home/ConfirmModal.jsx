@@ -449,10 +449,10 @@ const closeBtn     = { width: 32, height: 32, borderRadius: 8, background: 'tran
 const content      = { padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }
 
 // ── Summary Cards ──────────────────────────────────────────
-const summaryBox   = { background: 'rgba(0,210,255,0.04)', border: '1px solid var(--border-1)', borderRadius: 12, padding: '13px 16px' }
-const sectionLabel = { fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 12, letterSpacing: 1 }
-const summaryRow   = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }
-const summaryCard  = { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '10px 8px', background: 'rgba(0,210,255,0.04)', border: '1px solid var(--border-1)', borderRadius: 10 }
+const summaryBox        = { background: 'rgba(0,210,255,0.04)', border: '1px solid var(--border-1)', borderRadius: 12, padding: '13px 16px' }
+const sectionLabel      = { fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 12, letterSpacing: 1 }
+const summaryRow        = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }
+const summaryCard       = { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '10px 8px', background: 'rgba(0,210,255,0.04)', border: '1px solid var(--border-1)', borderRadius: 10 }
 const summaryCardLabel  = { fontSize: '0.62rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", letterSpacing: 0.5 }
 const summaryCardIcon   = { fontSize: '1.3rem', lineHeight: 1 }
 const summaryCardName   = { fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace" }
