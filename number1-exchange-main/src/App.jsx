@@ -1,6 +1,7 @@
 // src/App.jsx
 import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { readOrderSession, getTimeRemaining, clearOrderSession } from './services/orderSession'
 
 // ── Per-page SEO metadata ──────────────────────────────────
 const PAGE_SEO = {
@@ -102,14 +103,32 @@ function ReturnToOrderBanner() {
   const [visible, setVisible] = useState(false)
   const [timeLeft, setTimeLeft] = useState(0)
 
-  useEffect(() => {
-    const sess = readOrderSession()
-    if (sess && getTimeRemaining(sess.expiresAt) > 0) {
+ useEffect(() => {
+  const sess = readOrderSession()
+  if (!sess || getTimeRemaining(sess.expiresAt) <= 0) return
+
+  // ✅ تحقق من حالة الطلب قبل إظهار البانر
+  fetch(`${API}/api/orders/track/${sess.orderNumber}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) return
+      const doneStatuses = ['completed', 'rejected', 'cancelled']
+      if (doneStatuses.includes(data.order.status)) {
+        // الطلب منتهي — امسح الجلسة ولا تُظهر البانر
+        clearOrderSession()
+        return
+      }
       setSession(sess)
       setTimeLeft(getTimeRemaining(sess.expiresAt))
       setVisible(true)
-    }
-  }, [])
+    })
+    .catch(() => {
+      // في حالة فشل الاتصال، أظهر البانر بشكل احتياطي
+      setSession(sess)
+      setTimeLeft(getTimeRemaining(sess.expiresAt))
+      setVisible(true)
+    })
+}, [])
 
   useEffect(() => {
     if (!session) return

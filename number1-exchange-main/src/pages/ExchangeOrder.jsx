@@ -258,8 +258,14 @@ export default function ExchangeOrder() {
     try {
       const res  = await fetch(`${API}/api/orders/track/${orderId}`)
       const data = await res.json()
-      if (data.success) { setOrder(data.order); setApiError('') }
-      else setApiError(data.message || 'لم يُعثر على الطلب')
+if (data.success) {
+  setOrder(data.order)
+  setApiError('')
+  // ✅ امسح الجلسة إذا انتهى الطلب
+  if (['completed', 'rejected', 'cancelled'].includes(data.order.status)) {
+    clearOrderSession()
+  }
+}      else setApiError(data.message || 'لم يُعثر على الطلب')
     } catch { setApiError('خطأ في الاتصال') }
     finally  { setFetching(false); setLastRefresh(new Date()) }
   }, [orderId])
@@ -277,7 +283,11 @@ export default function ExchangeOrder() {
         if (msg.type === 'STATUS_UPDATE') {
           setOrder(prev => prev ? { ...prev, status: msg.status, updatedAt: msg.updatedAt } : prev)
           setLastRefresh(new Date())
-          if (DONE_STATUSES.includes(msg.status)) { es.close(); setSseConnected(false) }
+          if (DONE_STATUSES.includes(msg.status)) {
+  es.close()
+  setSseConnected(false)
+  clearOrderSession() // ✅ امسح الجلسة عند انتهاء الطلب
+}
         }
       } catch {}
     }
