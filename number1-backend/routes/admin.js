@@ -103,6 +103,64 @@ router.get('/users', async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// ─── دالة مساعدة: إضافة رصيد للمحفظة الداخلية ──────────────────
+// تُستخدم عند إتمام طلب USDT_TO_WALLET من التليغرام
+// ══════════════════════════════════════════════════════════════════
+async function creditWalletFromOrder(order) {
+  const Wallet      = require('../models/Wallet')
+  const Transaction = require('../models/Transaction')
+
+  // ─ 1. تحقق أن الطلب من نوع إيداع محفظة داخلية ─
+  if (order.orderType !== 'USDT_TO_WALLET') return { success: false, reason: 'not_wallet_order' }
+
+  // ─ 2. تحقق أن الطلب مرتبط بمستخدم ────────────
+  if (!order.user) return { success: false, reason: 'no_user_linked' }
+
+  // ─ 3. تحقق أن الإيداع لم يتم مسبقاً (منع التكرار) ─
+const alreadyCredited = await Transaction.findOne({
+  order: order._id,
+  type: 'deposit',
+  status: 'completed'
+})
+  if (alreadyCredited) return { success: false, reason: 'already_credited' }
+
+  // ─ 4. المبلغ الذي سيُضاف = finalAmountUSD ────────
+  // هذا المبلغ صحيح الآن بعد إصلاح ExchangeFormPage (1:1)
+  const amountToAdd = parseFloat(order.exchangeRate.finalAmountUSD)
+  if (!amountToAdd || amountToAdd <= 0) return { success: false, reason: 'invalid_amount' }
+
+  // ─ 5. جلب أو إنشاء المحفظة ───────────────────────
+  let wallet = await Wallet.findOne({ user: order.user })
+  if (!wallet) {
+    wallet = await Wallet.create({ user: order.user })
+  }
+
+  if (!wallet.isActive) return { success: false, reason: 'wallet_inactive' }
+
+  // ─ 6. إضافة الرصيد ───────────────────────────────
+  const balanceBefore   = wallet.balance
+  wallet.balance        += amountToAdd
+  wallet.totalDeposited += amountToAdd
+  await wallet.save()
+
+  // ─ 7. تسجيل المعاملة مع ربطها بالطلب ─────────────
+await Transaction.create({
+    user:          order.user,
+    wallet:        wallet._id,
+    type:          'deposit',
+    amount:        amountToAdd,
+    balanceBefore,
+    balanceAfter:  wallet.balance,
+    status:        'completed',
+    performedBy:   'admin:telegram',
+    order:         order._id,
+    note:          `إيداع تلقائي — طلب ${order.orderNumber} — TXID: ${order.payment?.txHash || 'N/A'}`
+  })
+
+  return { success: true, amountAdded: amountToAdd, newBalance: wallet.balance }
+}
+
 // ─── POST /api/admin/telegram-webhook-internal ─
 router.post('/telegram-webhook-internal', async (req, res) => {
   try {
@@ -123,9 +181,6 @@ router.post('/telegram-webhook-internal', async (req, res) => {
     }
 
     // ── التحقق من المنطق الإجباري ───────────────────
-    // approve → فقط من pending/verifying
-    // complete → فقط بعد approve (verified/processing)
-    // reject → فقط من pending/verifying
     const allowedTransitions = {
       approve:  ['pending', 'verifying'],
       reject:   ['pending', 'verifying'],
@@ -149,8 +204,47 @@ router.post('/telegram-webhook-internal', async (req, res) => {
     }
 
     order.status = newStatus;
+
+    // ── إذا كانت العملية rejected → وضع transferStatus = failed ──
+    if (newStatus === 'rejected') {
+      order.moneygo.transferStatus = 'failed'
+    }
+
     order.addTimeline(newStatus, `${message_text} via Telegram`, 'admin:telegram');
     await order.save();
+
+    // ══════════════════════════════════════════════════════════════
+    // ✅ الإضافة الجديدة: إيداع تلقائي عند complete لطلبات المحفظة
+    // ══════════════════════════════════════════════════════════════
+    let walletCreditResult = null
+    if (action === 'complete' && order.orderType === 'USDT_TO_WALLET') {
+      walletCreditResult = await creditWalletFromOrder(order)
+
+      if (walletCreditResult.success) {
+        // ─ إضافة ملاحظة في الـ timeline ─────────────
+        order.addTimeline(
+          'completed',
+          `💰 تم إضافة ${walletCreditResult.amountAdded} USDT للمحفظة الداخلية — الرصيد الجديد: ${walletCreditResult.newBalance} USDT`,
+          'system'
+        )
+        order.moneygo.transferStatus = 'sent'
+        await order.save()
+
+        // ─ تحديث رسالة التليغرام بتأكيد الإضافة ────
+        message_text = `🎉 تم إتمام الطلب\n💰 تم إضافة ${walletCreditResult.amountAdded} USDT للمحفظة`
+      } else {
+        // ─ إخطار الأدمن بالسبب إذا فشل الإيداع ─────
+        const reasonMessages = {
+          already_credited: '⚠️ تم الإيداع مسبقاً',
+          no_user_linked:   '⚠️ الطلب غير مرتبط بمستخدم',
+          wallet_inactive:  '⚠️ المحفظة غير نشطة',
+          invalid_amount:   '⚠️ مبلغ غير صالح',
+          not_wallet_order: '⚠️ ليس طلب محفظة',
+        }
+        message_text = `🎉 تم إتمام الطلب\n${reasonMessages[walletCreditResult.reason] || '⚠️ فشل الإيداع التلقائي'}`
+        console.error('Wallet credit failed:', walletCreditResult.reason, 'Order:', order.orderNumber)
+      }
+    }
 
     // ── رد فوري على الأدمن ───────────────────────────
     await telegramService.answerCallbackQuery(callbackQueryId, message_text);
@@ -162,12 +256,16 @@ router.post('/telegram-webhook-internal', async (req, res) => {
     }
 
     // ── بث التحديث عبر SSE للعميل ───────────────────
-    const sseService = require('../services/sse') // إذا عندك SSE service
-    sseService.broadcast(order._id.toString(), {
-      type: 'STATUS_UPDATE',
-      status: newStatus,
-      updatedAt: new Date()
-    })
+    try {
+      const sseService = require('../services/sse')
+      sseService.broadcast(order._id.toString(), {
+        type:      'STATUS_UPDATE',
+        status:    newStatus,
+        updatedAt: new Date()
+      })
+    } catch (sseErr) {
+      console.warn('SSE broadcast failed:', sseErr.message)
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -236,7 +334,6 @@ router.put('/settings', async (req, res) => {
       'jwtRefreshEnabled', 'twoFactorAdmin', 'auditLogEnabled',
       'sessionExpireHours', 'maxLoginAttempts',
       'ipBanMinutes', 'maxConcurrentSessions',
-      // بيانات إيداع USDT
       'depositUsdtAddress', 'depositUsdtNetwork', 'depositNote',
     ]
 
@@ -270,7 +367,7 @@ const paymentMethodSchema = new mongoose.Schema({
 const PaymentMethod = mongoose.models.PaymentMethod ||
   mongoose.model('PaymentMethod', paymentMethodSchema)
 
-// ─── Wallet Deposit Addresses (separate from payment methods) ──
+// ─── Wallet Deposit Addresses ──────────────────
 const walletDepositSchema = new mongoose.Schema({
   cryptos: { type: Array, default: [] },
 }, { timestamps: true })
@@ -302,7 +399,6 @@ router.put('/payment-methods', async (req, res) => {
   }
 })
 
-// ─── Wallet Deposit Addresses routes ──────────
 router.get('/wallet-deposit-addresses', async (req, res) => {
   try {
     let doc = await WalletDeposit.findOne()
@@ -392,11 +488,10 @@ router.post('/wallets/:userId/deposit', async (req, res) => {
   }
 })
 
-// ─── تعديل يدوي من الأدمن (زيادة أو نقص) ─────
+// ─── تعديل يدوي من الأدمن ─────────────────────
 router.post('/wallets/:userId/adjust', async (req, res) => {
   try {
     const { amount, note } = req.body
-    // amount يمكن أن يكون موجباً (زيادة) أو سالباً (نقص)
     if (amount === undefined || amount === null || isNaN(amount)) {
       return res.status(400).json({ success: false, message: 'Invalid amount.' })
     }
@@ -464,7 +559,7 @@ router.get('/deposits', async (req, res) => {
   }
 })
 
-// ─── موافقة الأدمن → يضيف الرصيد على balance ──
+// ─── موافقة الأدمن على إيداع المحفظة المباشر ──
 router.post('/deposits/:id/approve', async (req, res) => {
   try {
     const deposit = await Deposit.findById(req.params.id).populate('user', 'name email')
@@ -476,7 +571,6 @@ router.post('/deposits/:id/approve', async (req, res) => {
     deposit.processedAt = new Date()
     await deposit.save()
 
-    // ─── إضافة الرصيد على balance (USDT) ─────
     let wallet = await Wallet.findOne({ user: deposit.user._id })
     if (!wallet) wallet = await Wallet.create({ user: deposit.user._id })
 
@@ -522,7 +616,6 @@ router.post('/deposits/:id/reject', async (req, res) => {
 })
 
 // ─── POST /api/admin/telegram/set-webhook ─────
-// تسجيل Telegram Webhook يدوياً (مرة واحدة بعد النشر)
 router.post('/telegram/set-webhook', async (req, res) => {
   try {
     const backendUrl = req.body.backendUrl || process.env.BACKEND_URL
@@ -545,23 +638,7 @@ router.post('/telegram/set-webhook', async (req, res) => {
   }
 })
 
-// ─── GET /api/admin/telegram/webhook-info ─────
-// عرض معلومات الـ Webhook الحالي
-router.get('/telegram/webhook-info', async (req, res) => {
-  try {
-    const s = await Setting.getSingleton()
-    const token = s.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN
-    if (!token) return res.status(400).json({ success: false, message: 'Token غير مضبوط' })
-    const axios = require('axios')
-    const result = await axios.get(`https://api.telegram.org/bot${token}/getWebhookInfo`)
-    res.json({ success: true, webhook: result.data.result })
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message })
-  }
-})
-
-// ─── POST /api/admin/telegram/register-webhook ───────────────
-// يسجّل الـ Webhook في تليجرام يدوياً من لوحة التحكم
+// ─── POST /api/admin/telegram/register-webhook ─
 router.post('/telegram/register-webhook', async (req, res) => {
   try {
     const { backendUrl } = req.body;
@@ -572,7 +649,6 @@ router.post('/telegram/register-webhook', async (req, res) => {
       return res.status(400).json({ success: false, message: 'لم يتم إعداد Bot Token. أضفه في الإعدادات أولاً.' });
     }
 
-    // استخدم الـ URL المُرسَل من الفرونت، أو BACKEND_URL من .env
     const base = (backendUrl || process.env.BACKEND_URL || '').replace(/\/$/, '');
     if (!base) {
       return res.status(400).json({ success: false, message: 'يرجى إدخال رابط السيرفر (BACKEND_URL).' });
@@ -597,8 +673,7 @@ router.post('/telegram/register-webhook', async (req, res) => {
   }
 });
 
-// ─── GET /api/admin/telegram/webhook-info ────────────────────
-// يعرض معلومات الـ Webhook المسجَّل حالياً
+// ─── GET /api/admin/telegram/webhook-info ─────
 router.get('/telegram/webhook-info', async (req, res) => {
   try {
     const s     = await Setting.getSingleton();
