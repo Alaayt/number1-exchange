@@ -148,15 +148,6 @@ app.post('/api/telegram/webhook', async (req, res) => {
       return res.json({ ok: true });
     }
 
-    // ── زر إتمام الطلب المعلق (قبل الموافقة) ──
-    if (action === 'noop') {
-      await telegramService.answerCallbackQuery(
-        callbackQueryId,
-        '⚠️ قم بالموافقة على الطلب أولاً لتفعيل هذا الزر'
-      );
-      return res.json({ ok: true });
-    }
-
     const finalStatuses = ['completed', 'rejected', 'cancelled'];
     if (finalStatuses.includes(order.status)) {
       await telegramService.answerCallbackQuery(
@@ -165,16 +156,11 @@ app.post('/api/telegram/webhook', async (req, res) => {
       );
       return res.json({ ok: true });
     }
-    // منع الموافقة مرتين
-    if (order.status === 'verified' && action === 'approve') {
-      await telegramService.answerCallbackQuery(callbackQueryId, '⚠️ تمت الموافقة مسبقاً — اضغط إتمام الطلب');
-      return res.json({ ok: true });
-    }
 
     const statusMap = {
-      approve:  { status: 'verified',   msg: '✅ تمت الموافقة — اضغط إتمام الطلب عند الإرسال' },
-      reject:   { status: 'rejected',   msg: '❌ تم رفض الطلب — تم إخطار العميل'              },
-      complete: { status: 'completed',  msg: '🎉 تم إتمام الطلب بنجاح — تم إخطار العميل'     },
+      approve:  { status: 'verified',  msg: '✅ تمت الموافقة — جاري المراجعة' },
+      reject:   { status: 'rejected',  msg: '❌ تم رفض الطلب'                 },
+      complete: { status: 'completed', msg: '🎉 تم إتمام الطلب بنجاح'          },
     };
 
     const action_data = statusMap[action];
@@ -183,7 +169,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
     order.status = action_data.status;
     order.addTimeline(action_data.status, `${action_data.msg} via Telegram`, 'admin:telegram');
 
-    if (action_data.status === 'completed') order.moneygo.transferStatus = 'completed';
+    if (action_data.status === 'completed') order.moneygo.transferStatus = 'sent';
     if (action_data.status === 'rejected')  order.moneygo.transferStatus = 'failed';
 
     await order.save();
@@ -191,25 +177,6 @@ app.post('/api/telegram/webhook', async (req, res) => {
     // ── الرد على الأدمن + تعديل الرسالة ────────
     await telegramService.answerCallbackQuery(callbackQueryId, action_data.msg);
     await telegramService.editOrderMessage(cbMessage?.message_id, order, action);
-
-    // ── إشعارات إضافية حسب الإجراء ────────────
-    if (action === 'complete') {
-      // إشعار إتمام للأدمن (تأكيد مع تفاصيل السعر)
-      try {
-        await telegramService.notifyOrderCompleted(order);
-      } catch (e) {
-        console.error('notifyOrderCompleted error:', e.message);
-      }
-    }
-
-    if (action === 'reject') {
-      // إشعار رفض للأدمن
-      try {
-        await telegramService.notifyOrderRejected(order);
-      } catch (e) {
-        console.error('notifyOrderRejected error:', e.message);
-      }
-    }
 
     res.json({ ok: true });
 

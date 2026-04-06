@@ -85,11 +85,11 @@ ${recipientLabel}: <code>${order.moneygo.recipientPhone || '—'}</code>
 
   const inline_keyboard = [
     [
-      { text: '✅ موافقة',  callback_data: `approve_${order._id}` },
-      { text: '❌ رفض',    callback_data: `reject_${order._id}`  },
+      { text: '✅ موافقة',      callback_data: `approve_${order._id}`  },
+      { text: '❌ رفض',         callback_data: `reject_${order._id}`   },
     ],
     [
-      { text: '⏳ إتمام الطلب (في الانتظار)', callback_data: `noop_${order._id}` },
+      { text: '🎉 إتمام الطلب', callback_data: `complete_${order._id}` },
     ]
   ]
 
@@ -99,12 +99,11 @@ ${recipientLabel}: <code>${order.moneygo.recipientPhone || '—'}</code>
 // ─── إشعار تحديث حالة الطلب ──────────────────
 exports.notifyOrderUpdate = async (order, newStatus, note = '') => {
   const statusText = {
-    verified:    '✅ تم التحقق من الدفع',
-    processing:  '⚙️ جاري المعالجة',
-    money_ready: '💸 تم إرسال الفلوس للعميل — ينتظر تأكيده',
-    completed:   '🎉 مكتمل — تم التحويل',
-    rejected:    '❌ مرفوض',
-    cancelled:   '🚫 ملغي'
+    verified:   '✅ تم التحقق من الدفع',
+    processing: '⚙️ جاري المعالجة',
+    completed:  '🎉 مكتمل — تم التحويل',
+    rejected:   '❌ مرفوض',
+    cancelled:  '🚫 ملغي'
   }
 
   const text = `
@@ -218,25 +217,13 @@ exports.editMessage = async (messageId, newText) => {
 exports.editOrderMessage = async (messageId, order, action) => {
   if (!messageId) return
   const stamps = {
-    approve:     '✅ <b>تمت الموافقة</b> — الطلب قيد المراجعة',
-    reject:      '❌ <b>تم الرفض</b> — تم إخطار العميل',
-    money_ready: '💸 <b>تم إرسال الفلوس للعميل</b> — ينتظر تأكيد الاستلام',
-    complete:    '🎉 <b>تم إتمام الطلب</b> — اكتملت العملية بنجاح',
-    cancel:      '🚫 <b>تم الإلغاء من العميل</b>',
+    approve:  '✅ <b>تمت الموافقة</b> — الطلب قيد المراجعة',
+    reject:   '❌ <b>تم الرفض</b> — تم إخطار العميل',
+    complete: '🎉 <b>تم إتمام الطلب</b> — اكتملت العملية بنجاح',
+    cancel:   '🚫 <b>تم الإلغاء من العميل</b>',
   }
   const stamp  = stamps[action] || `🔄 ${action}`
   const method = (order.payment?.method || '').replace(/_/g, ' ')
-
-  // بعد الموافقة: يظهر زر إتمام الطلب نشطاً
-  let replyMarkup = { inline_keyboard: [] }
-  if (action === 'approve') {
-    replyMarkup = {
-      inline_keyboard: [[
-        { text: '🎉 إتمام الطلب الآن', callback_data: `complete_${order._id}` }
-      ]]
-    }
-  }
-
   try {
     const { token, chatId } = await getConfig()
     if (!token || !chatId) return
@@ -257,7 +244,7 @@ ${stamp}
     await axios.post(`https://api.telegram.org/bot${token}/editMessageText`, {
       chat_id: chatId, message_id: messageId,
       text: newText, parse_mode: 'HTML',
-      reply_markup: replyMarkup
+      reply_markup: { inline_keyboard: [] }
     })
   } catch (e) {
     if (!e.response?.data?.description?.includes('message is not modified'))
@@ -265,53 +252,7 @@ ${stamp}
   }
 }
 
-// ─── إشعار إتمام الطلب (يُرسل للأدمن لتأكيد الإتمام) ──
-exports.notifyOrderCompleted = async (order) => {
-  const method = (order.payment?.method || '').replace(/_/g, ' ')
-  const rate   = parseFloat(order.exchangeRate?.appliedRate || 0)
-  const rateStr = rate >= 1
-    ? rate.toFixed(4).replace(/\.?0+$/, '')
-    : rate.toPrecision(4).replace(/\.?0+$/, '')
-
-  const text = `
-🎉 <b>تم إتمام الطلب — Number1</b>
-━━━━━━━━━━━━━━━━━━━
-📋 <b>رقم الطلب:</b> <code>${order.orderNumber}</code>
-👤 <b>العميل:</b> ${order.customerName}
-📧 <b>الإيميل:</b> ${order.customerEmail}
-━━━━━━━━━━━━━━━━━━━
-💳 <b>طريقة الدفع:</b> ${method}
-💵 <b>المبلغ المُرسَل:</b> ${order.payment?.amountSent} ${order.payment?.currencySent}
-💚 <b>المبلغ المُستلَم:</b> $${order.exchangeRate?.finalAmountUSD} USD
-📈 <b>السعر المُطبَّق:</b> ${rateStr}
-🎯 <b>معرّف الاستلام:</b> <code>${order.moneygo?.recipientPhone || '—'}</code>
-━━━━━━━━━━━━━━━━━━━
-✅ <b>اكتملت العملية بنجاح</b>
-⏰ ${new Date().toLocaleString('ar-EG')}
-  `.trim()
-
-  return await exports.sendMessage(text)
-}
-
-// ─── إشعار رفض الطلب ────────────────────────
-exports.notifyOrderRejected = async (order) => {
-  const method = (order.payment?.method || '').replace(/_/g, ' ')
-  const text = `
-❌ <b>تم رفض الطلب — Number1</b>
-━━━━━━━━━━━━━━━━━━━
-📋 <b>رقم الطلب:</b> <code>${order.orderNumber}</code>
-👤 <b>العميل:</b> ${order.customerName}
-📧 <b>الإيميل:</b> ${order.customerEmail}
-━━━━━━━━━━━━━━━━━━━
-💳 <b>طريقة الدفع:</b> ${method}
-💵 <b>المبلغ:</b> ${order.payment?.amountSent} ${order.payment?.currencySent}
-━━━━━━━━━━━━━━━━━━━
-❌ <b>تم رفض العملية — تم إخطار العميل</b>
-⏰ ${new Date().toLocaleString('ar-EG')}
-  `.trim()
-
-  return await exports.sendMessage(text)
-}
+// ─── إشعار إلغاء الطلب من العميل ─────────────
 exports.notifyOrderCancelled = async (order, reason = '') => {
   const method = (order.payment?.method || '').replace(/_/g, ' ')
   const text = `
