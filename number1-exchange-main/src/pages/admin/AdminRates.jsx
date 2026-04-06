@@ -1,164 +1,131 @@
 // src/pages/admin/AdminRates.jsx
 // =============================================
-// لوحة تحكم الأسعار — واجهة واضحة ومنطقية
-// الأدمن يتحكم في كل سعر بشكل مستقل
+// لوحة تحكم الأسعار — نظيفة وتعمل 100%
+// تتحكم فقط بالحقول الموجودة فعلاً في DB
 // =============================================
 
 import { useEffect, useState } from "react";
 import AdminLayout from "../../components/admin/AdminLayout";
-import { Save, RefreshCw, TrendingUp, AlertCircle, CheckCircle, ArrowDownUp } from "lucide-react";
+import { Save, RefreshCw, AlertCircle, CheckCircle } from "lucide-react";
 import { adminAPI } from "../../services/api";
 
-// ══════════════════════════════════════════════
-// تعريف الأسعار — منطق واضح لكل حقل
-// ══════════════════════════════════════════════
-const RATE_SECTIONS = [
+// ══════════════════════════════════════════════════════════
+// الحقول الحقيقية الموجودة في models/Rate.js فقط
+// ══════════════════════════════════════════════════════════
+const SECTIONS = [
   {
-    id: "usdt_egp",
+    id:    "usdt_egp",
     title: "USDT ↔ الجنيه المصري",
-    subtitle: "سعر الدولار USDT مقابل الجنيه",
     color: "#2563eb",
-    icon: "💵",
-    pairs: [
-      {
-        buyKey:  "usdtBuyRate",
-        sellKey: "usdtSellRate",
-        label:   "USDT / جنيه مصري",
-        buyDesc:  "العميل يدفع جنيه ويستلم USDT — (كم جنيه = 1 USDT)",
-        sellDesc: "العميل يرسل USDT ويستلم جنيه — (كم جنيه يحصل عليه لكل USDT)",
-        buyExample:  "مثال: 50 يعني العميل يدفع 50 جنيه ← يستلم 1 USDT",
-        sellExample: "مثال: 49.5 يعني العميل يرسل 1 USDT ← يستلم 49.5 جنيه",
-        buyUnit:  "جنيه / USDT",
-        sellUnit: "جنيه / USDT",
-      }
-    ]
-  },
-  {
-    id: "moneygo_egp",
-    title: "MoneyGo ↔ الجنيه المصري",
-    subtitle: "سعر MoneyGo مقابل الجنيه",
-    color: "#059669",
-    icon: "💚",
-    pairs: [
-      {
-        buyKey:  "moneygoEgpBuyRate",
-        sellKey: "moneygoEgpSellRate",
-        label:   "MoneyGo / جنيه مصري",
-        buyDesc:  "العميل يدفع جنيه ويستلم MoneyGo — (كم جنيه = 1 MoneyGo)",
-        sellDesc: "العميل يرسل MoneyGo ويستلم جنيه — (كم جنيه لكل MoneyGo)",
-        buyExample:  "مثال: 52 يعني العميل يدفع 52 جنيه ← يستلم 1 MoneyGo",
-        sellExample: "مثال: 51 يعني العميل يرسل 1 MoneyGo ← يستلم 51 جنيه",
-        buyUnit:  "جنيه / MGO",
-        sellUnit: "جنيه / MGO",
-      }
-    ]
-  },
-  {
-    id: "moneygo_usdt",
-    title: "MoneyGo ↔ USDT",
-    subtitle: "سعر MoneyGo مقابل الدولار USDT",
-    color: "#7c3aed",
-    icon: "🔄",
-    single: true,
+    icon:  "💵",
     fields: [
       {
-        key:     "moneygoRate",
-        label:   "سعر MoneyGo بالـ USDT",
-        desc:    "كم USDT يساوي 1 MoneyGo USD",
-        example: "مثال: 1.002 يعني العميل يرسل 1 MoneyGo ← يستلم 1.002 USDT",
-        unit:    "USDT / MGO",
-        placeholder: "1.002",
-      }
-    ]
-  },
-  {
-    id: "internal_usdt_usdt",
-    title: "المحفظة الداخلية ↔ USDT (TRC20)",
-    subtitle: "أسعار التحويل بين الرصيد الداخلي والـ USDT الخارجي",
-    color: "#0891b2",
-    icon: "🏦",
-    pairs: [
-      {
-        buyKey:  "internalUsdtBuyRate",
-        sellKey: "internalUsdtSellRate",
-        label:   "USDT خارجي / رصيد داخلي",
-        buyDesc:  "العميل يرسل USDT خارجي ويستلم رصيداً داخلياً — (كم USDT خارجي = 1 رصيد داخلي)",
-        sellDesc: "العميل يرسل رصيداً داخلياً ويستلم USDT خارجي — (كم USDT يحصل عليه لكل 1 رصيد داخلي)",
-        buyExample:  "مثال: 1.01 يعني العميل يدفع 1.01 USDT ← يستلم 1 رصيد داخلي",
-        sellExample: "مثال: 0.99 يعني العميل يرسل 1 رصيد داخلي ← يستلم 0.99 USDT",
-        buyUnit:  "USDT / داخلي",
-        sellUnit: "USDT / داخلي",
-      }
-    ]
-  },
-  {
-    id: "internal_usdt_moneygo",
-    title: "المحفظة الداخلية ↔ MoneyGo",
-    subtitle: "أسعار التحويل بين الرصيد الداخلي و MoneyGo",
-    color: "#b45309",
-    icon: "🔁",
-    pairs: [
-      {
-        buyKey:  "moneyGoToInternalUsdtRate",
-        sellKey: "internalUsdtToMoneyGoRate",
-        label:   "MoneyGo / رصيد داخلي",
-        buyDesc:  "العميل يرسل MoneyGo ويستلم رصيداً داخلياً — (كم رصيد داخلي لكل 1 MoneyGo)",
-        sellDesc: "العميل يرسل رصيداً داخلياً ويستلم MoneyGo — (كم MoneyGo لكل 1 رصيد داخلي)",
-        buyExample:  "مثال: 1.00 يعني العميل يرسل 1 MoneyGo ← يستلم 1 رصيد داخلي",
-        sellExample: "مثال: 1.00 يعني العميل يرسل 1 رصيد داخلي ← يستلم 1 MoneyGo",
-        buyUnit:  "داخلي / MGO",
-        sellUnit: "MGO / داخلي",
-      }
-    ]
-  },
-  {
-    id: "egp_wallets",
-    title: "المحافظ الإلكترونية المصرية",
-    subtitle: "سعر موحد لـ فودافون كاش / إنستا باي / فاوري / أورنج كاش",
-    color: "#d97706",
-    icon: "📱",
-    pairs: [
-      {
-        buyKey:  "egpWalletBuyRate",
-        sellKey: "egpWalletSellRate",
-        label:   "جنيه مصري / USDT",
-        buyDesc:  "العميل يدفع جنيه عبر محفظة ويستلم USDT — (كم جنيه = 1 USDT)",
-        sellDesc: "العميل يرسل USDT ويستلم جنيه عبر محفظة — (كم جنيه لكل USDT)",
-        buyExample:  "مثال: 50 يعني العميل يدفع 50 جنيه فودافون ← يستلم 1 USDT",
-        sellExample: "مثال: 49.5 يعني العميل يرسل 1 USDT ← يستلم 49.5 جنيه",
-        buyUnit:  "جنيه / USDT",
-        sellUnit: "جنيه / USDT",
-      }
-    ]
-  },
-  {
-    id: "limits",
-    title: "حدود المعاملات",
-    subtitle: "الحد الأدنى والأقصى للطلبات",
-    color: "#dc2626",
-    icon: "⚡",
-    single: true,
-    fields: [
-      {
-        key:         "minOrderUsdt",
-        label:       "الحد الأدنى للطلب",
-        desc:        "أقل مبلغ USDT مقبول لأي عملية",
-        example:     "مثال: 10 يعني أقل طلب هو 10 USDT",
-        unit:        "USDT",
-        placeholder: "10",
+        key:   "usdtBuyRate",
+        label: "سعر شراء USDT",
+        help:  "العميل يدفع جنيه ← يستلم USDT",
+        ex:    "مثال: 50 يعني 50 جنيه = 1 USDT",
+        unit:  "جنيه / USDT",
+        tag:   "🟢 العميل يشتري منك",
       },
       {
-        key:         "maxOrderUsdt",
-        label:       "الحد الأقصى للطلب",
-        desc:        "أعلى مبلغ USDT مقبول لأي عملية",
-        example:     "مثال: 5000 يعني أعلى طلب هو 5000 USDT",
-        unit:        "USDT",
-        placeholder: "5000",
-      }
-    ]
+        key:   "usdtSellRate",
+        label: "سعر بيع USDT",
+        help:  "العميل يرسل USDT ← يستلم جنيه",
+        ex:    "مثال: 49.5 يعني 1 USDT = 49.5 جنيه",
+        unit:  "جنيه / USDT",
+        tag:   "🔴 العميل يبيع لك",
+      },
+    ],
+  },
+  {
+    id:       "egp_wallets",
+    title:    "المحافظ الإلكترونية المصرية",
+    subtitle: "فودافون كاش · إنستا باي · فاوري · أورنج كاش",
+    color:    "#d97706",
+    icon:     "📱",
+    fields: [
+      {
+        key:   "vodafoneBuyRate",
+        label: "فودافون كاش",
+        help:  "العميل يدفع جنيه فودافون ← يستلم USDT",
+        ex:    "مثال: 50 يعني 50 جنيه فودافون = 1 USDT",
+        unit:  "جنيه / USDT",
+        tag:   "🟢 شراء من العميل",
+      },
+      {
+        key:   "instaPayRate",
+        label: "إنستا باي",
+        help:  "العميل يدفع جنيه إنستا ← يستلم USDT",
+        ex:    "مثال: 50.1 يعني 50.1 جنيه إنستا = 1 USDT",
+        unit:  "جنيه / USDT",
+        tag:   "🟢 شراء من العميل",
+      },
+      {
+        key:   "fawryRate",
+        label: "فاوري",
+        help:  "العميل يدفع جنيه فاوري ← يستلم USDT",
+        ex:    "مثال: 49.8 يعني 49.8 جنيه فاوري = 1 USDT",
+        unit:  "جنيه / USDT",
+        tag:   "🟢 شراء من العميل",
+      },
+      {
+        key:   "orangeRate",
+        label: "أورنج كاش",
+        help:  "العميل يدفع جنيه أورنج ← يستلم USDT",
+        ex:    "مثال: 49.9 يعني 49.9 جنيه أورنج = 1 USDT",
+        unit:  "جنيه / USDT",
+        tag:   "🟢 شراء من العميل",
+      },
+    ],
+  },
+  {
+    id:    "moneygo",
+    title: "MoneyGo USD",
+    color: "#059669",
+    icon:  "💚",
+    fields: [
+      {
+        key:   "moneygoRate",
+        label: "سعر MoneyGo بالـ USDT",
+        help:  "العميل يرسل MoneyGo ← يستلم USDT",
+        ex:    "مثال: 1.004 يعني 1 MoneyGo = 1.004 USDT",
+        unit:  "USDT / MGO",
+        tag:   "🔄 MoneyGo → USDT",
+        step:  "0.001",
+      },
+    ],
+  },
+  {
+    id:    "limits",
+    title: "حدود المعاملات",
+    color: "#dc2626",
+    icon:  "⚡",
+    fields: [
+      {
+        key:   "minOrderUsdt",
+        label: "الحد الأدنى للطلب",
+        help:  "أقل مبلغ USDT مقبول لأي عملية",
+        ex:    "مثال: 10 يعني أقل طلب هو 10 USDT",
+        unit:  "USDT",
+        tag:   "📉 الحد الأدنى",
+        step:  "1",
+      },
+      {
+        key:   "maxOrderUsdt",
+        label: "الحد الأقصى للطلب",
+        help:  "أعلى مبلغ USDT مقبول لأي عملية",
+        ex:    "مثال: 5000 يعني أعلى طلب هو 5000 USDT",
+        unit:  "USDT",
+        tag:   "📈 الحد الأقصى",
+        step:  "1",
+      },
+    ],
   },
 ];
 
+// ══════════════════════════════════════════════════════════
+// Main Component
+// ══════════════════════════════════════════════════════════
 export default function AdminRates() {
   const [rates,   setRates]   = useState({});
   const [loading, setLoading] = useState(true);
@@ -166,22 +133,23 @@ export default function AdminRates() {
   const [saved,   setSaved]   = useState(false);
   const [error,   setError]   = useState("");
 
-  useEffect(() => { fetchRates(); }, []);
+  useEffect(() => { load(); }, []);
 
-  const fetchRates = async () => {
+  const load = async () => {
     setLoading(true);
+    setError("");
     try {
       const { data } = await adminAPI.getRates();
       setRates(data || {});
-    } catch (err) {
-      setError("فشل تحميل الأسعار");
+    } catch {
+      setError("فشل تحميل الأسعار — تحقق من الاتصال بالسيرفر");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (key, value) => {
-    setRates(prev => ({ ...prev, [key]: value }));
+  const handleChange = (key, val) => {
+    setRates(prev => ({ ...prev, [key]: val }));
     setSaved(false);
   };
 
@@ -191,9 +159,9 @@ export default function AdminRates() {
     try {
       await adminAPI.saveRates(rates);
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      setError(err.message || "فشل الحفظ");
+      setTimeout(() => setSaved(false), 4000);
+    } catch (e) {
+      setError(e.message || "فشل الحفظ — حاول مرة أخرى");
     } finally {
       setSaving(false);
     }
@@ -201,8 +169,8 @@ export default function AdminRates() {
 
   if (loading) return (
     <AdminLayout>
-      <div style={{ padding: 80, textAlign: "center", color: "#6e7681" }}>
-        جاري التحميل...
+      <div style={{ padding: 80, textAlign: "center", color: "#6e7681", fontSize: 14 }}>
+        جاري تحميل الأسعار...
       </div>
     </AdminLayout>
   );
@@ -210,96 +178,72 @@ export default function AdminRates() {
   return (
     <AdminLayout>
 
-      {/* ── Header ─────────────────────────── */}
-      <div style={s.pageHeader}>
+      {/* ── Header ── */}
+      <div style={S.header}>
         <div>
-          <h2 style={s.pageTitle}>الأسعار</h2>
-          <p style={s.pageSub}>تحديث أسعار الصرف لجميع العمليات</p>
+          <h2 style={S.title}>الأسعار</h2>
+          <p style={S.sub}>تحديث أسعار الصرف لجميع العمليات</p>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button style={s.refreshBtn} onClick={fetchRates} title="تحديث">
+          <button style={S.iconBtn} onClick={load} title="تحديث الأسعار">
             <RefreshCw size={15} />
           </button>
-          <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
-            {saving
-              ? <span>جاري الحفظ...</span>
-              : <><Save size={16} /><span>حفظ التغييرات</span></>
-            }
+          <button style={S.saveBtn} onClick={handleSave} disabled={saving}>
+            <Save size={15} />
+            <span>{saving ? "جاري الحفظ..." : "حفظ التغييرات"}</span>
           </button>
         </div>
       </div>
 
-      {/* ── Feedback ───────────────────────── */}
+      {/* ── Alerts ── */}
       {error && (
-        <div style={s.errorBanner}>
-          <AlertCircle size={16} /> {error}
+        <div style={{ ...S.alert, background: "#3d0a0a", color: "#f85149" }}>
+          <AlertCircle size={15} /> {error}
         </div>
       )}
       {saved && (
-        <div style={s.successBanner}>
-          <CheckCircle size={16} /> تم حفظ الأسعار بنجاح ✅
+        <div style={{ ...S.alert, background: "#064e3b", color: "#34d399" }}>
+          <CheckCircle size={15} /> تم حفظ جميع الأسعار بنجاح ✅
         </div>
       )}
 
-      {/* ── Sections ───────────────────────── */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        {RATE_SECTIONS.map(section => (
-          <div key={section.id} style={s.card}>
+      {/* ── Sections ── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {SECTIONS.map(sec => (
+          <div key={sec.id} style={S.card}>
 
             {/* Section Header */}
-            <div style={{ ...s.sectionHeader, borderColor: section.color + "44" }}>
-              <div style={{ ...s.sectionIcon, background: section.color + "18", color: section.color }}>
-                {section.icon}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 16, marginBottom: 18, borderBottom: `1px solid ${sec.color}33` }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: sec.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                {sec.icon}
               </div>
               <div>
-                <div style={{ ...s.sectionTitle, color: section.color }}>
-                  {section.title}
-                </div>
-                <div style={s.sectionSub}>{section.subtitle}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: sec.color }}>{sec.title}</div>
+                {sec.subtitle && <div style={{ fontSize: 12, color: "#6e7681", marginTop: 2 }}>{sec.subtitle}</div>}
               </div>
             </div>
 
-            {/* Buy/Sell Pairs */}
-            {section.pairs && section.pairs.map(pair => (
-              <BuySellPair
-                key={pair.buyKey}
-                pair={pair}
-                rates={rates}
-                color={section.color}
-                onChange={handleChange}
-              />
-            ))}
-
-            {/* Single Fields */}
-            {section.single && section.fields && (
-              <div style={s.singleGrid}>
-                {section.fields.map(field => (
-                  <SingleField
-                    key={field.key}
-                    field={field}
-                    value={rates[field.key] ?? ""}
-                    color={section.color}
-                    onChange={v => handleChange(field.key, v)}
-                  />
-                ))}
-              </div>
-            )}
-
+            {/* Fields */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 12 }}>
+              {sec.fields.map(f => (
+                <RateField
+                  key={f.key}
+                  field={f}
+                  value={rates[f.key] ?? ""}
+                  color={sec.color}
+                  onChange={v => handleChange(f.key, v)}
+                />
+              ))}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* ── Bottom Save ────────────────────── */}
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24, marginBottom: 8 }}>
-        <button
-          style={{ ...s.saveBtn, padding: "12px 32px", fontSize: 15 }}
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving
-            ? "جاري الحفظ..."
-            : <><Save size={16} /><span>حفظ كل التغييرات</span></>
-          }
+      {/* ── Bottom Save ── */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20, paddingBottom: 24 }}>
+        <button style={{ ...S.saveBtn, padding: "11px 28px", fontSize: 14 }} onClick={handleSave} disabled={saving}>
+          <Save size={16} />
+          <span>{saving ? "جاري الحفظ..." : "حفظ كل التغييرات"}</span>
         </button>
       </div>
 
@@ -307,184 +251,74 @@ export default function AdminRates() {
   );
 }
 
-// ══════════════════════════════════════════════
-// BuySellPair — زوج الشراء والبيع
-// ══════════════════════════════════════════════
-function BuySellPair({ pair, rates, color, onChange }) {
-  const buyVal  = rates[pair.buyKey]  ?? "";
-  const sellVal = rates[pair.sellKey] ?? "";
-
-  // حساب هامش الربح
-  const margin = buyVal && sellVal
-    ? ((parseFloat(buyVal) - parseFloat(sellVal)) / parseFloat(buyVal) * 100).toFixed(2)
-    : null;
+// ── RateField Component ───────────────────────────────────
+function RateField({ field, value, color, onChange }) {
+  const [focused, setFocused] = useState(false);
 
   return (
-    <div style={p.wrap}>
+    <div style={S.field}>
 
-      {/* Label row */}
-      <div style={p.labelRow}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <ArrowDownUp size={14} style={{ color }} />
-          <span style={p.pairLabel}>{pair.label}</span>
-        </div>
-        {margin !== null && (
-          <div style={{ ...p.marginBadge, color, background: color + "18", border: `1px solid ${color}33` }}>
-            هامش: {margin}%
-          </div>
-        )}
+      {/* Tag */}
+      <div style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, marginBottom: 10, display: "inline-block", alignSelf: "flex-start", background: color + "18", color, border: `1px solid ${color}33` }}>
+        {field.tag}
       </div>
 
-      {/* Buy + Sell inputs */}
-      <div style={p.inputsRow}>
-
-        {/* BUY — العميل يدفع جنيه ويستلم USDT */}
-        <div style={p.inputBox}>
-          <div style={p.inputHeader}>
-            <div style={{ ...p.badge, background: "#06402822", color: "#059669", border: "1px solid #05966933" }}>
-              🟢 شراء منك
-            </div>
-            <span style={{ ...p.unitBadge, color, background: color + "18" }}>{pair.buyUnit}</span>
-          </div>
-          <PriceInput
-            value={buyVal}
-            color="#059669"
-            onChange={v => onChange(pair.buyKey, v)}
-            placeholder="0.00"
-          />
-          <p style={p.desc}>{pair.buyDesc}</p>
-          <p style={p.example}>{pair.buyExample}</p>
-        </div>
-
-        {/* Divider */}
-        <div style={p.divider}>
-          <div style={{ ...p.dividerLine, background: color + "33" }} />
-          <div style={{ ...p.dividerIcon, color, border: `1px solid ${color}44` }}>⇄</div>
-          <div style={{ ...p.dividerLine, background: color + "33" }} />
-        </div>
-
-        {/* SELL — العميل يرسل USDT ويستلم جنيه */}
-        <div style={p.inputBox}>
-          <div style={p.inputHeader}>
-            <div style={{ ...p.badge, background: "#3d0a0a22", color: "#f87171", border: "1px solid #f8717133" }}>
-              🔴 بيع لك
-            </div>
-            <span style={{ ...p.unitBadge, color, background: color + "18" }}>{pair.sellUnit}</span>
-          </div>
-          <PriceInput
-            value={sellVal}
-            color="#f87171"
-            onChange={v => onChange(pair.sellKey, v)}
-            placeholder="0.00"
-          />
-          <p style={p.desc}>{pair.sellDesc}</p>
-          <p style={p.example}>{pair.sellExample}</p>
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════
-// SingleField — حقل منفرد
-// ══════════════════════════════════════════════
-function SingleField({ field, value, color, onChange }) {
-  return (
-    <div style={sf.wrap}>
-      <div style={sf.header}>
-        <span style={sf.label}>{field.label}</span>
-        <span style={{ ...sf.unit, color, background: color + "18", border: `1px solid ${color}33` }}>
+      {/* Label + Unit */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#c9d1d9" }}>{field.label}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10, background: "#21262d", color: "#8b949e" }}>
           {field.unit}
         </span>
       </div>
-      <p style={sf.desc}>{field.desc}</p>
-      <PriceInput
+
+      {/* Help */}
+      <p style={{ fontSize: 11, color: "#6e7681", margin: "0 0 10px", lineHeight: 1.5 }}>
+        {field.help}
+      </p>
+
+      {/* Input */}
+      <input
+        type="number"
+        step={field.step || "0.01"}
+        min="0"
         value={value}
-        color={color}
-        onChange={onChange}
-        placeholder={field.placeholder}
+        onChange={e => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          background: "#0d1117",
+          border: `1.5px solid ${focused ? color : "#21262d"}`,
+          borderRadius: 8,
+          color: focused ? color : "#e6edf3",
+          fontSize: 20,
+          fontWeight: 700,
+          outline: "none",
+          transition: "all 0.18s",
+          boxShadow: focused ? `0 0 0 3px ${color}22` : "none",
+          boxSizing: "border-box",
+          textAlign: "center",
+          fontFamily: "monospace",
+        }}
       />
-      <p style={sf.example}>{field.example}</p>
+
+      {/* Example */}
+      <p style={{ fontSize: 10, color: "#484f58", margin: "6px 0 0", fontStyle: "italic", lineHeight: 1.5 }}>
+        {field.ex}
+      </p>
     </div>
   );
 }
 
-// ══════════════════════════════════════════════
-// PriceInput — حقل إدخال السعر
-// ══════════════════════════════════════════════
-function PriceInput({ value, color, onChange, placeholder }) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <input
-      type="number"
-      step="0.01"
-      min="0"
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      placeholder={placeholder}
-      style={{
-        width: "100%",
-        padding: "11px 14px",
-        background: "#0d1117",
-        border: `1.5px solid ${focused ? color : "#21262d"}`,
-        borderRadius: 10,
-        color: focused ? color : "#e6edf3",
-        fontSize: 20,
-        fontWeight: 700,
-        outline: "none",
-        transition: "all 0.2s",
-        boxShadow: focused ? `0 0 0 3px ${color}22` : "none",
-        boxSizing: "border-box",
-        textAlign: "center",
-        letterSpacing: 1,
-        fontFamily: "monospace",
-      }}
-    />
-  );
-}
-
-// ── Styles ──────────────────────────────────────────────
-const s = {
-  pageHeader:    { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 },
-  pageTitle:     { fontSize: 20, fontWeight: 700, color: "#e6edf3", margin: 0 },
-  pageSub:       { fontSize: 13, color: "#6e7681", marginTop: 4 },
-  refreshBtn:    { display: "flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, border: "1px solid #21262d", borderRadius: 8, background: "#161b22", color: "#8b949e", cursor: "pointer" },
-  saveBtn:       { display: "flex", alignItems: "center", gap: 8, padding: "9px 20px", borderRadius: 8, border: "none", background: "#2563eb", color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 600 },
-  errorBanner:   { display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: 8, background: "#3d0a0a", color: "#f85149", marginBottom: 16, fontSize: 14 },
-  successBanner: { display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: 8, background: "#064e3b", color: "#059669", marginBottom: 16, fontSize: 14 },
-  card:          { backgroundColor: "#161b22", border: "1px solid #21262d", borderRadius: 14, padding: 24 },
-  sectionHeader: { display: "flex", alignItems: "center", gap: 14, paddingBottom: 18, marginBottom: 20, borderBottom: "1px solid" },
-  sectionIcon:   { width: 42, height: 42, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 },
-  sectionTitle:  { fontSize: 16, fontWeight: 700 },
-  sectionSub:    { fontSize: 12, color: "#6e7681", marginTop: 2 },
-  singleGrid:    { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 20 },
-};
-
-const p = {
-  wrap:       { marginBottom: 4 },
-  labelRow:   { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
-  pairLabel:  { fontSize: 14, fontWeight: 600, color: "#c9d1d9" },
-  marginBadge:{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 },
-  inputsRow:  { display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 0, alignItems: "start" },
-  inputBox:   { background: "#0d1117", border: "1px solid #21262d", borderRadius: 12, padding: 16 },
-  inputHeader:{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  badge:      { fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 },
-  unitBadge:  { fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 },
-  desc:       { fontSize: 12, color: "#6e7681", margin: "10px 0 4px", lineHeight: 1.5 },
-  example:    { fontSize: 11, color: "#484f58", margin: 0, fontStyle: "italic", lineHeight: 1.5 },
-  divider:    { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "0 12px", paddingTop: 16 },
-  dividerLine:{ width: 1, flex: 1, minHeight: 20 },
-  dividerIcon:{ fontSize: 16, width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "#161b22", flexShrink: 0 },
-};
-
-const sf = {
-  wrap:    { background: "#0d1117", border: "1px solid #21262d", borderRadius: 12, padding: 16 },
-  header:  { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
-  label:   { fontSize: 14, fontWeight: 600, color: "#c9d1d9" },
-  unit:    { fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 },
-  desc:    { fontSize: 12, color: "#6e7681", margin: "0 0 10px", lineHeight: 1.5 },
-  example: { fontSize: 11, color: "#484f58", margin: "8px 0 0", fontStyle: "italic", lineHeight: 1.5 },
+// ── Styles ────────────────────────────────────────────────
+const S = {
+  header:  { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 12 },
+  title:   { fontSize: 20, fontWeight: 700, color: "#e6edf3", margin: 0 },
+  sub:     { fontSize: 13, color: "#6e7681", marginTop: 3 },
+  iconBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, border: "1px solid #21262d", borderRadius: 8, background: "#161b22", color: "#8b949e", cursor: "pointer" },
+  saveBtn: { display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", borderRadius: 8, border: "none", background: "#2563eb", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600 },
+  alert:   { display: "flex", alignItems: "center", gap: 8, padding: "11px 14px", borderRadius: 8, marginBottom: 14, fontSize: 13 },
+  card:    { backgroundColor: "#161b22", border: "1px solid #21262d", borderRadius: 12, padding: 20 },
+  field:   { background: "#0d1117", border: "1px solid #21262d", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column" },
 };

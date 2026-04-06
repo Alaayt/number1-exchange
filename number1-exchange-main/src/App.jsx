@@ -88,7 +88,6 @@ import AdminDeposits from './pages/admin/AdminDeposits'
 import AdminLogin    from './pages/admin/AdminLogin'
 
 import useAuth from './context/useAuth'
-import { readOrderSession, getTimeRemaining } from './services/orderSession'
 
 import Terms   from './pages/legal/Terms'
 import Privacy from './pages/legal/Privacy'
