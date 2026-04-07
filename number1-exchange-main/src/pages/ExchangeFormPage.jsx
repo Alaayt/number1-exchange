@@ -1,7 +1,6 @@
 // src/pages/ExchangeFormPage.jsx
 // ═══════════════════════════════════════════════════════════════
 // الصفحة 2 — تفاصيل الطلب
-// يستخدم rateEngine حصراً — لا منطق أسعار محلي هنا
 // ═══════════════════════════════════════════════════════════════
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -36,6 +35,19 @@ function MethodIcon({ method, size = 32 }) {
   )
 }
 
+// ── رسالة خطأ inline ─────────────────────────────────────────
+function FieldError({ msg }) {
+  if (!msg) return null
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5, fontSize: '0.76rem', color: '#f87171', fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      {msg}
+    </div>
+  )
+}
+
 function genMath() {
   const a = Math.floor(Math.random() * 12) + 1
   const b = Math.floor(Math.random() * 12) + 1
@@ -57,13 +69,12 @@ export default function ExchangeFormPage() {
   const sendMethod = SEND_METHODS.find(m => m.id === fromId)  || null
   const recvMethod = RECEIVE_METHODS.find(m => m.id === toId) || null
 
-  // ── حالات خاصة ─────────────────────────────────────────────
-  const isWalletRecv    = toId   === 'wallet-recv'
-  const isWalletSend    = fromId === 'wallet-usdt'
-  const isMoneyGoRecv   = toId   === 'mgo-recv'
-  const isUsdtRecv      = toId   === 'usdt-recv'
-  const isEgpSend       = sendMethod?.type === 'egp'
-  const isUsdtSend      = fromId === 'usdt-trc'
+  const isWalletRecv  = toId   === 'wallet-recv'
+  const isWalletSend  = fromId === 'wallet-usdt'
+  const isMoneyGoRecv = toId   === 'mgo-recv'
+  const isUsdtRecv    = toId   === 'usdt-recv'
+  const isEgpSend     = sendMethod?.type === 'egp'
+  const isUsdtSend    = fromId === 'usdt-trc'
 
   // ── بيانات من الـ API ───────────────────────────────────────
   const [rates,      setRates]     = useState(null)
@@ -106,12 +117,15 @@ export default function ExchangeFormPage() {
   const [loading,     setLoading2]    = useState(false)
   const [error,       setError]       = useState('')
   const [walletId,    setWalletId]    = useState('')
+  const [submitted,   setSubmitted]   = useState(false) // لإظهار الأخطاء عند الضغط
+
+  // ── أخطاء الحقول ────────────────────────────────────────────
+  const [fieldErrors, setFieldErrors] = useState({})
 
   useEffect(() => {
     if (user?.email) setEmail(user.email)
   }, [user?.email])
 
-  // ── جلب walletId للمحفظة الداخلية ─────────────────────────
   useEffect(() => {
     if (!isWalletRecv || !user) return
     fetch(`${API}/api/wallet`, {
@@ -119,32 +133,88 @@ export default function ExchangeFormPage() {
     }).then(r => r.json()).then(d => { if (d.success) setWalletId(d.wallet.walletId) }).catch(() => {})
   }, [isWalletRecv, user])
 
-  // ── حساب المبلغ المستلَم — عبر rateEngine حصراً ───────────
+  // ── حساب المبلغ المستلَم ────────────────────────────────────
   const receiveAmount = useMemo(() => {
     if (!rates) return ''
     return calcReceiveAmount(sendAmount, fromId, toId, rates)
   }, [sendAmount, fromId, toId, rates])
 
-  // ── عرض السعر ───────────────────────────────────────────────
   const rateDisplay = useMemo(() => {
     if (!rates) return '...'
     return getRateDisplay(fromId, toId, rates, sendMethod?.symbol, recvMethod?.symbol)
   }, [fromId, toId, rates, sendMethod, recvMethod])
 
-  // ── حدود الطلب ──────────────────────────────────────────────
-  const minOrder = rates?.minOrderUsdt || 10
-  const maxOrder = rates?.maxOrderUsdt || 5000
+  // ── حدود الطلب حسب العملة ──────────────────────────────────
+  const limits = useMemo(() => {
+    if (!rates) return { min: 10, max: 5000, unit: 'USDT' }
+    if (isEgpSend) return {
+      min:  rates.minEgp  || 100,
+      max:  rates.maxEgp  || 300000,
+      unit: 'EGP',
+    }
+    if (isMoneyGoRecv && !isEgpSend) return {
+      min:  rates.minMgo  || 10,
+      max:  rates.maxMgo  || 10000,
+      unit: 'MGO',
+    }
+    return {
+      min:  rates.minUsdt || rates.minOrderUsdt || 10,
+      max:  rates.maxUsdt || rates.maxOrderUsdt || 5000,
+      unit: 'USDT',
+    }
+  }, [rates, isEgpSend, isMoneyGoRecv])
 
-  // ── Validation ───────────────────────────────────────────────
-  const emailOk  = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)
-  const amountOk = parseFloat(sendAmount) > 0
-  const mathOk   = mathInput.trim() === math.ans
-  const recipOk  = isMoneyGoRecv ? recipientId.trim().length >= 3
-                 : isUsdtRecv    ? usdtAddress.trim().length >= 10
-                 : isWalletRecv  ? walletId.length > 0
-                 : true
+  // ── التحقق من البيانات ──────────────────────────────────────
+  const validate = () => {
+    const errs = {}
+    const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+    const amt = parseFloat(sendAmount)
 
-  const canSubmit = amountOk && emailOk && recipOk && agreed && mathOk && !loading
+    // المبلغ
+    if (!sendAmount || isNaN(amt) || amt <= 0) {
+      errs.amount = 'يرجى إدخال مبلغ صحيح'
+    } else if (amt < limits.min) {
+      errs.amount = `الحد الأدنى هو ${limits.min.toLocaleString()} ${limits.unit}`
+    } else if (amt > limits.max) {
+      errs.amount = `الحد الأقصى هو ${limits.max.toLocaleString()} ${limits.unit}`
+    }
+
+    // البريد الإلكتروني
+    if (!email || !emailRx.test(email)) {
+      errs.email = 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com)'
+    }
+
+    // رقم الهاتف للوسائل المصرية
+    if (isEgpSend && userPhone && !/^\+?[0-9\s\-]{7,20}$/.test(userPhone.trim())) {
+      errs.phone = 'رقم الهاتف غير صحيح'
+    }
+
+    // بيانات الاستلام
+    if (isMoneyGoRecv && recipientId.trim().length < 3) {
+      errs.recipient = 'يرجى إدخال معرّف محفظة MoneyGo صحيح (3 أحرف على الأقل)'
+    }
+    if (isUsdtRecv && usdtAddress.trim().length < 10) {
+      errs.recipient = 'يرجى إدخال عنوان محفظة USDT صحيح'
+    }
+    if (isWalletRecv && !user) {
+      errs.recipient = 'يجب تسجيل الدخول لاستخدام المحفظة الداخلية'
+    }
+    if (isWalletRecv && user && !walletId) {
+      errs.recipient = 'جاري تحميل بيانات المحفظة، حاول مرة أخرى'
+    }
+
+    // الموافقة
+    if (!agreed) {
+      errs.agreed = 'يجب الموافقة على الشروط والأحكام للمتابعة'
+    }
+
+    // التحقق الرياضي
+    if (mathInput.trim() !== math.ans) {
+      errs.math = 'إجابة خاطئة — تحقق من الحساب مرة أخرى'
+    }
+
+    return errs
+  }
 
   const handleFile = e => {
     const f = e.target.files[0]
@@ -155,13 +225,27 @@ export default function ExchangeFormPage() {
     r.readAsDataURL(f)
   }
 
+  // ── مسح خطأ حقل عند الكتابة ─────────────────────────────
+  const clearErr = (key) => {
+    if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: '' }))
+  }
+
   // ── الإرسال ─────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!canSubmit) return
+    setSubmitted(true)
+    const errs = validate()
+    setFieldErrors(errs)
+
+    if (Object.keys(errs).length > 0) {
+      // اسكرول لأول خطأ
+      const firstErrKey = Object.keys(errs)[0]
+      document.getElementById(`field-${firstErrKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+
     setLoading2(true)
     setError('')
     try {
-      // رفع الإيصال
       let receiptImageUrl = ''
       if (receipt) {
         try {
@@ -178,13 +262,11 @@ export default function ExchangeFormPage() {
         } catch(e) { console.warn('receipt upload failed:', e.message) }
       }
 
-      // ── تحديد معرّف الاستلام ──────────────────────────────
       const recipientPhone = isMoneyGoRecv ? recipientId
                            : isUsdtRecv    ? usdtAddress
                            : isWalletRecv  ? walletId
                            : ''
 
-      // ── السعر من rateEngine — لا حساب محلي ──────────────
       const { rate: appliedRate } = getRate(fromId, toId, rates || {})
       const finalAmountUSD = parseFloat(receiveAmount) || 0
 
@@ -247,7 +329,7 @@ export default function ExchangeFormPage() {
 
   if (!sendMethod || !recvMethod) return null
 
-  const { divide } = getRate(fromId, toId, rates || {})
+  const canSubmit = !loading
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', direction: 'rtl', fontFamily: "'Cairo','Tajawal',sans-serif" }}>
@@ -308,16 +390,23 @@ export default function ExchangeFormPage() {
         </div>
 
         {/* ── المبلغ ── */}
-        <div className="ef-card">
+        <div className="ef-card" id="field-amount">
           <label className="ef-label">المبلغ المُرسَل <span style={{ color: 'var(--red)' }}>*</span></label>
-          <div className="ef-amount-row">
-            <input type="number" min="0" step="any" value={sendAmount} onChange={e => setSendAmount(e.target.value)} placeholder="0.00" className="ef-input ef-amount-input" />
+          <div className={`ef-amount-row ${fieldErrors.amount ? 'ef-amount-row--error' : ''}`}>
+            <input
+              type="number" min="0" step="any"
+              value={sendAmount}
+              onChange={e => { setSendAmount(e.target.value); clearErr('amount') }}
+              placeholder="0.00"
+              className="ef-input ef-amount-input"
+            />
             <div className="ef-currency-badge">
               <MethodIcon method={sendMethod} size={20} />
               <span>{sendMethod.symbol}</span>
             </div>
           </div>
-          {receiveAmount && (
+          <FieldError msg={fieldErrors.amount} />
+          {receiveAmount && !fieldErrors.amount && (
             <div className="ef-receive-row">
               <span style={{ color: 'var(--text-3)', fontSize: '0.82rem' }}>
                 {isWalletRecv ? 'سيُضاف لمحفظتك' : 'تستلم تقريباً'}
@@ -328,23 +417,37 @@ export default function ExchangeFormPage() {
             </div>
           )}
           <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 4 }}>
-            MIN: {minOrder} USDT / MAX: {maxOrder} USDT
+            الحد الأدنى: {limits.min.toLocaleString()} {limits.unit} · الأقصى: {limits.max.toLocaleString()} {limits.unit}
           </div>
         </div>
 
         {/* ── بيانات الاستلام ── */}
-        <div className="ef-card">
+        <div className="ef-card" id="field-recipient">
           {isMoneyGoRecv && (
             <>
               <label className="ef-label">معرّف محفظة MoneyGo <span style={{ color: 'var(--red)' }}>*</span></label>
-              <input type="text" value={recipientId} onChange={e => setRecipientId(e.target.value)} placeholder="U-XXXXXXXX" className="ef-input ef-mono" style={{ direction: 'ltr' }} />
+              <input
+                type="text" value={recipientId}
+                onChange={e => { setRecipientId(e.target.value); clearErr('recipient') }}
+                placeholder="U-XXXXXXXX"
+                className={`ef-input ef-mono ${fieldErrors.recipient ? 'ef-input--error' : ''}`}
+                style={{ direction: 'ltr' }}
+              />
+              <FieldError msg={fieldErrors.recipient} />
               <p className="ef-hint">أدخل معرّف محفظة MoneyGo الذي ستستلم عليه المبلغ</p>
             </>
           )}
           {isUsdtRecv && (
             <>
               <label className="ef-label">عنوان محفظة USDT للاستلام <span style={{ color: 'var(--red)' }}>*</span></label>
-              <input type="text" value={usdtAddress} onChange={e => setUsdtAddress(e.target.value)} placeholder="T... أو 0x..." className="ef-input ef-mono" style={{ direction: 'ltr' }} />
+              <input
+                type="text" value={usdtAddress}
+                onChange={e => { setUsdtAddress(e.target.value); clearErr('recipient') }}
+                placeholder="T... أو 0x..."
+                className={`ef-input ef-mono ${fieldErrors.recipient ? 'ef-input--error' : ''}`}
+                style={{ direction: 'ltr' }}
+              />
+              <FieldError msg={fieldErrors.recipient} />
               <label className="ef-label" style={{ marginTop: 14 }}>الشبكة</label>
               <div className="ef-network-row">
                 {['TRC20', 'BEP20'].map(net => (
@@ -358,47 +461,65 @@ export default function ExchangeFormPage() {
             </>
           )}
           {isWalletRecv && (
-            <div className="ef-wallet-info">
-              <div className="ef-wallet-info-icon">🏦</div>
-              <div>
-                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-1)' }}>سيتم الإيداع في محفظتك الداخلية تلقائياً</div>
-                {walletId ? (
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 4 }}>رقم المحفظة: {walletId}</div>
-                ) : !user ? (
-                  <div style={{ fontSize: '0.72rem', color: 'var(--gold)', marginTop: 4 }}>⚠ يجب تسجيل الدخول لاستخدام المحفظة الداخلية</div>
-                ) : (
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 4 }}>جاري تحميل بيانات المحفظة...</div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ── بيانات المُرسِل ── */}
-        <div className="ef-card">
-          <label className="ef-label">البريد الإلكتروني <span style={{ color: 'var(--red)' }}>*</span></label>
-          <input type="email" value={email} onChange={e => !user?.email && setEmail(e.target.value)} placeholder="example@email.com" className="ef-input ef-mono" readOnly={!!user?.email} style={{ direction: 'ltr', opacity: user?.email ? 0.75 : 1 }} />
-          {isEgpSend && (
             <>
-              <label className="ef-label" style={{ marginTop: 14 }}>رقم هاتف المُرسِل</label>
-              <input type="tel" value={userPhone} onChange={e => setUserPhone(e.target.value)} placeholder="01XXXXXXXXX" className="ef-input ef-mono" style={{ direction: 'ltr' }} />
+              <div className="ef-wallet-info">
+                <div className="ef-wallet-info-icon">🏦</div>
+                <div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-1)' }}>سيتم الإيداع في محفظتك الداخلية تلقائياً</div>
+                  {walletId ? (
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 4 }}>رقم المحفظة: {walletId}</div>
+                  ) : !user ? (
+                    <div style={{ fontSize: '0.72rem', color: '#f87171', marginTop: 4 }}>⚠ يجب تسجيل الدخول لاستخدام المحفظة الداخلية</div>
+                  ) : (
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 4 }}>جاري تحميل بيانات المحفظة...</div>
+                  )}
+                </div>
+              </div>
+              <FieldError msg={fieldErrors.recipient} />
             </>
           )}
         </div>
 
-        {/* ── TXID (للـ USDT) ── */}
+        {/* ── بيانات المُرسِل ── */}
+        <div className="ef-card" id="field-email">
+          <label className="ef-label">البريد الإلكتروني <span style={{ color: 'var(--red)' }}>*</span></label>
+          <input
+            type="email" value={email}
+            onChange={e => { if (!user?.email) { setEmail(e.target.value); clearErr('email') } }}
+            placeholder="example@email.com"
+            className={`ef-input ef-mono ${fieldErrors.email ? 'ef-input--error' : ''}`}
+            readOnly={!!user?.email}
+            style={{ direction: 'ltr', opacity: user?.email ? 0.75 : 1 }}
+          />
+          <FieldError msg={fieldErrors.email} />
+          {isEgpSend && (
+            <>
+              <label className="ef-label" style={{ marginTop: 14 }}>رقم هاتف المُرسِل <span style={{ color: 'var(--text-3)', fontSize: '0.65rem' }}>(اختياري)</span></label>
+              <input
+                type="tel" value={userPhone}
+                onChange={e => { setUserPhone(e.target.value); clearErr('phone') }}
+                placeholder="01XXXXXXXXX"
+                className={`ef-input ef-mono ${fieldErrors.phone ? 'ef-input--error' : ''}`}
+                style={{ direction: 'ltr' }}
+              />
+              <FieldError msg={fieldErrors.phone} />
+            </>
+          )}
+        </div>
+
+        {/* ── TXID ── */}
         {isUsdtSend && (
           <div className="ef-card">
-            <label className="ef-label">رقم المعاملة TXID (اختياري)</label>
+            <label className="ef-label">رقم المعاملة TXID <span style={{ color: 'var(--text-3)', fontSize: '0.65rem' }}>(اختياري)</span></label>
             <input type="text" value={txid} onChange={e => setTxid(e.target.value)} placeholder="الصق رقم المعاملة هنا..." className="ef-input ef-mono" style={{ direction: 'ltr' }} />
             <p className="ef-hint">ℹ️ أدخل الـ TXID لتسريع التحقق من طلبك</p>
           </div>
         )}
 
-        {/* ── رفع إيصال (للـ EGP) ── */}
+        {/* ── رفع إيصال ── */}
         {isEgpSend && (
           <div className="ef-card">
-            <label className="ef-label">صورة إيصال التحويل (اختياري)</label>
+            <label className="ef-label">صورة إيصال التحويل <span style={{ color: 'var(--text-3)', fontSize: '0.65rem' }}>(اختياري)</span></label>
             <label className="ef-dropzone" style={receiptPrev ? { borderColor: 'var(--green)', background: 'rgba(0,229,160,0.04)' } : {}}>
               {receiptPrev ? (
                 <div style={{ textAlign: 'center' }}>
@@ -418,26 +539,55 @@ export default function ExchangeFormPage() {
         )}
 
         {/* ── التحقق الرياضي ── */}
-        <div className="ef-card ef-math-card">
-          <label className="ef-label">تحقق: ما هو ناتج <strong style={{ color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}>{math.a} + {math.b}</strong> ؟</label>
-          <input type="number" value={mathInput} onChange={e => setMathInput(e.target.value)} placeholder="اكتب الناتج هنا" className="ef-input" style={{ maxWidth: 160 }} />
-          {mathInput && !mathOk && <span style={{ fontSize: '0.74rem', color: 'var(--red)', marginTop: 4 }}>إجابة خاطئة</span>}
-          {mathOk && <span style={{ fontSize: '0.74rem', color: 'var(--green)', marginTop: 4 }}>✓ صحيح</span>}
+        <div className="ef-card ef-math-card" id="field-math">
+          <label className="ef-label">
+            تحقق أمني: ما هو ناتج{' '}
+            <strong style={{ color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}>{math.a} + {math.b}</strong> ؟
+            <span style={{ color: 'var(--red)' }}> *</span>
+          </label>
+          <input
+            type="number" value={mathInput}
+            onChange={e => { setMathInput(e.target.value); clearErr('math') }}
+            placeholder="اكتب الناتج هنا"
+            className={`ef-input ${fieldErrors.math ? 'ef-input--error' : ''}`}
+            style={{ maxWidth: 160 }}
+          />
+          {mathInput && mathInput.trim() === math.ans && !fieldErrors.math && (
+            <span style={{ fontSize: '0.74rem', color: 'var(--green)', marginTop: 4 }}>✓ صحيح</span>
+          )}
+          <FieldError msg={fieldErrors.math} />
         </div>
 
         {/* ── الموافقة ── */}
-        <label className="ef-checkbox-row">
-          <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="ef-checkbox" />
-          <span style={{ fontSize: '0.84rem', color: 'var(--text-2)', lineHeight: 1.55 }}>
-            أوافق على <a href="/terms" target="_blank" style={{ color: 'var(--cyan)' }}>الشروط والأحكام</a> و<a href="/aml" target="_blank" style={{ color: 'var(--cyan)' }}>سياسة AML</a>
-          </span>
-        </label>
+        <div id="field-agreed">
+          <label className="ef-checkbox-row" style={{ border: fieldErrors.agreed ? '1px solid rgba(239,68,68,0.35)' : 'none', borderRadius: 10, padding: fieldErrors.agreed ? '10px 12px' : '0', background: fieldErrors.agreed ? 'rgba(239,68,68,0.04)' : 'transparent' }}>
+            <input type="checkbox" checked={agreed} onChange={e => { setAgreed(e.target.checked); clearErr('agreed') }} className="ef-checkbox" />
+            <span style={{ fontSize: '0.84rem', color: 'var(--text-2)', lineHeight: 1.55 }}>
+              أوافق على <a href="/terms" target="_blank" style={{ color: 'var(--cyan)' }}>الشروط والأحكام</a> و<a href="/aml" target="_blank" style={{ color: 'var(--cyan)' }}>سياسة AML</a>
+            </span>
+          </label>
+          <FieldError msg={fieldErrors.agreed} />
+        </div>
 
-        {error && <div className="ef-error">{error}</div>}
+        {/* ── خطأ عام ── */}
+        {error && <div className="ef-error">⚠ {error}</div>}
 
-        <button onClick={handleSubmit} disabled={!canSubmit} className="ef-submit-btn" style={{ opacity: canSubmit ? 1 : 0.5 }}>
+        {/* ── ملخص الأخطاء عند الضغط ── */}
+        {submitted && Object.keys(fieldErrors).length > 0 && (
+          <div className="ef-errors-summary">
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f87171', marginBottom: 6 }}>
+              ⚠ يرجى تصحيح الأخطاء التالية:
+            </div>
+            {Object.values(fieldErrors).filter(Boolean).map((msg, i) => (
+              <div key={i} style={{ fontSize: '0.78rem', color: '#fca5a5', marginBottom: 3 }}>• {msg}</div>
+            ))}
+          </div>
+        )}
+
+        <button onClick={handleSubmit} disabled={loading} className="ef-submit-btn">
           {loading ? <><span className="ef-btn-spinner" /> جاري إرسال الطلب...</> : 'إرسال الطلب ✓'}
         </button>
+
       </div>
     </div>
   )
@@ -472,11 +622,13 @@ const CSS = `
   .ef-label { font-size: 0.71rem; font-weight: 700; color: var(--text-3); font-family: 'JetBrains Mono',monospace; letter-spacing: 0.5px; text-transform: uppercase; }
   .ef-input { width: 100%; padding: 10px 13px; box-sizing: border-box; background: rgba(255,255,255,0.03); border: 1px solid var(--border-1); border-radius: 10px; color: var(--text-1); font-size: 0.9rem; outline: none; font-family: 'Cairo','Tajawal',sans-serif; transition: border-color 0.18s, box-shadow 0.18s; }
   .ef-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,210,255,0.1); }
+  .ef-input--error { border-color: rgba(239,68,68,0.6) !important; background: rgba(239,68,68,0.04); }
+  .ef-input--error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.12) !important; }
   .ef-mono { font-family: 'JetBrains Mono',monospace; font-size: 0.82rem; }
-  .ef-amount-row { display: flex; gap: 0; align-items: stretch; border: 1px solid var(--border-1); border-radius: 10px; overflow: hidden; }
-  .ef-amount-input { flex: 1; border: none !important; border-radius: 0 !important; font-size: 1.1rem !important; font-weight: 700; box-shadow: none !important; }
-  .ef-amount-input:focus { box-shadow: none !important; }
-  .ef-amount-row:focus-within { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,210,255,0.1); }
+  .ef-amount-row { display: flex; gap: 0; align-items: stretch; border: 1px solid var(--border-1); border-radius: 10px; overflow: hidden; transition: border-color 0.18s; }
+  .ef-amount-row--error { border-color: rgba(239,68,68,0.6) !important; background: rgba(239,68,68,0.04); }
+  .ef-amount-input { flex: 1; border: none !important; border-radius: 0 !important; font-size: 1.1rem !important; font-weight: 700; box-shadow: none !important; background: transparent !important; }
+  .ef-amount-row:focus-within:not(.ef-amount-row--error) { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,210,255,0.1); }
   .ef-currency-badge { display: flex; align-items: center; gap: 6px; padding: 0 14px; background: rgba(255,255,255,0.04); border-right: 1px solid var(--border-1); font-size: 0.82rem; font-weight: 700; color: var(--text-2); flex-shrink: 0; }
   .ef-receive-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 13px; border-radius: 9px; background: rgba(0,229,160,0.06); border: 1px solid rgba(0,229,160,0.18); }
   .ef-hint { font-size: 0.72rem; color: var(--text-3); font-family: 'JetBrains Mono',monospace; margin: 0; }
@@ -488,12 +640,13 @@ const CSS = `
   .ef-wallet-info-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 1px; }
   .ef-dropzone { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 22px 16px; border: 1.5px dashed var(--border-2); border-radius: 11px; cursor: pointer; text-align: center; transition: all 0.2s; gap: 4px; }
   .ef-dropzone:hover { border-color: var(--cyan); background: rgba(0,210,255,0.03); }
-  .ef-checkbox-row { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+  .ef-checkbox-row { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; transition: all 0.15s; }
   .ef-checkbox { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; accent-color: var(--cyan); cursor: pointer; }
-  .ef-error { padding: 11px 14px; border-radius: 10px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #f87171; font-size: 0.84rem; text-align: center; }
-  .ef-submit-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px 0; background: linear-gradient(135deg,#009fc0,#006e9e); border: none; border-radius: 13px; color: #fff; font-family: 'Cairo','Tajawal',sans-serif; font-size: 1rem; font-weight: 800; cursor: pointer; box-shadow: 0 4px 20px rgba(0,159,192,0.28); transition: transform 0.18s, box-shadow 0.18s, opacity 0.18s; }
+  .ef-error { padding: 11px 14px; border-radius: 10px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #f87171; font-size: 0.84rem; text-align: center; font-family: 'Cairo','Tajawal',sans-serif; }
+  .ef-errors-summary { padding: 13px 16px; border-radius: 10px; background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.2); font-family: 'Cairo','Tajawal',sans-serif; }
+  .ef-submit-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px 0; background: linear-gradient(135deg,#009fc0,#006e9e); border: none; border-radius: 13px; color: #fff; font-family: 'Cairo','Tajawal',sans-serif; font-size: 1rem; font-weight: 800; cursor: pointer; box-shadow: 0 4px 20px rgba(0,159,192,0.28); transition: transform 0.18s, box-shadow 0.18s; }
   .ef-submit-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(0,159,192,0.38); }
-  .ef-submit-btn:disabled { cursor: not-allowed; }
+  .ef-submit-btn:disabled { cursor: not-allowed; opacity: 0.6; }
   .ef-btn-spinner { display: inline-block; width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; animation: ef-spin 0.8s linear infinite; }
   @media (max-width: 480px) {
     .ef-step span:not(.ef-step-dot) { display: none; }
