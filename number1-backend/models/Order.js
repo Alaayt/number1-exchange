@@ -4,22 +4,36 @@
 
 const mongoose = require('mongoose');
 
+// ── Counter لضمان عدم تكرار الرقم ────────────
+const counterSchema = new mongoose.Schema({
+  _id:  { type: String, required: true },
+  seq:  { type: Number, default: 0 },
+});
+const Counter = mongoose.models.Counter || mongoose.model('Counter', counterSchema);
+
+async function getNextOrderNumber() {
+  const counter = await Counter.findOneAndUpdate(
+    { _id: 'orderNumber' },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+  const padded = String(counter.seq).padStart(5, '0');
+  return `N1-${padded}`;
+}
+
 const orderSchema = new mongoose.Schema({
 
-  // ─── رقم الطلب (يُنشأ تلقائياً) ──────────
   orderNumber: {
     type: String,
     unique: true,
   },
 
-  // ─── المستخدم ─────────────────────────────
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     default: null
   },
 
-  // ─── معلومات العميل ───────────────────────
   customerName: {
     type: String,
     required: [true, 'Customer name is required'],
@@ -39,51 +53,43 @@ const orderSchema = new mongoose.Schema({
     default: null
   },
 
-  // ─── نوع الطلب ────────────────────────────
   orderType: {
     type: String,
     enum: [
-      'USDT_TO_MONEYGO',        // USDT → MoneyGo
-      'EGP_WALLET_TO_MONEYGO',  // EGP (محافظ) → MoneyGo (القديم)
-      'EGP_TO_MONEYGO',         // EGP (محافظ) → MoneyGo (الجديد)
-      'EGP_TO_USDT',            // EGP (محافظ) → USDT
-      'USDT_TO_WALLET',         // USDT → محفظة داخلية
-      'WALLET_TO_USDT',         // محفظة داخلية → USDT
-      'WALLET_TO_MONEYGO',      // محفظة داخلية → MoneyGo
-      'MONEYGO_TO_USDT',        // MoneyGo → USDT
+      'USDT_TO_MONEYGO',
+      'EGP_WALLET_TO_MONEYGO',
+      'EGP_TO_MONEYGO',
+      'EGP_TO_USDT',
+      'USDT_TO_WALLET',
+      'WALLET_TO_USDT',
+      'WALLET_TO_MONEYGO',
+      'MONEYGO_TO_USDT',
     ],
     required: true
   },
 
-  // ─── بيانات الدفع (من العميل) ─────────────
   payment: {
     method: {
       type: String,
       enum: ['USDT_TRC20', 'VODAFONE_CASH', 'ORANGE_CASH', 'FAWRY', 'WE_PAY', 'MEEZA', 'INSTAPAY', 'WALLET', 'MONEYGO'],
       required: true
     },
-
     senderWalletAddress: { type: String, default: null },
     txHash:              { type: String, default: null },
     usdtAmount:          { type: Number, default: null },
     receiptImageUrl:     { type: String, default: null },
     senderPhoneNumber:   { type: String, default: null },
-
-    amountSent: {
-      type: Number,
-      required: true
-    },
+    amountSent:          { type: Number, required: true },
     currencySent: {
       type: String,
-      enum: ['USDT', 'EGP', 'MGO'],  // أضفنا MGO
+      enum: ['USDT', 'EGP', 'MGO'],
       required: true
     }
   },
 
-  // ─── بيانات الاستلام ──────────────────────
   moneygo: {
     recipientName:  { type: String, required: true },
-    recipientPhone: { type: String, default: '' },   // غير مطلوب للـ USDT_TO_WALLET
+    recipientPhone: { type: String, default: '' },
     amountUSD:      { type: Number, required: true },
     transferId:     { type: String, default: null },
     transferStatus: {
@@ -94,7 +100,6 @@ const orderSchema = new mongoose.Schema({
     transferNote: { type: String, default: null }
   },
 
-  // ─── سعر الصرف المُطبَّق ──────────────────
   exchangeRate: {
     usdtToUSD:      { type: Number, default: null },
     egpToUSD:       { type: Number, default: null },
@@ -103,22 +108,19 @@ const orderSchema = new mongoose.Schema({
     finalAmountUSD: { type: Number, required: true }
   },
 
-  // ─── حالة الطلب ───────────────────────────
   status: {
     type: String,
     enum: ['pending', 'verifying', 'verified', 'processing', 'completed', 'rejected', 'cancelled'],
     default: 'pending'
   },
 
-  // ─── التحقق من USDT ───────────────────────
   verification: {
-    isVerified:          { type: Boolean, default: false },
-    verifiedAt:          { type: Date,    default: null },
-    verificationMethod:  { type: String,  enum: ['auto', 'manual'], default: 'auto' },
-    verificationNote:    { type: String,  default: null }
+    isVerified:         { type: Boolean, default: false },
+    verifiedAt:         { type: Date,    default: null },
+    verificationMethod: { type: String,  enum: ['auto', 'manual'], default: 'auto' },
+    verificationNote:   { type: String,  default: null }
   },
 
-  // ─── سجل الأحداث ──────────────────────────
   timeline: [{
     status:    String,
     message:   String,
@@ -137,24 +139,26 @@ const orderSchema = new mongoose.Schema({
   },
 
   expiresAt: {
-    type:  Date,
+    type:    Date,
     default: null,
-    index: { expireAfterSeconds: 0 }
+    index:   { expireAfterSeconds: 0 }
   }
 
 }, { timestamps: true });
 
-// ─── Auto-generate Order Number ──────────────
+// ── رقم الطلب — atomic counter لضمان عدم التكرار ──
 orderSchema.pre('save', async function(next) {
   if (this.isNew && !this.orderNumber) {
-    const count  = await mongoose.model('Order').countDocuments() + 1;
-    const padded = String(count).padStart(5, '0');
-    this.orderNumber = `N1-${padded}`;
+    try {
+      this.orderNumber = await getNextOrderNumber();
+    } catch (err) {
+      // fallback: timestamp + random
+      this.orderNumber = `N1-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,5).toUpperCase()}`;
+    }
   }
   next();
 });
 
-// ─── Method: إضافة حدث للـ Timeline ─────────
 orderSchema.methods.addTimeline = function(status, message, by = 'system') {
   this.timeline.push({ status, message, by });
 };

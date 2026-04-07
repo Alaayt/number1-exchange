@@ -270,33 +270,37 @@ export default function ExchangeFormPage() {
       const { rate: appliedRate } = getRate(fromId, toId, rates || {})
       const finalAmountUSD = parseFloat(receiveAmount) || 0
 
-      const res = await fetch(`${API}/api/orders`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerName:  email.split('@')[0],
-          customerEmail: email,
-          customerPhone: userPhone || '',
-          orderType:     toOrderType(fromId, toId),
-          payment: {
-            method:            toPaymentMethod(fromId),
-            amountSent:        parseFloat(sendAmount),
-            currencySent:      getCurrencySent(fromId),
-            receiptImageUrl,
-            senderPhoneNumber: userPhone || '',
-            txHash:            txid.trim() || null,
-          },
-          moneygo: {
-            recipientName:  email.split('@')[0],
-            recipientPhone,
-            amountUSD:      finalAmountUSD,
-          },
-          exchangeRate: {
-            appliedRate,
-            finalAmountUSD,
-          },
-        }),
-      })
+const token = localStorage.getItem('n1_token')
+const res = await fetch(`${API}/api/orders`, {
+  method:  'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  },
+  body: JSON.stringify({
+    customerName:  email.split('@')[0],
+    customerEmail: email,
+    customerPhone: userPhone || '',
+    orderType:     toOrderType(fromId, toId),
+    payment: {
+      method:            toPaymentMethod(fromId),
+      amountSent:        parseFloat(sendAmount),
+      currencySent:      getCurrencySent(fromId),
+      receiptImageUrl,
+      senderPhoneNumber: userPhone || '',
+      txHash:            txid.trim() || null,
+    },
+    moneygo: {
+      recipientName:  email.split('@')[0],
+      recipientPhone,
+      amountUSD:      finalAmountUSD,
+    },
+    exchangeRate: {
+      appliedRate,
+      finalAmountUSD,
+    },
+  }),
+})
 
       const data = await res.json()
       if (data.success && data.order) {
