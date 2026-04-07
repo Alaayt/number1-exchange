@@ -13,6 +13,28 @@ const mongoose = require('mongoose')
 
 router.use(protect, adminOnly);
 
+// ── دالة مساعدة: تحديث السيولة بعد اكتمال الطلب ──────────
+async function updateLiquidity(order) {
+  try {
+    const currencySent = order.payment?.currencySent || 'USDT'
+    const amountSent   = parseFloat(order.payment?.amountSent) || 0
+    const amountRecv   = parseFloat(order.exchangeRate?.finalAmountUSD || order.moneygo?.amountUSD) || 0
+
+    // تحديد عملة الاستلام من orderType
+    let currencyRecv = 'USDT'
+    const ot = order.orderType || ''
+    if (ot === 'EGP_TO_MONEYGO' || ot === 'USDT_TO_MONEYGO' || ot === 'WALLET_TO_MONEYGO') currencyRecv = 'MGO'
+    else if (ot === 'MONEYGO_TO_USDT')  currencyRecv = 'USDT'
+    else if (ot === 'EGP_TO_USDT')      currencyRecv = 'USDT'
+    else if (ot === 'USDT_TO_WALLET' || ot === 'WALLET_TO_USDT') currencyRecv = 'USDT'
+
+    await Rate.applyLiquidity(currencySent, currencyRecv, amountSent, amountRecv)
+    console.log(`[Liquidity] +${amountSent} ${currencySent} | -${amountRecv} ${currencyRecv} | Order: ${order.orderNumber}`)
+  } catch (err) {
+    console.error('[Liquidity] update failed:', err.message)
+  }
+}
+
 // ─── GET /api/admin/orders ────────────────────
 router.get('/orders', async (req, res) => {
   try {
@@ -55,8 +77,11 @@ router.put('/orders/:id/status', async (req, res) => {
     const { status, note, transferId } = req.body;
     const validStatuses = ['verifying', 'verified', 'processing', 'completed', 'rejected', 'cancelled'];
     if (!validStatuses.includes(status)) return res.status(400).json({ success: false, message: 'Invalid status.' });
+
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found.' });
+
+    const wasCompleted = order.status === 'completed'
     order.status = status;
     if (note) order.adminNote = note;
     if (transferId) order.moneygo.transferId = transferId;
@@ -64,6 +89,12 @@ router.put('/orders/:id/status', async (req, res) => {
     else if (status === 'rejected') order.moneygo.transferStatus = 'failed';
     order.addTimeline(status, note || `Status updated to ${status}`, `admin:${req.user.email}`);
     await order.save();
+
+    // ── تحديث السيولة عند اكتمال الطلب (مرة واحدة فقط) ──
+    if (status === 'completed' && !wasCompleted) {
+      await updateLiquidity(order)
+    }
+
     await telegramService.notifyOrderUpdate(order, status, note);
     res.json({ success: true, message: 'Order status updated.', order: { orderNumber: order.orderNumber, status: order.status } });
   } catch (error) {
@@ -176,11 +207,18 @@ router.post('/telegram-webhook-internal', async (req, res) => {
       default: return res.json({ success: true });
     }
 
+    const wasCompleted = order.status === 'completed'
     order.status = newStatus;
     if (newStatus === 'rejected') order.moneygo.transferStatus = 'failed'
     order.addTimeline(newStatus, `${message_text} via Telegram`, 'admin:telegram');
     await order.save();
 
+    // ── تحديث السيولة عند اكتمال الطلب ──────────
+    if (action === 'complete' && !wasCompleted) {
+      await updateLiquidity(order)
+    }
+
+    // ── إيداع محفظة داخلية ───────────────────────
     let walletCreditResult = null
     if (action === 'complete' && order.orderType === 'USDT_TO_WALLET') {
       walletCreditResult = await creditWalletFromOrder(order)
@@ -225,19 +263,22 @@ router.get('/rates', async (req, res) => {
   try {
     const doc = await Rate.getSingleton();
     res.json({
-      success:      true,
-      pairs:        doc.pairs,
-      // حدود لكل عملة
-      minEgp:       doc.minEgp       || 0,
-      maxEgp:       doc.maxEgp       || 0,
-      minUsdt:      doc.minUsdt      || doc.minOrderUsdt || 0,
-      maxUsdt:      doc.maxUsdt      || doc.maxOrderUsdt || 0,
-      minMgo:       doc.minMgo       || 0,
-      maxMgo:       doc.maxMgo       || 0,
+      success:       true,
+      pairs:         doc.pairs,
+      minEgp:        doc.minEgp        || 0,
+      maxEgp:        doc.maxEgp        || 0,
+      minUsdt:       doc.minUsdt       || doc.minOrderUsdt || 0,
+      maxUsdt:       doc.maxUsdt       || doc.maxOrderUsdt || 0,
+      minMgo:        doc.minMgo        || 0,
+      maxMgo:        doc.maxMgo        || 0,
+      // السيولة المتاحة
+      availableEgp:  doc.availableEgp  ?? doc.maxEgp  ?? 0,
+      availableUsdt: doc.availableUsdt ?? doc.maxUsdt ?? 0,
+      availableMgo:  doc.availableMgo  ?? doc.maxMgo  ?? 0,
       // backward compat
-      minOrderUsdt: doc.minOrderUsdt || doc.minUsdt || 0,
-      maxOrderUsdt: doc.maxOrderUsdt || doc.maxUsdt || 0,
-      updatedAt:    doc.updatedAt,
+      minOrderUsdt:  doc.minOrderUsdt  || doc.minUsdt || 0,
+      maxOrderUsdt:  doc.maxOrderUsdt  || doc.maxUsdt || 0,
+      updatedAt:     doc.updatedAt,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error.' });
@@ -253,6 +294,7 @@ router.put('/rates', async (req, res) => {
       minUsdt, maxUsdt,
       minMgo, maxMgo,
       minOrderUsdt, maxOrderUsdt,
+      availableEgp, availableUsdt, availableMgo,
     } = req.body;
 
     if (!Array.isArray(pairs)) {
@@ -260,25 +302,32 @@ router.put('/rates', async (req, res) => {
     }
 
     for (const p of pairs) {
-      if (!p.from || !p.to) {
+      if (!p.from || !p.to)
         return res.status(400).json({ success: false, message: 'كل زوج يجب أن يحتوي على from و to.' });
-      }
-      if (p.buyRate < 0 || p.sellRate < 0) {
+      if (p.buyRate < 0 || p.sellRate < 0)
         return res.status(400).json({ success: false, message: 'الأسعار لا يمكن أن تكون سالبة.' });
-      }
     }
+
+    const parsedMaxEgp  = parseFloat(maxEgp)  || 0
+    const parsedMaxUsdt = parseFloat(maxUsdt) || parseFloat(maxOrderUsdt) || 0
+    const parsedMaxMgo  = parseFloat(maxMgo)  || 0
 
     const updateData = {
       pairs,
-      updatedBy:    req.user.email,
-      minEgp:       parseFloat(minEgp)  || 0,
-      maxEgp:       parseFloat(maxEgp)  || 0,
-      minUsdt:      parseFloat(minUsdt) || parseFloat(minOrderUsdt) || 0,
-      maxUsdt:      parseFloat(maxUsdt) || parseFloat(maxOrderUsdt) || 0,
-      minMgo:       parseFloat(minMgo)  || 0,
-      maxMgo:       parseFloat(maxMgo)  || 0,
-      minOrderUsdt: parseFloat(minUsdt) || parseFloat(minOrderUsdt) || 0,
-      maxOrderUsdt: parseFloat(maxUsdt) || parseFloat(maxOrderUsdt) || 0,
+      updatedBy:     req.user.email,
+      minEgp:        parseFloat(minEgp)  || 0,
+      maxEgp:        parsedMaxEgp,
+      minUsdt:       parseFloat(minUsdt) || parseFloat(minOrderUsdt) || 0,
+      maxUsdt:       parsedMaxUsdt,
+      minMgo:        parseFloat(minMgo)  || 0,
+      maxMgo:        parsedMaxMgo,
+      minOrderUsdt:  parseFloat(minUsdt) || parseFloat(minOrderUsdt) || 0,
+      maxOrderUsdt:  parsedMaxUsdt,
+      // السيولة — الأدمن يمكنه ضبطها يدوياً
+      // إذا لم يُرسَل قيمة، تبقى كما هي ($setOnInsert لن يعمل هنا)
+      ...(availableEgp  !== undefined && { availableEgp:  parseFloat(availableEgp)  ?? parsedMaxEgp  }),
+      ...(availableUsdt !== undefined && { availableUsdt: parseFloat(availableUsdt) ?? parsedMaxUsdt }),
+      ...(availableMgo  !== undefined && { availableMgo:  parseFloat(availableMgo)  ?? parsedMaxMgo  }),
     };
 
     const doc = await Rate.findOneAndUpdate(
@@ -287,7 +336,7 @@ router.put('/rates', async (req, res) => {
       { new: true, upsert: true }
     );
 
-    res.json({ success: true, message: 'تم حفظ الأسعار.', pairs: doc.pairs });
+    res.json({ success: true, message: 'تم حفظ الأسعار والسيولة.', pairs: doc.pairs });
   } catch (error) {
     console.error('Rates save error:', error);
     res.status(500).json({ success: false, message: 'Server error.' });
@@ -476,9 +525,8 @@ router.post('/wallets/:userId/deposit', async (req, res) => {
 router.post('/wallets/:userId/adjust', async (req, res) => {
   try {
     const { amount, note } = req.body
-    if (amount === undefined || amount === null || isNaN(amount)) {
+    if (amount === undefined || amount === null || isNaN(amount))
       return res.status(400).json({ success: false, message: 'Invalid amount.' })
-    }
     let wallet = await Wallet.findOne({ user: req.params.userId })
     if (!wallet) return res.status(404).json({ success: false, message: 'Wallet not found.' })
     if (!wallet.isActive) return res.status(400).json({ success: false, message: 'Wallet is inactive.' })

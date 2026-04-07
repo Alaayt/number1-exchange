@@ -33,7 +33,7 @@ export const SEND_METHODS = [
     symbol: 'EGP',
     type:   'egp',
     color:  '#ff7700',
-    img:    '/images/etisalat.png',
+    img:    '/images/orange.png',
   },
   {
     id:     'usdt-trc',

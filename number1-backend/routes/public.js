@@ -1,13 +1,9 @@
 // routes/public.js
-// ═══════════════════════════════════════════════
-// Routes عامة — بدون authentication
-// ═══════════════════════════════════════════════
 const express  = require('express');
 const router   = express.Router();
 const Rate     = require('../models/Rate');
 const mongoose = require('mongoose');
 
-// ─── ExchangeMethods Model ────────────────────
 const ExchangeMethods = mongoose.models.ExchangeMethods ||
   mongoose.model('ExchangeMethods', new mongoose.Schema({
     sendMethods:    { type: Array, default: [] },
@@ -20,7 +16,7 @@ const DEFAULT_RECEIVE = ['mgo-recv','usdt-recv','wallet-recv']
 // ─── GET /api/public/rates ────────────────────
 router.get('/rates', async (req, res) => {
   try {
-    const doc  = await Rate.getSingleton();
+    const doc   = await Rate.getSingleton();
     const pairs = doc.pairs
       .filter(p => p.enabled)
       .map(p => ({ from: p.from, to: p.to, buyRate: p.buyRate, sellRate: p.sellRate, label: p.label }));
@@ -32,9 +28,41 @@ router.get('/rates', async (req, res) => {
     const orange   = find('EGP_ORANGE',   'USDT');
     const mgo      = find('USDT',         'MGO');
 
+    // ── الحدود الدنيا ─────────────────────────
+    const minEgp  = doc.minEgp  || 100
+    const minUsdt = doc.minUsdt || doc.minOrderUsdt || 10
+    const minMgo  = doc.minMgo  || 10
+
+    // ── الرصيد المتاح (الحد الأقصى الفعلي) ───
+    // إذا availableXxx أقل من maxXxx نستخدمه، وإلا maxXxx
+    const availableEgp  = doc.availableEgp  ?? doc.maxEgp  ?? 300000
+    const availableUsdt = doc.availableUsdt ?? doc.maxUsdt ?? 10000
+    const availableMgo  = doc.availableMgo  ?? doc.maxMgo  ?? 10000
+
+    // الحد الأقصى = أقل قيمة بين maxXxx والمتاح الفعلي
+    const maxEgp  = Math.min(doc.maxEgp  || 300000, availableEgp)
+    const maxUsdt = Math.min(doc.maxUsdt || 10000,  availableUsdt)
+    const maxMgo  = Math.min(doc.maxMgo  || 10000,  availableMgo)
+
     res.json({
       success: true,
       pairs,
+
+      // حدود العملات
+      minEgp,  maxEgp,
+      minUsdt, maxUsdt,
+      minMgo,  maxMgo,
+
+      // الرصيد المتاح الفعلي (للعرض في الواجهة)
+      availableEgp,
+      availableUsdt,
+      availableMgo,
+
+      // backward compat
+      minOrderUsdt: minUsdt,
+      maxOrderUsdt: maxUsdt,
+
+      // أسعار backward compat
       usdtBuyRate:     vodafone?.buyRate  || 50,
       usdtSellRate:    vodafone?.sellRate || 49,
       moneygoRate:     mgo?.sellRate      || 1,

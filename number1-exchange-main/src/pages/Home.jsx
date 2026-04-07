@@ -55,7 +55,6 @@ function CurrencyIcon({ method, size = 36 }) {
   )
 }
 
-// ── أيقونة القفل ─────────────────────────────────────────
 function LockBadge() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', flexShrink: 0 }}>
@@ -76,7 +75,6 @@ function isCompatible(send, recv) {
   return true
 }
 
-// ── MethodCard ديسكتوب ────────────────────────────────────
 function MethodCard({ method, selected, disabled, onClick, locked, onLockedClick }) {
   const [hov, setHov] = useState(false)
   const isSelected = selected?.id === method.id
@@ -167,11 +165,13 @@ function SendPanel({ sendMethod, recvMethod, onSelect, activeSend, user, onLocke
   )
 }
 
-function ReceivePanel({ sendMethod, recvMethod, onSelect, activeRecv }) {
+// ── ReceivePanel — يُخفي wallet-recv للمستخدم غير المسجل ──
+function ReceivePanel({ sendMethod, recvMethod, onSelect, activeRecv, user }) {
   const { lang } = useLang()
   const regularMethods = activeRecv.filter(m => m.id !== 'wallet-recv')
   const walletMethod   = activeRecv.find(m => m.id === 'wallet-recv')
-  const showWallet = sendMethod?.id === 'usdt-trc'
+  // يظهر فقط إذا: الإرسال USDT + المستخدم مسجل
+  const showWallet = sendMethod?.id === 'usdt-trc' && !!user
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border-1)", borderRadius: 22, overflow: "hidden", flex: 1 }}>
       <div style={{ padding: "18px 20px 14px", borderBottom: "1px solid var(--border-1)", background: "linear-gradient(135deg,rgba(0,229,160,0.05),rgba(0,210,255,0.03))" }}>
@@ -217,7 +217,6 @@ function useIsMobile(bp = 640) {
   return mobile
 }
 
-// ── MobileMethodCard مع دعم القفل ──────────────────────
 function MobileMethodCard({ method, selected, disabled, onClick, locked, onLockedClick }) {
   const [hov, setHov] = useState(false)
   const isSelected = selected?.id === method.id
@@ -259,7 +258,6 @@ function MobileMethodCard({ method, selected, disabled, onClick, locked, onLocke
       <div style={{ fontSize: "0.55rem", color: isSelected ? "rgba(0,210,255,0.6)" : "var(--text-3)", fontFamily: "'JetBrains Mono',monospace" }}>
         {subtitle}
       </div>
-      {/* قفل للموبايل */}
       {locked && (
         <div style={{ position: "absolute", top: 4, left: 4, width: 16, height: 16, borderRadius: "50%", background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -274,8 +272,12 @@ function MobileMethodCard({ method, selected, disabled, onClick, locked, onLocke
   )
 }
 
+// ── MobileExchangeSelector — يُخفي wallet-recv للمستخدم غير المسجل ──
 function MobileExchangeSelector({ sendMethod, recvMethod, onSend, onRecv, bothReady, lang, activeSend, activeRecv, user, onLockedClick }) {
-  const recvMethods = activeRecv.filter(m => m.id !== 'wallet-recv' || sendMethod?.id === 'usdt-trc')
+  // wallet-recv يظهر فقط إذا: الإرسال USDT + المستخدم مسجل
+  const recvMethods = activeRecv.filter(m =>
+    m.id !== 'wallet-recv' || (sendMethod?.id === 'usdt-trc' && !!user)
+  )
   return (
     <>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "stretch", gap: 0, position: "relative" }}>
@@ -338,9 +340,9 @@ function ExchangeSelector() {
   const isMobile = useIsMobile()
   const { activeSend, activeRecv } = useActiveMethods()
 
-  const [sendMethod, setSendMethod]   = useState(null)
-  const [recvMethod, setRecvMethod]   = useState(null)
-  const [loginAlert, setLoginAlert]   = useState(false)
+  const [sendMethod, setSendMethod] = useState(null)
+  const [recvMethod, setRecvMethod] = useState(null)
+  const [loginAlert, setLoginAlert] = useState(false)
   const navigating = useRef(false)
 
   useEffect(() => {
@@ -349,6 +351,11 @@ function ExchangeSelector() {
       setSendMethod(usdt ?? activeSend[0])
     }
   }, [activeSend])
+
+  // إذا تغيّر user وكان recvMethod محفظة وغير مسجل — امسحه
+  useEffect(() => {
+    if (!user && recvMethod?.id === 'wallet-recv') setRecvMethod(null)
+  }, [user])
 
   const handleLockedClick = () => {
     setLoginAlert(true)
@@ -389,14 +396,10 @@ function ExchangeSelector() {
 
   const styles = <style>{`@keyframes n1FadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}@keyframes n1Spin{to{transform:rotate(360deg)}}@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}@keyframes alertIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
-  // تنبيه القفل
   const lockAlert = loginAlert && (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', borderRadius: 12, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', marginBottom: 14, fontFamily: "'Cairo','Tajawal',sans-serif", fontSize: '0.87rem', color: '#f59e0b', animation: 'alertIn 0.2s ease' }}>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       <span style={{ flex: 1 }}>المحفظة الداخلية تتطلب <strong>تسجيل الدخول</strong> أولاً</span>
-      <button onClick={() => navigate('/login')} style={{ padding: '4px 14px', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 7, background: 'transparent', color: '#f59e0b', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif", whiteSpace: 'nowrap' }}>
-        تسجيل الدخول
-      </button>
     </div>
   )
 
@@ -432,7 +435,8 @@ function ExchangeSelector() {
             )}
           </div>
         </div>
-        <ReceivePanel sendMethod={sendMethod} recvMethod={recvMethod} onSelect={handleSelectRecv} activeRecv={activeRecv} />
+        {/* ← نمرر user لـ ReceivePanel */}
+        <ReceivePanel sendMethod={sendMethod} recvMethod={recvMethod} onSelect={handleSelectRecv} activeRecv={activeRecv} user={user} />
       </div>
       {bothReady && (
         <div style={{ marginTop: 20, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, animation: "n1FadeIn 0.3s ease" }}>
