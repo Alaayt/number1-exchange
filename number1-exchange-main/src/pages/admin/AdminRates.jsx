@@ -13,16 +13,24 @@ function calcMargin(buyRate, sellRate) {
 
 export default function AdminRates() {
   const [rates, setRates] = useState({
+    // أسعار
     egpBuyRate:       '',
     egpSellRate:      '',
     moneyGoBuyRate:   '',
     moneyGoSellRate:  '',
-    egpMgoBuyRate:    '', // EGP → MoneyGo (المستخدم يرسل EGP ويستلم MoneyGo)
-    egpMgoSellRate:   '', // MoneyGo → EGP (المستخدم يرسل MoneyGo ويستلم EGP)
+    egpMgoBuyRate:    '',
+    egpMgoSellRate:   '',
     internalBuyRate:  '',
     internalSellRate: '',
-    minOrderUsdt:     '',
-    maxOrderUsdt:     '',
+    // حدود EGP
+    minEgp: '',
+    maxEgp: '',
+    // حدود USDT
+    minUsdt: '',
+    maxUsdt: '',
+    // حدود MoneyGo
+    minMgo: '',
+    maxMgo: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -40,20 +48,25 @@ export default function AdminRates() {
 
       const egp      = find('EGP_VODAFONE', 'USDT') || find('EGP_INSTAPAY', 'USDT');
       const mgo      = find('USDT', 'MGO');
-      const egpMgo   = find('EGP_VODAFONE', 'MGO') || find('EGP', 'MGO');
+      const egpMgo   = find('EGP_VODAFONE', 'MGO');
       const internal = find('USDT', 'INTERNAL');
 
       setRates({
-        egpBuyRate:       egp?.buyRate       ?? data?.usdtBuyRate      ?? '',
-        egpSellRate:      egp?.sellRate      ?? data?.usdtSellRate     ?? '',
-        moneyGoBuyRate:   mgo?.buyRate       ?? data?.moneygoRate      ?? '',
-        moneyGoSellRate:  mgo?.sellRate      ?? data?.moneygoSellRate  ?? '',
+        egpBuyRate:       egp?.buyRate       ?? data?.usdtBuyRate     ?? '',
+        egpSellRate:      egp?.sellRate      ?? data?.usdtSellRate    ?? '',
+        moneyGoBuyRate:   mgo?.buyRate       ?? data?.moneygoRate     ?? '',
+        moneyGoSellRate:  mgo?.sellRate      ?? data?.moneygoSellRate ?? '',
         egpMgoBuyRate:    egpMgo?.buyRate    ?? '',
         egpMgoSellRate:   egpMgo?.sellRate   ?? '',
         internalBuyRate:  internal?.buyRate  ?? '',
         internalSellRate: internal?.sellRate ?? '',
-        minOrderUsdt:     data?.minOrderUsdt ?? '',
-        maxOrderUsdt:     data?.maxOrderUsdt ?? '',
+        // حدود
+        minEgp:  data?.minEgp  ?? '',
+        maxEgp:  data?.maxEgp  ?? '',
+        minUsdt: data?.minUsdt ?? data?.minOrderUsdt ?? '',
+        maxUsdt: data?.maxUsdt ?? data?.maxOrderUsdt ?? '',
+        minMgo:  data?.minMgo  ?? '',
+        maxMgo:  data?.maxMgo  ?? '',
       });
     } catch {
       setError('فشل تحميل الأسعار');
@@ -80,25 +93,34 @@ export default function AdminRates() {
       const intSell   = parseFloat(rates.internalSellRate) || 0;
 
       const pairs = [
-        // EGP ↔ USDT
-        { from: 'EGP_VODAFONE', to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'فودافون كاش ↔ USDT',     enabled: true },
-        { from: 'EGP_INSTAPAY', to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'إنستا باي ↔ USDT',       enabled: true },
-        { from: 'EGP_FAWRY',    to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'فاوري ↔ USDT',           enabled: true },
-        { from: 'EGP_ORANGE',   to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'أورنج كاش ↔ USDT',      enabled: true },
-        // USDT ↔ MoneyGo
-        { from: 'USDT',         to: 'MGO',      buyRate: mgoBuy,    sellRate: mgoSell,    label: 'USDT ↔ MoneyGo',          enabled: true },
-        // EGP ↔ MoneyGo
-        { from: 'EGP_VODAFONE', to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'فودافون كاش ↔ MoneyGo',  enabled: true },
-        { from: 'EGP_INSTAPAY', to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'إنستا باي ↔ MoneyGo',   enabled: true },
-        { from: 'EGP_FAWRY',    to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'فاوري ↔ MoneyGo',        enabled: true },
-        { from: 'EGP_ORANGE',   to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'أورنج كاش ↔ MoneyGo',   enabled: true },
-        // USDT ↔ Internal
-        { from: 'USDT',         to: 'INTERNAL', buyRate: intBuy,    sellRate: intSell,    label: 'USDT ↔ محفظة داخلية',   enabled: true },
-        { from: 'INTERNAL',     to: 'USDT',     buyRate: intBuy,    sellRate: intSell,    label: 'محفظة داخلية ↔ USDT',   enabled: true },
+        { from: 'EGP_VODAFONE', to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'فودافون كاش ↔ USDT',      enabled: true },
+        { from: 'EGP_INSTAPAY', to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'إنستا باي ↔ USDT',        enabled: true },
+        { from: 'EGP_FAWRY',    to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'فاوري ↔ USDT',            enabled: true },
+        { from: 'EGP_ORANGE',   to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'أورنج كاش ↔ USDT',       enabled: true },
+        { from: 'USDT',         to: 'MGO',      buyRate: mgoBuy,    sellRate: mgoSell,    label: 'USDT ↔ MoneyGo',           enabled: true },
+        { from: 'EGP_VODAFONE', to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'فودافون كاش ↔ MoneyGo',   enabled: true },
+        { from: 'EGP_INSTAPAY', to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'إنستا باي ↔ MoneyGo',    enabled: true },
+        { from: 'EGP_FAWRY',    to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'فاوري ↔ MoneyGo',         enabled: true },
+        { from: 'EGP_ORANGE',   to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'أورنج كاش ↔ MoneyGo',    enabled: true },
+        { from: 'USDT',         to: 'INTERNAL', buyRate: intBuy,    sellRate: intSell,    label: 'USDT ↔ محفظة داخلية',    enabled: true },
+        { from: 'INTERNAL',     to: 'USDT',     buyRate: intBuy,    sellRate: intSell,    label: 'محفظة داخلية ↔ USDT',    enabled: true },
         { from: 'INTERNAL',     to: 'MGO',      buyRate: mgoBuy,    sellRate: mgoSell,    label: 'محفظة داخلية ↔ MoneyGo', enabled: true },
       ];
 
-      await adminAPI.saveRates({ pairs });
+      // الحدود — نرسلها مع الـ pairs
+      const limits = {
+        minEgp:        parseFloat(rates.minEgp)  || 0,
+        maxEgp:        parseFloat(rates.maxEgp)  || 0,
+        minUsdt:       parseFloat(rates.minUsdt) || 0,
+        maxUsdt:       parseFloat(rates.maxUsdt) || 0,
+        minMgo:        parseFloat(rates.minMgo)  || 0,
+        maxMgo:        parseFloat(rates.maxMgo)  || 0,
+        // backward compat
+        minOrderUsdt:  parseFloat(rates.minUsdt) || 0,
+        maxOrderUsdt:  parseFloat(rates.maxUsdt) || 0,
+      };
+
+      await adminAPI.saveRates({ pairs, ...limits });
       setSaved(true);
       setTimeout(() => setSaved(false), 4000);
     } catch (e) {
@@ -123,6 +145,8 @@ export default function AdminRates() {
     <AdminLayout>
       <style>{`
         .ar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .ar-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        @media (max-width: 768px) { .ar-grid-3 { grid-template-columns: 1fr; } }
         @media (max-width: 480px) { .ar-grid { grid-template-columns: 1fr; } }
         .ar-card { background: #0d1117; border: 1px solid #21262d; border-radius: 14px; padding: 22px 20px; margin-bottom: 14px; transition: border-color 0.2s; }
         .ar-card:hover { border-color: #30363d; }
@@ -134,19 +158,22 @@ export default function AdminRates() {
         .ar-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
         .ar-input { width: 100%; padding: 12px 14px; background: #161b22; border: 1.5px solid #21262d; border-radius: 10px; color: #e6edf3; font-size: 18px; font-weight: 700; outline: none; transition: all 0.15s; text-align: center; font-family: 'JetBrains Mono', monospace; box-sizing: border-box; -moz-appearance: textfield; }
         .ar-input::-webkit-outer-spin-button, .ar-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        .ar-input.buy:focus  { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.15); color: #34d399; }
-        .ar-input.sell:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.15); color: #f87171; }
+        .ar-input.buy:focus   { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.15); color: #34d399; }
+        .ar-input.sell:focus  { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.15); color: #f87171; }
         .ar-input.limit:focus { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.15); color: #fbbf24; }
         .ar-input::placeholder { color: #484f58; font-size: 15px; }
         .ar-margin-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
         .ar-sub { font-size: 11px; color: #6e7681; margin-top: 4px; font-family: 'Cairo', sans-serif; text-align: center; }
+        .ar-limit-box { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 16px; }
+        .ar-limit-title { font-size: 13px; font-weight: 700; color: #c9d1d9; font-family: 'Cairo', sans-serif; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .ar-limit-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
       `}</style>
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: '#e6edf3', margin: 0, fontFamily: 'Cairo, sans-serif' }}>الأسعار</h2>
-          <p style={{ fontSize: 13, color: '#6e7681', marginTop: 3, fontFamily: 'Cairo, sans-serif' }}>تحديث أسعار الصرف لجميع العمليات</p>
+          <p style={{ fontSize: 13, color: '#6e7681', marginTop: 3, fontFamily: 'Cairo, sans-serif' }}>تحديث أسعار الصرف وحدود المعاملات</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button style={S.iconBtn} onClick={load} title="تحديث"><RefreshCw size={15} /></button>
@@ -185,7 +212,7 @@ export default function AdminRates() {
         unit="USDT"
       />
 
-      {/* ٣. EGP ↔ MoneyGo (الجديد) */}
+      {/* ٣. EGP ↔ MoneyGo */}
       <RateSection
         icon="🔄" iconBg="rgba(0,193,124,0.12)"
         title="MoneyGo ↔ جنيه مصري (EGP)"
@@ -211,34 +238,107 @@ export default function AdminRates() {
         unit="USDT"
       />
 
-      {/* حدود المعاملات */}
+      {/* ٥. حدود المعاملات — 3 أعمدة */}
       <div className="ar-card">
         <div className="ar-card-header">
           <div className="ar-card-title">
             <div className="ar-section-icon" style={{ background: 'rgba(245,158,11,0.12)' }}>⚖️</div>
             <div>
               <div>حدود المعاملات</div>
-              <div style={{ fontSize: 12, color: '#6e7681', fontWeight: 400, marginTop: 2 }}>أقل وأعلى مبلغ USDT مقبول</div>
+              <div style={{ fontSize: 12, color: '#6e7681', fontWeight: 400, marginTop: 2 }}>حدد الحد الأدنى والأقصى لكل عملة</div>
             </div>
           </div>
         </div>
-        <div className="ar-grid">
-          <div className="ar-field-wrap">
-            <div className="ar-label" style={{ color: '#fbbf24' }}><span className="ar-dot" style={{ background: '#f59e0b' }} />الحد الأدنى للطلب</div>
-            <div style={{ position: 'relative' }}>
-              <input type="number" className="ar-input limit" placeholder="مثال: 10" value={rates.minOrderUsdt} onChange={e => set('minOrderUsdt', e.target.value)} />
-              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#484f58', fontFamily: 'monospace', fontWeight: 700 }}>USDT</span>
+
+        <div className="ar-grid-3">
+
+          {/* EGP */}
+          <div className="ar-limit-box">
+            <div className="ar-limit-title">
+              🇪🇬 الجنيه المصري
+              <span className="ar-limit-badge" style={{ background: 'rgba(0,180,100,0.12)', color: '#34d399', border: '1px solid rgba(5,150,105,0.25)' }}>EGP</span>
             </div>
-            <div className="ar-sub">أقل مبلغ USDT مقبول لأي عملية</div>
-          </div>
-          <div className="ar-field-wrap">
-            <div className="ar-label" style={{ color: '#fbbf24' }}><span className="ar-dot" style={{ background: '#f59e0b' }} />الحد الأقصى للطلب</div>
-            <div style={{ position: 'relative' }}>
-              <input type="number" className="ar-input limit" placeholder="مثال: 5000" value={rates.maxOrderUsdt} onChange={e => set('maxOrderUsdt', e.target.value)} />
-              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#484f58', fontFamily: 'monospace', fontWeight: 700 }}>USDT</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="ar-field-wrap">
+                <div className="ar-label" style={{ color: '#fbbf24' }}><span className="ar-dot" style={{ background: '#f59e0b' }} />الحد الأدنى</div>
+                <div style={{ position: 'relative' }}>
+                  <input type="number" className="ar-input limit" placeholder="100" value={rates.minEgp} onChange={e => set('minEgp', e.target.value)} style={{ fontSize: 15 }} />
+                  <span style={unitStyle}>EGP</span>
+                </div>
+              </div>
+              <div className="ar-field-wrap">
+                <div className="ar-label" style={{ color: '#fbbf24' }}><span className="ar-dot" style={{ background: '#f59e0b' }} />الحد الأقصى</div>
+                <div style={{ position: 'relative' }}>
+                  <input type="number" className="ar-input limit" placeholder="300,000" value={rates.maxEgp} onChange={e => set('maxEgp', e.target.value)} style={{ fontSize: 15 }} />
+                  <span style={unitStyle}>EGP</span>
+                </div>
+              </div>
+              {rates.minEgp && rates.maxEgp && (
+                <div style={{ fontSize: 11, color: '#6e7681', textAlign: 'center', fontFamily: 'JetBrains Mono', marginTop: 2 }}>
+                  {Number(rates.minEgp).toLocaleString()} — {Number(rates.maxEgp).toLocaleString()} EGP
+                </div>
+              )}
             </div>
-            <div className="ar-sub">أعلى مبلغ USDT مقبول لأي عملية</div>
           </div>
+
+          {/* USDT */}
+          <div className="ar-limit-box">
+            <div className="ar-limit-title">
+              💵 USDT / دولار
+              <span className="ar-limit-badge" style={{ background: 'rgba(38,161,123,0.12)', color: '#26a17b', border: '1px solid rgba(38,161,123,0.25)' }}>USDT</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="ar-field-wrap">
+                <div className="ar-label" style={{ color: '#fbbf24' }}><span className="ar-dot" style={{ background: '#f59e0b' }} />الحد الأدنى</div>
+                <div style={{ position: 'relative' }}>
+                  <input type="number" className="ar-input limit" placeholder="10" value={rates.minUsdt} onChange={e => set('minUsdt', e.target.value)} style={{ fontSize: 15 }} />
+                  <span style={unitStyle}>USDT</span>
+                </div>
+              </div>
+              <div className="ar-field-wrap">
+                <div className="ar-label" style={{ color: '#fbbf24' }}><span className="ar-dot" style={{ background: '#f59e0b' }} />الحد الأقصى</div>
+                <div style={{ position: 'relative' }}>
+                  <input type="number" className="ar-input limit" placeholder="10,000" value={rates.maxUsdt} onChange={e => set('maxUsdt', e.target.value)} style={{ fontSize: 15 }} />
+                  <span style={unitStyle}>USDT</span>
+                </div>
+              </div>
+              {rates.minUsdt && rates.maxUsdt && (
+                <div style={{ fontSize: 11, color: '#6e7681', textAlign: 'center', fontFamily: 'JetBrains Mono', marginTop: 2 }}>
+                  {Number(rates.minUsdt).toLocaleString()} — {Number(rates.maxUsdt).toLocaleString()} USDT
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* MoneyGo */}
+          <div className="ar-limit-box">
+            <div className="ar-limit-title">
+              💚 MoneyGo USD
+              <span className="ar-limit-badge" style={{ background: 'rgba(0,193,124,0.12)', color: '#00c17c', border: '1px solid rgba(0,193,124,0.25)' }}>MGO</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="ar-field-wrap">
+                <div className="ar-label" style={{ color: '#fbbf24' }}><span className="ar-dot" style={{ background: '#f59e0b' }} />الحد الأدنى</div>
+                <div style={{ position: 'relative' }}>
+                  <input type="number" className="ar-input limit" placeholder="10" value={rates.minMgo} onChange={e => set('minMgo', e.target.value)} style={{ fontSize: 15 }} />
+                  <span style={unitStyle}>MGO</span>
+                </div>
+              </div>
+              <div className="ar-field-wrap">
+                <div className="ar-label" style={{ color: '#fbbf24' }}><span className="ar-dot" style={{ background: '#f59e0b' }} />الحد الأقصى</div>
+                <div style={{ position: 'relative' }}>
+                  <input type="number" className="ar-input limit" placeholder="10,000" value={rates.maxMgo} onChange={e => set('maxMgo', e.target.value)} style={{ fontSize: 15 }} />
+                  <span style={unitStyle}>MGO</span>
+                </div>
+              </div>
+              {rates.minMgo && rates.maxMgo && (
+                <div style={{ fontSize: 11, color: '#6e7681', textAlign: 'center', fontFamily: 'JetBrains Mono', marginTop: 2 }}>
+                  {Number(rates.minMgo).toLocaleString()} — {Number(rates.maxMgo).toLocaleString()} MGO
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -295,6 +395,11 @@ function RateSection({ icon, iconBg, title, subtitle, margin, buyLabel, buyHint,
     </div>
   );
 }
+
+const unitStyle = {
+  position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+  fontSize: 10, color: '#484f58', fontFamily: 'monospace', fontWeight: 700,
+};
 
 const S = {
   iconBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, border: '1px solid #21262d', borderRadius: 8, background: '#161b22', color: '#8b949e', cursor: 'pointer' },
