@@ -79,24 +79,52 @@ export default function ExchangeFormPage({ onOpenAuth }) {
     }
   }, [isWalletSend, isWalletRecv, user])
 
-  // ── بيانات API ──────────────────────────────────────────
+  // ── بيانات API + Auto-refetch ──────────────────────────
   const [rates,      setRates]    = useState(null)
   const [adminItem,  setAdminItem] = useState(null)
   const [apiLoading, setLoading]  = useState(true)
 
+  const fetchRates = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/public/rates`)
+      const data = await res.json()
+      if (data.success) setRates(data)
+    } catch {}
+  }, [])
+
+  const fetchMethods = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/public/payment-methods`)
+      const data = await res.json()
+      if (data.success) {
+        if (isEgpSend)       setAdminItem(data.wallets?.find(w => (w.name||'').toLowerCase().includes(fromId)) || data.wallets?.[0] || null)
+        else if (isUsdtSend) setAdminItem(data.cryptos?.[0] || null)
+      }
+    } catch {}
+  }, [isEgpSend, isUsdtSend, fromId])
+
+  // Initial fetch
   useEffect(() => {
     if (!fromId) return
-    Promise.all([
-      fetch(`${API}/api/public/rates`).then(r => r.json()).catch(() => null),
-      fetch(`${API}/api/public/payment-methods`).then(r => r.json()).catch(() => null),
-    ]).then(([ratesRes, methodsRes]) => {
-      if (ratesRes?.success)    setRates(ratesRes)
-      if (methodsRes?.success) {
-        if (isEgpSend)       setAdminItem(methodsRes.wallets?.find(w => (w.name||'').toLowerCase().includes(fromId)) || methodsRes.wallets?.[0] || null)
-        else if (isUsdtSend) setAdminItem(methodsRes.cryptos?.[0] || null)
-      }
-    }).finally(() => setLoading(false))
-  }, [fromId])
+    Promise.all([fetchRates(), fetchMethods()]).finally(() => setLoading(false))
+  }, [fromId, fetchRates, fetchMethods])
+
+  // Auto-refetch every 30s
+  useEffect(() => {
+    if (!fromId) return
+    const interval = setInterval(fetchRates, 30000)
+    return () => clearInterval(interval)
+  }, [fromId, fetchRates])
+
+  // Refetch on amount input focus
+  useEffect(() => {
+    const amountInput = document.querySelector('#field-amount input[type="number"]')
+    if (!amountInput) return
+
+    const handleFocus = () => fetchRates()
+    amountInput.addEventListener('focus', handleFocus)
+    return () => amountInput.removeEventListener('focus', handleFocus)
+  }, [fetchRates])
 
   // ── حالة المبالغ المتزامنة ──────────────────────────────
   const [sendAmount,    setSendAmount]    = useState('')
@@ -164,13 +192,25 @@ export default function ExchangeFormPage({ onOpenAuth }) {
     setSendAmount(send.toFixed(4))
   }, [appliedRate, divide, fieldErrors.amount])
 
-  // ── حدود العملة ─────────────────────────────────────────
+// ── حدود العملة + المتاح ─────────────────────────────────
   const limits = useMemo(() => {
-    if (!rates) return { min: 10, max: 5000, unit: 'USDT' }
-    if (isEgpSend)                   return { min: rates.minEgp  || 100, max: rates.maxEgp  || 300000, unit: 'EGP'  }
-    if (isMoneyGoRecv && !isEgpSend) return { min: rates.minMgo  || 10,  max: rates.maxMgo  || 10000,  unit: 'MGO'  }
-    return                                  { min: rates.minUsdt || rates.minOrderUsdt || 10, max: rates.maxUsdt || rates.maxOrderUsdt || 5000, unit: 'USDT' }
-  }, [rates, isEgpSend, isMoneyGoRecv])
+    if (!rates || !recvMethod) return { min: 10, max: 5000, unit: recvMethod.symbol || 'USDT', available: 5000 }
+    
+    const getLimits = (minKey, maxKey, availKey, unit) => ({
+      min: rates[minKey] || 10,
+      max: Math.min(rates[maxKey] || Infinity, rates[availKey] ?? rates[maxKey] ?? Infinity),
+      available: rates[availKey] ?? rates[maxKey] ?? Infinity,
+      unit
+    })
+
+    // Receive-side limits (what platform can PAY OUT)
+    if (isMoneyGoRecv) return getLimits('minMgo', 'maxMgo', 'availableMgo', 'MGO')
+    if (isUsdtRecv)   return getLimits('minUsdt', 'maxUsdt', 'availableUsdt', 'USDT')
+    if (isWalletRecv) return getLimits('minUsdt', 'maxUsdt', 'availableUsdt', 'USDT')
+    
+    // Default
+    return getLimits('minUsdt', 'maxUsdt', 'availableUsdt', 'USDT')
+  }, [rates, recvMethod?.id, isMoneyGoRecv, isUsdtRecv, isWalletRecv])
 
   // ── Validation ───────────────────────────────────────────
   const validate = () => {
@@ -329,7 +369,7 @@ export default function ExchangeFormPage({ onOpenAuth }) {
 
           {/* مربع الإرسال */}
           <label className="ef-label">المبلغ المُرسَل <span style={{ color: 'var(--red)' }}>*</span></label>
-          <div className={`ef-amount-row ${fieldErrors.amount && lastEdited === 'send' ? 'ef-amount-row--error' : ''}`}>
+          <div className={`ef-amount-row ${fieldErrors.amount && lastEdited === 'send' ? 'ef-amount-row--error' : ''} ${sendAmount && parseFloat(sendAmount) > limits.available * 0.9 ? 'ef-amount-row--near-max' : ''}`}>
             <input
               type="number" min="0" step="any"
               value={sendAmount}
@@ -374,7 +414,26 @@ export default function ExchangeFormPage({ onOpenAuth }) {
           </div>
 
           <FieldError msg={fieldErrors.amount} />
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 2 }}>
+          
+          {/* الرصيد المتاح - prominent */}
+          {limits.available !== undefined && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', 
+              background: limits.available > limits.max * 0.5 ? 'rgba(0,229,160,0.12)' : 'rgba(245,158,11,0.12)',
+              border: `1px solid ${limits.available > limits.max * 0.5 ? 'rgba(0,229,160,0.4)' : 'rgba(245,158,11,0.4)'}`,
+              borderRadius: 10, marginTop: 6, fontSize: '0.8rem', fontWeight: 700
+            }}>
+              <div style={{ fontSize: '1.1rem' }}>💰</div>
+              <span>الرصيد المتاح للاستلام: <strong style={{ color: limits.available > limits.max * 0.5 ? 'var(--green)' : 'var(--gold)' }}>
+                {limits.available.toLocaleString()} {limits.unit}
+              </strong></span>
+              {limits.available < limits.max * 0.2 && (
+                <span style={{ fontSize: '0.74rem', color: 'var(--red)' }}>⚠️ منخفض</span>
+              )}
+            </div>
+          )}
+          
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 8 }}>
             الحد الأدنى: {limits.min.toLocaleString()} {limits.unit} · الأقصى: {limits.max.toLocaleString()} {limits.unit}
           </div>
         </div>
@@ -544,6 +603,7 @@ const CSS = `
   .ef-amount-row--error { border-color: rgba(239,68,68,0.6) !important; background: rgba(239,68,68,0.04); }
   .ef-amount-row:focus-within:not(.ef-amount-row--error):not(.ef-amount-row--recv) { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,210,255,0.1); }
   .ef-amount-row--recv:focus-within { border-color: rgba(0,229,160,0.5); box-shadow: 0 0 0 3px rgba(0,229,160,0.1); }
+  .ef-amount-row--near-max { border-color: var(--gold) !important; background: rgba(245,158,11,0.06) !important; }
   .ef-amount-input { flex: 1; border: none !important; border-radius: 0 !important; font-size: 1.1rem !important; font-weight: 700; box-shadow: none !important; background: transparent !important; }
   .ef-amount-input--recv { color: var(--green) !important; }
   .ef-amount-input--recv::placeholder { color: rgba(0,229,160,0.3); }

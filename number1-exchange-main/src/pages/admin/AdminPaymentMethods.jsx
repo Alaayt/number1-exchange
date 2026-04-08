@@ -20,14 +20,21 @@ const WALLET_SUGGESTIONS = [
 ]
 
 const newCrypto = (sug = {}) => ({
+  methodId: sug.methodId || 'custom-crypto',
   id: uid(), coin: sug.coin || '', network: sug.network || '',
+  name: sug.label || 'شبكة جديدة',
   label: sug.label || '', icon: sug.icon || '₮', color: sug.color || '#26a17b',
   address: '', enabled: true,
+  minAmount: 0,
+  maxAmount: 0,
 })
 
 const newWallet = (sug = {}) => ({
-  id: uid(), name: sug.name || '', icon: sug.icon || '📱', color: sug.color || '#3b82f6',
+  methodId: sug.methodId || 'custom-wallet',
+  id: uid(), name: sug.name || 'محفظة جديدة', icon: sug.icon || '📱', color: sug.color || '#3b82f6',
   placeholder: sug.placeholder || 'رقم الاستلام', number: '', enabled: true,
+  minAmount: 0,
+  maxAmount: 0,
 })
 
 export default function AdminPaymentMethods() {
@@ -279,7 +286,7 @@ function CryptoCard({ item, onToggle, onEdit, onRemove }) {
   const [copied,   setCopied]   = useState(false)
   const isReady     = item.enabled && item.address
   const accentColor = item.enabled ? item.color : '#475569'
-  const displayLabel = item.label || [item.coin, item.network].filter(Boolean).join(' ') || 'شبكة جديدة'
+  const displayLabel = item.name || item.label || [item.coin, item.network].filter(Boolean).join(' ') || 'شبكة جديدة'
   const shortAddr = item.address ? (item.address.length > 22 ? `${item.address.slice(0,10)}...${item.address.slice(-8)}` : item.address) : null
   const handleCopy = () => { if (!item.address) return; navigator.clipboard.writeText(item.address); setCopied(true); setTimeout(() => setCopied(false), 2000) }
   return (
@@ -288,7 +295,7 @@ function CryptoCard({ item, onToggle, onEdit, onRemove }) {
       <div className="pm-card-body">
         <div className="pm-card-top">
           <div className="pm-card-icon" style={{ background: `${item.color}18`, border: `1.5px solid ${item.color}35` }}><span style={{ fontSize: 17, color: item.color }}>{item.icon}</span></div>
-          <div className="pm-card-meta"><div className="pm-card-title" style={{ color: accentColor }}>{displayLabel}</div><div className="pm-card-subtitle">{item.coin || '—'} · {item.network || '—'}</div></div>
+          <div className="pm-card-meta"><div className="pm-card-title" style={{ color: accentColor }}>{displayLabel}</div><div className="pm-card-subtitle">{item.methodId || item.coin || '—'} · {item.network || '—'}</div></div>
           <StatusBadge enabled={item.enabled} ready={isReady} />
         </div>
         {shortAddr
@@ -309,11 +316,16 @@ function CryptoCard({ item, onToggle, onEdit, onRemove }) {
         {expanded && (
           <div className="pm-edit-panel">
             <div className="pm-field-grid pm-field-grid--3">
+              <Field label="methodId"><input className="pm-input" placeholder="vodafone" value={item.methodId} onChange={e => onEdit('methodId', e.target.value)} /></Field>
               <Field label="العملة"><input className="pm-input" placeholder="USDT" value={item.coin} onChange={e => onEdit('coin', e.target.value)} /></Field>
               <Field label="الشبكة"><input className="pm-input" placeholder="TRC20" value={item.network} onChange={e => onEdit('network', e.target.value)} /></Field>
-              <Field label="الاسم"><input className="pm-input" placeholder="USDT TRC20" value={item.label} onChange={e => onEdit('label', e.target.value)} /></Field>
             </div>
+            <Field label="الاسم"><input className="pm-input" placeholder="USDT TRC20" value={item.name || item.label} onChange={e => onEdit('name', e.target.value)} /></Field>
             <Field label="عنوان المحفظة"><input className="pm-input pm-input--mono" placeholder="T..." value={item.address} onChange={e => onEdit('address', e.target.value)} style={{ direction: 'ltr', textAlign: 'left' }} /></Field>
+            <div className="pm-field-grid pm-field-grid--2">
+              <Field label="الحد الأدنى"><input className="pm-input pm-input--mono" type="number" placeholder="0" value={item.minAmount || ''} onChange={e => onEdit('minAmount', parseFloat(e.target.value) || 0)} /></Field>
+              <Field label="الحد الأقصى"><input className="pm-input pm-input--mono" type="number" placeholder="0" value={item.maxAmount || ''} onChange={e => onEdit('maxAmount', parseFloat(e.target.value) || 0)} /></Field>
+            </div>
             <div className="pm-field-grid pm-field-grid--2">
               <Field label="رمز"><input className="pm-input pm-input--center" value={item.icon} onChange={e => onEdit('icon', e.target.value)} maxLength={2} /></Field>
               <Field label="اللون"><div className="pm-color-row"><input type="color" className="pm-color-swatch" value={item.color} onChange={e => onEdit('color', e.target.value)} /><input className="pm-input pm-input--mono" value={item.color} onChange={e => onEdit('color', e.target.value)} maxLength={7} style={{ direction: 'ltr' }} /></div></Field>
@@ -340,7 +352,7 @@ function WalletCard({ item, onToggle, onEdit, onRemove }) {
       <div className="pm-card-body">
         <div className="pm-card-top">
           <div className="pm-card-icon" style={{ background: `${item.color}18`, border: `1.5px solid ${item.color}35` }}><span style={{ fontSize: 20 }}>{item.icon}</span></div>
-          <div className="pm-card-meta"><div className="pm-card-title" style={{ color: accentColor }}>{displayName}</div><div className="pm-card-subtitle" style={{ fontStyle: item.accountName ? 'normal' : 'italic' }}>{item.accountName || 'بدون اسم حساب'}</div></div>
+          <div className="pm-card-meta"><div className="pm-card-title" style={{ color: accentColor }}>{displayName}</div><div className="pm-card-subtitle">{item.methodId || '—'}</div></div>
           <StatusBadge enabled={item.enabled} ready={isReady} />
         </div>
         {shortNum
@@ -360,12 +372,20 @@ function WalletCard({ item, onToggle, onEdit, onRemove }) {
         </div>
         {expanded && (
           <div className="pm-edit-panel">
-            <div className="pm-field-grid pm-field-grid--2">
+            <div className="pm-field-grid pm-field-grid--3">
+              <Field label="methodId"><input className="pm-input" placeholder="vodafone" value={item.methodId} onChange={e => onEdit('methodId', e.target.value)} /></Field>
               <Field label="اسم المحفظة"><input className="pm-input" placeholder="Vodafone Cash" value={item.name} onChange={e => onEdit('name', e.target.value)} /></Field>
               <Field label="الأيقونة"><input className="pm-input pm-input--center" value={item.icon} maxLength={2} onChange={e => onEdit('icon', e.target.value.slice(0,2) || '📱')} /></Field>
             </div>
             <Field label="رقم الاستلام"><input className="pm-input pm-input--mono" placeholder={item.placeholder || '01XXXXXXXXX'} value={item.number} onChange={e => onEdit('number', e.target.value)} style={{ direction: 'ltr', textAlign: 'left' }} /></Field>
-            <Field label="اسم الحساب"><input className="pm-input" placeholder="NUMBER 1 EXCHANGE" value={item.accountName || ''} onChange={e => onEdit('accountName', e.target.value)} /></Field>
+            <div className="pm-field-grid pm-field-grid--2">
+              <Field label="الحد الأدنى"><input className="pm-input pm-input--mono" type="number" placeholder="0" value={item.minAmount || ''} onChange={e => onEdit('minAmount', parseFloat(e.target.value) || 0)} /></Field>
+              <Field label="الحد الأقصى"><input className="pm-input pm-input--mono" type="number" placeholder="0" value={item.maxAmount || ''} onChange={e => onEdit('maxAmount', parseFloat(e.target.value) || 0)} /></Field>
+            </div>
+            <div className="pm-field-grid pm-field-grid--2">
+              <Field label="اسم الحساب"><input className="pm-input" placeholder="NUMBER 1 EXCHANGE" value={item.accountName || ''} onChange={e => onEdit('accountName', e.target.value)} /></Field>
+              <Field label="اللون"><div className="pm-color-row"><input type="color" className="pm-color-swatch" value={item.color} onChange={e => onEdit('color', e.target.value)} /><input className="pm-input pm-input--mono" value={item.color} onChange={e => onEdit('color', e.target.value)} maxLength={7} style={{ direction: 'ltr' }} /></div></Field>
+            </div>
             <Field label="ملاحظة للمستخدم"><input className="pm-input" placeholder="حوّل المبلغ خلال 30 دقيقة" value={item.note || ''} onChange={e => onEdit('note', e.target.value)} /></Field>
           </div>
         )}
