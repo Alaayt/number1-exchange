@@ -277,12 +277,17 @@ export default function AdminPaymentMethods() {
       {/* ══════════════════════════════════════════════════
           Dynamic Exchange Methods — Send
       ══════════════════════════════════════════════════ */}
-      <div className="em-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 6 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="em-icon">{'\ud83d\udce4'}</span>
-            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--al-text-primary)' }}>{'\u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u2014 \u0623\u0646\u062a \u062a\u0631\u0633\u0644'}</span>
-            <span className="em-count">{sendMethods.filter(m => m.enabled).length} / {sendMethods.length} {'\u0645\u0641\u0639\u0651\u0644'}</span>
+      <div className="em-section" style={{ border: 'none', background: 'transparent', padding: 0 }}>
+        <div className="pm-section-header" style={{ borderBottom: 'none', paddingBottom: 0, marginTop: 0 }}>
+          <div className="pm-section-left">
+            <div className="pm-section-icon">{'\ud83d\udce4'}</div>
+            <div>
+              <div className="pm-section-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {'\u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u2014 \u0623\u0646\u062a \u062a\u0631\u0633\u0644'}
+                <span className="em-count">{sendMethods.filter(m => m.enabled).length} / {sendMethods.length} {'\u0645\u0641\u0639\u0651\u0644'}</span>
+              </div>
+              <div className="pm-section-desc">{'\u0623\u0636\u0641 \u0648\u0633\u0627\u0626\u0644 \u0625\u0631\u0633\u0627\u0644 \u062c\u062f\u064a\u062f\u0629 \u0623\u0648 \u0641\u0639\u0651\u0644/\u0639\u0637\u0651\u0644 \u0627\u0644\u062d\u0627\u0644\u064a\u0629'}</div>
+            </div>
           </div>
           <div style={{ position: 'relative' }}>
             <button className="pm-add-btn" onClick={() => { setShowAddSend(v => !v); setShowAddRecv(false) }}>+ {'\u0625\u0636\u0627\u0641\u0629 \u0648\u0633\u064a\u0644\u0629 \u0625\u0631\u0633\u0627\u0644'}</button>
@@ -321,12 +326,17 @@ export default function AdminPaymentMethods() {
       {/* ══════════════════════════════════════════════════
           Dynamic Exchange Methods — Receive
       ══════════════════════════════════════════════════ */}
-      <div className="em-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 6 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="em-icon">{'\ud83d\udce5'}</span>
-            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--al-text-primary)' }}>{'\u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645 \u2014 \u0623\u0646\u062a \u062a\u0633\u062a\u0644\u0645'}</span>
-            <span className="em-count">{receiveMethods.filter(m => m.enabled).length} / {receiveMethods.length} {'\u0645\u0641\u0639\u0651\u0644'}</span>
+      <div className="em-section" style={{ border: 'none', background: 'transparent', padding: 0 }}>
+        <div className="pm-section-header" style={{ borderBottom: 'none', paddingBottom: 0, marginTop: 0 }}>
+          <div className="pm-section-left">
+            <div className="pm-section-icon">{'\ud83d\udce5'}</div>
+            <div>
+              <div className="pm-section-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {'\u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645 \u2014 \u0623\u0646\u062a \u062a\u0633\u062a\u0644\u0645'}
+                <span className="em-count">{receiveMethods.filter(m => m.enabled).length} / {receiveMethods.length} {'\u0645\u0641\u0639\u0651\u0644'}</span>
+              </div>
+              <div className="pm-section-desc">{'\u0623\u0636\u0641 \u0648\u0633\u0627\u0626\u0644 \u0627\u0633\u062a\u0644\u0627\u0645 \u062c\u062f\u064a\u062f\u0629. \u0627\u0644\u0639\u0645\u064a\u0644 \u0644\u0627 \u064a\u0645\u0643\u0646\u0647 \u0627\u062e\u062a\u064a\u0627\u0631 \u0646\u0641\u0633 \u0627\u0644\u0639\u0645\u0644\u0629 \u0644\u0644\u0625\u0631\u0633\u0627\u0644 \u0648\u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645'}</div>
+            </div>
           </div>
           <div style={{ position: 'relative' }}>
             <button className="pm-add-btn" onClick={() => { setShowAddRecv(v => !v); setShowAddSend(false) }}>+ {'\u0625\u0636\u0627\u0641\u0629 \u0648\u0633\u064a\u0644\u0629 \u0627\u0633\u062a\u0644\u0627\u0645'}</button>
