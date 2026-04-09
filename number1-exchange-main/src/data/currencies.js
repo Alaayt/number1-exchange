@@ -1,5 +1,4 @@
 // src/data/currencies.js
-// المصدر الوحيد للعملات — IDs ثابتة لا تتغير أبداً
 // ═══════════════════════════════════════════════════════════════
 // ⚠️ DEPRECATED for exchange UI rendering:
 // Home.jsx and ExchangeSelect.jsx now fetch dynamic methods from
