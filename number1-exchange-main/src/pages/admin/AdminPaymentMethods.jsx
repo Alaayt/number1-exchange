@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout'
 import { adminAPI } from '../../services/api'
-import { CRYPTO_PRESETS as CRYPTO_SUGGESTIONS, uid } from '../../components/admin/adminConstants'
+import { uid } from '../../components/admin/adminConstants'
 
 // ── Presets for quick-add (Send) ──────────────────────────────────
 const SEND_PRESETS = [
@@ -55,15 +55,6 @@ const RECV_PRESETS = [
   { id: 'wallet-recv', name: 'محفظة داخلية', symbol: 'USDT', type: 'wallet', color: '#378ADD', img: null, icon: '💼', rateKey: 'INTERNAL', placeholder: '', _cat: 'أخرى' },
 ]
 
-const WALLET_SUGGESTIONS = [
-  { name: 'Vodafone Cash', icon: '\ud83d\udcf1', color: '#ef4444', placeholder: '01XXXXXXXXX' },
-  { name: 'Orange Cash',   icon: '\ud83d\udfe0', color: '#f97316', placeholder: '01XXXXXXXXX' },
-  { name: 'InstaPay',      icon: '\u26a1', color: '#8b5cf6', placeholder: '\u0627\u0633\u0645 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645 \u0623\u0648 \u0631\u0642\u0645 \u0627\u0644\u0647\u0627\u062a\u0641' },
-  { name: 'Fawry',         icon: '\ud83c\udfea', color: '#f59e0b', placeholder: '\u0631\u0642\u0645 Fawry' },
-  { name: 'WE Pay',        icon: '\ud83d\udce1', color: '#06b6d4', placeholder: '01XXXXXXXXX' },
-  { name: 'Meeza',         icon: '\ud83d\udcb3', color: '#10b981', placeholder: '\u0631\u0642\u0645 \u0627\u0644\u0628\u0637\u0627\u0642\u0629' },
-  { name: 'MoneyGo',       icon: '\ud83d\udcb5', color: '#22d3ee', placeholder: '\u0631\u0642\u0645 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645' },
-]
 
 const TYPE_OPTIONS = [
   { value: 'egp', label: 'EGP \u062c\u0646\u064a\u0647 \u0645\u0635\u0631\u064a' },
@@ -118,35 +109,13 @@ function newRecvMethod(preset = {}) {
   }
 }
 
-const newCrypto = (sug = {}) => ({
-  methodId: sug.methodId || 'custom-crypto',
-  id: uid(), coin: sug.coin || '', network: sug.network || '',
-  name: sug.label || '\u0634\u0628\u0643\u0629 \u062c\u062f\u064a\u062f\u0629',
-  label: sug.label || '', icon: sug.icon || '\u20ae', color: sug.color || '#26a17b',
-  address: '', enabled: true,
-  minAmount: 0,
-  maxAmount: 0,
-})
-
-const newWallet = (sug = {}) => ({
-  methodId: sug.methodId || 'custom-wallet',
-  id: uid(), name: sug.name || '\u0645\u062d\u0641\u0638\u0629 \u062c\u062f\u064a\u062f\u0629', icon: sug.icon || '\ud83d\udcf1', color: sug.color || '#3b82f6',
-  placeholder: sug.placeholder || '\u0631\u0642\u0645 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645', number: '', enabled: true,
-  minAmount: 0,
-  maxAmount: 0,
-})
-
 export default function AdminPaymentMethods() {
-  const [cryptos,        setCryptos]        = useState([])
-  const [wallets,        setWallets]        = useState([])
   const [sendMethods,    setSendMethods]    = useState([])
   const [receiveMethods, setReceiveMethods] = useState([])
   const [loading,        setLoading]        = useState(true)
   const [saving,         setSaving]         = useState(false)
   const [saved,          setSaved]          = useState(false)
   const [error,          setError]          = useState('')
-  const [showCryptoMenu, setShowCryptoMenu] = useState(false)
-  const [showWalletMenu, setShowWalletMenu] = useState(false)
   const [showAddSend,    setShowAddSend]    = useState(false)
   const [showAddRecv,    setShowAddRecv]    = useState(false)
 
@@ -155,14 +124,7 @@ export default function AdminPaymentMethods() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [pmRes, emRes] = await Promise.all([
-        adminAPI.getPaymentMethods(),
-        adminAPI.getExchangeMethods(),
-      ])
-      setCryptos(pmRes.data.cryptos || [])
-      setWallets(pmRes.data.wallets || [])
-
-      // Full method objects from DB
+      const emRes = await adminAPI.getExchangeMethods()
       setSendMethods(emRes.data.sendMethods || [])
       setReceiveMethods(emRes.data.receiveMethods || [])
     } catch {
@@ -175,30 +137,22 @@ export default function AdminPaymentMethods() {
 
   const handleSave = async () => {
     setSaving(true); setError('')
-
-    // Validate: check for duplicate IDs
     const sendIds = sendMethods.map(m => m.id)
     const recvIds = receiveMethods.map(m => m.id)
     if (new Set(sendIds).size !== sendIds.length) {
-      setError('\u062a\u0648\u062c\u062f \u0645\u0639\u0631\u0641\u0627\u062a \u0645\u0643\u0631\u0631\u0629 \u0641\u064a \u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u0625\u0631\u0633\u0627\u0644')
+      setError('توجد معرفات مكررة في وسائل الإرسال')
       setSaving(false); return
     }
     if (new Set(recvIds).size !== recvIds.length) {
-      setError('\u062a\u0648\u062c\u062f \u0645\u0639\u0631\u0641\u0627\u062a \u0645\u0643\u0631\u0631\u0629 \u0641\u064a \u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645')
+      setError('توجد معرفات مكررة في وسائل الاستلام')
       setSaving(false); return
     }
-
-    // Validate: no method can be in both send and receive with same symbol
-    // (to prevent same-currency send/receive)
     try {
-      await Promise.all([
-        adminAPI.savePaymentMethods({ cryptos, wallets }),
-        adminAPI.saveExchangeMethods({ sendMethods, receiveMethods }),
-      ])
+      await adminAPI.saveExchangeMethods({ sendMethods, receiveMethods })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (e) {
-      setError(e.response?.data?.message || '\u0641\u0634\u0644 \u0627\u0644\u062d\u0641\u0638')
+      setError(e.response?.data?.message || 'فشل الحفظ')
     } finally {
       setSaving(false)
     }
@@ -227,17 +181,6 @@ export default function AdminPaymentMethods() {
     setReceiveMethods(prev => [...prev, newRecvMethod(preset)])
     setShowAddRecv(false)
   }
-
-  // ── Payment method handlers ───────────────────────────────
-  const addCrypto    = (sug) => { setCryptos(p => [...p, newCrypto(sug)]); setShowCryptoMenu(false) }
-  const editCrypto   = (id, f, v) => setCryptos(p => p.map(c => c.id === id ? { ...c, [f]: v } : c))
-  const removeCrypto = (id) => setCryptos(p => p.filter(c => c.id !== id))
-  const toggleCrypto = (id) => editCrypto(id, 'enabled', !cryptos.find(c => c.id === id)?.enabled)
-
-  const addWallet    = (sug) => { setWallets(p => [...p, newWallet(sug)]); setShowWalletMenu(false) }
-  const editWallet   = (id, f, v) => setWallets(p => p.map(w => w.id === id ? { ...w, [f]: v } : w))
-  const removeWallet = (id) => setWallets(p => p.filter(w => w.id !== id))
-  const toggleWallet = (id) => editWallet(id, 'enabled', !wallets.find(w => w.id === id)?.enabled)
 
   // Toggle compatibility
   const toggleSendCompat = (sendId, recvId) => {
@@ -370,67 +313,6 @@ export default function AdminPaymentMethods() {
           ))}
         </div>
       </div>
-
-      {/* ══ Payment Method Addresses ══ */}
-      <SectionHeader
-        icon={'\ud83d\udd17'} title={'\u0634\u0628\u0643\u0627\u062a \u0627\u0644\u0639\u0645\u0644\u0627\u062a \u0627\u0644\u0631\u0642\u0645\u064a\u0629'}
-        desc={'\u0623\u0636\u0641 \u0639\u0646\u0627\u0648\u064a\u0646 \u0627\u0644\u0645\u062d\u0627\u0641\u0638 \u0644\u0627\u0633\u062a\u0642\u0628\u0627\u0644 \u0627\u0644\u062a\u062d\u0648\u064a\u0644\u0627\u062a'}
-        addLabel={'+ \u0625\u0636\u0627\u0641\u0629 \u0634\u0628\u0643\u0629'}
-        showMenu={showCryptoMenu}
-        onToggleMenu={() => { setShowCryptoMenu(v => !v); setShowWalletMenu(false) }}
-        onCloseMenu={() => setShowCryptoMenu(false)}
-        menuItems={CRYPTO_SUGGESTIONS}
-        onSelect={addCrypto}
-        onCustom={() => { addCrypto({}); setShowCryptoMenu(false) }}
-        renderItem={s => (
-          <div className="pm-suggest-row">
-            <span style={{ fontSize: 16, color: s.color, fontWeight: 800, minWidth: 22, textAlign: 'center' }}>{s.icon}</span>
-            <div><div className="pm-suggest-name">{s.label}</div><div className="pm-suggest-sub">{s.network}</div></div>
-          </div>
-        )}
-      />
-
-      {cryptos.length === 0
-        ? <EmptyState icon={'\ud83d\udd17'} text={'\u0644\u0627 \u062a\u0648\u062c\u062f \u0634\u0628\u0643\u0627\u062a \u2014 \u0627\u0636\u063a\u0637 "+ \u0625\u0636\u0627\u0641\u0629 \u0634\u0628\u0643\u0629" \u0644\u0644\u0628\u062f\u0621'} />
-        : <div className="pm-grid">
-            {cryptos.map(c => (
-              <CryptoCard key={c.id} item={c}
-                onToggle={() => toggleCrypto(c.id)}
-                onEdit={(f, v) => editCrypto(c.id, f, v)}
-                onRemove={() => removeCrypto(c.id)} />
-            ))}
-          </div>
-      }
-
-      <SectionHeader
-        icon={'\ud83d\udcf1'} title={'\u0627\u0644\u0645\u062d\u0627\u0641\u0638 \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a\u0629'}
-        desc={'\u0623\u0636\u0641 \u0623\u0631\u0642\u0627\u0645 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645 \u0644\u0644\u0645\u062d\u0627\u0641\u0638 \u0627\u0644\u0645\u062d\u0644\u064a\u0629'}
-        addLabel={'+ \u0625\u0636\u0627\u0641\u0629 \u0645\u062d\u0641\u0638\u0629'}
-        showMenu={showWalletMenu}
-        onToggleMenu={() => { setShowWalletMenu(v => !v); setShowCryptoMenu(false) }}
-        onCloseMenu={() => setShowWalletMenu(false)}
-        menuItems={WALLET_SUGGESTIONS}
-        onSelect={addWallet}
-        onCustom={() => { addWallet({}); setShowWalletMenu(false) }}
-        renderItem={s => (
-          <div className="pm-suggest-row">
-            <span style={{ fontSize: 16, minWidth: 22, textAlign: 'center' }}>{s.icon}</span>
-            <span className="pm-suggest-name">{s.name}</span>
-          </div>
-        )}
-      />
-
-      {wallets.length === 0
-        ? <EmptyState icon={'\ud83d\udcf1'} text={'\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u062d\u0627\u0641\u0638 \u2014 \u0627\u0636\u063a\u0637 "+ \u0625\u0636\u0627\u0641\u0629 \u0645\u062d\u0641\u0638\u0629" \u0644\u0644\u0628\u062f\u0621'} />
-        : <div className="pm-grid">
-            {wallets.map(w => (
-              <WalletCard key={w.id} item={w}
-                onToggle={() => toggleWallet(w.id)}
-                onEdit={(f, v) => editWallet(w.id, f, v)}
-                onRemove={() => removeWallet(w.id)} />
-            ))}
-          </div>
-      }
 
       <div className="pm-save-wrap">
         <SaveBtn saving={saving} saved={saved} onClick={handleSave} large />
@@ -583,13 +465,67 @@ function ExchangeMethodCard({ method, direction, otherMethods, onToggle, onEdit,
             </div>
 
             <div className="pm-field-grid pm-field-grid--2">
-              <Field label={'\u0631\u0627\u0628\u0637 \u0627\u0644\u0635\u0648\u0631\u0629'}>
+              <Field label="رابط الصورة">
                 <input className="pm-input pm-input--mono" placeholder="/images/xxx.png" value={m.img || ''} onChange={e => onEdit('img', e.target.value || null)} style={{ direction: 'ltr' }} />
               </Field>
-              <Field label={'\u0623\u064a\u0642\u0648\u0646\u0629 (emoji)'}>
+              <Field label="أيقونة (emoji)">
                 <input className="pm-input pm-input--center" value={m.icon || ''} maxLength={2} onChange={e => onEdit('icon', e.target.value || null)} />
               </Field>
             </div>
+
+            {/* ── رقم الاستلام (للمحافظ المصرية وMoneyGo) ── */}
+            {(m.type === 'egp' || m.type === 'moneygo') && (
+              <Field label="رقم الاستلام — يظهر للعميل لكي يحول عليه">
+                <input
+                  className="pm-input pm-input--mono"
+                  placeholder="01XXXXXXXXX أو U-XXXXXXXX"
+                  value={m.receiverNumber || ''}
+                  onChange={e => onEdit('receiverNumber', e.target.value)}
+                  style={{ direction: 'ltr', textAlign: 'left', fontSize: '1rem', fontWeight: 700 }}
+                />
+              </Field>
+            )}
+
+            {/* ── شبكات USDT مع عناوينها ── */}
+            {m.type === 'crypto' && (
+              <div>
+                <label className="pm-field-label">شبكات الاستلام وعناوينها — يختار العميل منها</label>
+                {(m.networks || []).map((net, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                    <input
+                      className="pm-input pm-input--mono"
+                      placeholder="TRC20"
+                      value={net.networkKey || ''}
+                      onChange={e => {
+                        const nets = [...(m.networks || [])]
+                        nets[idx] = { ...nets[idx], networkKey: e.target.value.toUpperCase() }
+                        onEdit('networks', nets)
+                      }}
+                      style={{ direction: 'ltr', width: 90, flexShrink: 0 }}
+                    />
+                    <input
+                      className="pm-input pm-input--mono"
+                      placeholder="عنوان المحفظة T... أو 0x..."
+                      value={net.address || ''}
+                      onChange={e => {
+                        const nets = [...(m.networks || [])]
+                        nets[idx] = { ...nets[idx], address: e.target.value }
+                        onEdit('networks', nets)
+                      }}
+                      style={{ direction: 'ltr', flex: 1 }}
+                    />
+                    <button
+                      onClick={() => { const nets = (m.networks || []).filter((_, i) => i !== idx); onEdit('networks', nets) }}
+                      style={{ padding: '6px 10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#ef4444', cursor: 'pointer', flexShrink: 0 }}
+                    >✕</button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => onEdit('networks', [...(m.networks || []), { networkKey: '', address: '', enabled: true }])}
+                  style={{ marginTop: 4, padding: '6px 14px', background: 'rgba(0,210,255,0.08)', border: '1px solid rgba(0,210,255,0.25)', borderRadius: 6, color: 'var(--cyan)', cursor: 'pointer', fontSize: '0.8rem' }}
+                >+ إضافة شبكة</button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -658,121 +594,6 @@ function AddMethodMenu({ presets, existingIds, onSelect, onCustom, onClose }) {
   )
 }
 
-// ── Existing sub-components (unchanged) ─────────────────────
-function CryptoCard({ item, onToggle, onEdit, onRemove }) {
-  const [expanded, setExpanded] = useState(false)
-  const [confirm,  setConfirm]  = useState(false)
-  const [copied,   setCopied]   = useState(false)
-  const isReady     = item.enabled && item.address
-  const accentColor = item.enabled ? item.color : '#475569'
-  const displayLabel = item.name || item.label || [item.coin, item.network].filter(Boolean).join(' ') || '\u0634\u0628\u0643\u0629 \u062c\u062f\u064a\u062f\u0629'
-  const shortAddr = item.address ? (item.address.length > 22 ? `${item.address.slice(0,10)}...${item.address.slice(-8)}` : item.address) : null
-  const handleCopy = () => { if (!item.address) return; navigator.clipboard.writeText(item.address); setCopied(true); setTimeout(() => setCopied(false), 2000) }
-  return (
-    <div className={`pm-card${item.enabled ? '' : ' pm-card-disabled'}`} style={{ borderColor: item.enabled ? `${item.color}30` : 'var(--al-border)' }}>
-      <div className="pm-card-bar" style={{ background: isReady ? item.color : item.enabled ? '#f59e0b' : '#334155' }} />
-      <div className="pm-card-body">
-        <div className="pm-card-top">
-          <div className="pm-card-icon" style={{ background: `${item.color}18`, border: `1.5px solid ${item.color}35` }}><span style={{ fontSize: 17, color: item.color }}>{item.icon}</span></div>
-          <div className="pm-card-meta"><div className="pm-card-title" style={{ color: accentColor }}>{displayLabel}</div><div className="pm-card-subtitle">{item.methodId || item.coin || '\u2014'} {'\u00b7'} {item.network || '\u2014'}</div></div>
-          <StatusBadge enabled={item.enabled} ready={isReady} />
-        </div>
-        {shortAddr
-          ? <div className="pm-info-row"><span className="pm-info-text">{shortAddr}</span><button className={`pm-copy-btn${copied?' pm-copy-btn--done':''}`} onClick={handleCopy}>{copied ? <CheckIcon /> : <CopyIcon />}</button></div>
-          : <div className="pm-info-row pm-info-row--empty"><span>{'\u0644\u0645 \u064a\u064f\u062f\u062e\u064e\u0644 \u0639\u0646\u0648\u0627\u0646 \u0628\u0639\u062f'}</span></div>
-        }
-        <div className="pm-actions">
-          <button className="pm-edit-btn" onClick={() => { setExpanded(v => !v); setConfirm(false) }}>{expanded ? <CollapseIcon /> : <EditIcon />}<span>{expanded ? '\u0625\u062e\u0641\u0627\u0621' : '\u062a\u0639\u062f\u064a\u0644'}</span></button>
-          <div className="pm-actions-end">
-            <Toggle value={item.enabled} onChange={onToggle} color={item.color} />
-            <div className="pm-sep" />
-            {confirm
-              ? <div className="pm-confirm"><button className="pm-confirm-yes" onClick={onRemove}>{'\u062d\u0630\u0641'}</button><button className="pm-confirm-no" onClick={() => setConfirm(false)}>{'\u0644\u0627'}</button></div>
-              : <button className="pm-delete-btn" onClick={() => setConfirm(true)}><TrashIcon /></button>
-            }
-          </div>
-        </div>
-        {expanded && (
-          <div className="pm-edit-panel">
-            <div className="pm-field-grid pm-field-grid--3">
-              <Field label="methodId"><input className="pm-input" placeholder="vodafone" value={item.methodId} onChange={e => onEdit('methodId', e.target.value)} /></Field>
-              <Field label={'\u0627\u0644\u0639\u0645\u0644\u0629'}><input className="pm-input" placeholder="USDT" value={item.coin} onChange={e => onEdit('coin', e.target.value)} /></Field>
-              <Field label={'\u0627\u0644\u0634\u0628\u0643\u0629'}><input className="pm-input" placeholder="TRC20" value={item.network} onChange={e => onEdit('network', e.target.value)} /></Field>
-            </div>
-            <Field label={'\u0627\u0644\u0627\u0633\u0645'}><input className="pm-input" placeholder="USDT TRC20" value={item.name || item.label} onChange={e => onEdit('name', e.target.value)} /></Field>
-            <Field label={'\u0639\u0646\u0648\u0627\u0646 \u0627\u0644\u0645\u062d\u0641\u0638\u0629'}><input className="pm-input pm-input--mono" placeholder="T..." value={item.address} onChange={e => onEdit('address', e.target.value)} style={{ direction: 'ltr', textAlign: 'left' }} /></Field>
-            <div className="pm-field-grid pm-field-grid--2">
-              <Field label={'\u0627\u0644\u062d\u062f \u0627\u0644\u0623\u062f\u0646\u0649'}><input className="pm-input pm-input--mono" type="number" placeholder="0" value={item.minAmount || ''} onChange={e => onEdit('minAmount', parseFloat(e.target.value) || 0)} /></Field>
-              <Field label={'\u0627\u0644\u062d\u062f \u0627\u0644\u0623\u0642\u0635\u0649'}><input className="pm-input pm-input--mono" type="number" placeholder="0" value={item.maxAmount || ''} onChange={e => onEdit('maxAmount', parseFloat(e.target.value) || 0)} /></Field>
-            </div>
-            <div className="pm-field-grid pm-field-grid--2">
-              <Field label={'\u0631\u0645\u0632'}><input className="pm-input pm-input--center" value={item.icon} onChange={e => onEdit('icon', e.target.value)} maxLength={2} /></Field>
-              <Field label={'\u0627\u0644\u0644\u0648\u0646'}><div className="pm-color-row"><input type="color" className="pm-color-swatch" value={item.color} onChange={e => onEdit('color', e.target.value)} /><input className="pm-input pm-input--mono" value={item.color} onChange={e => onEdit('color', e.target.value)} maxLength={7} style={{ direction: 'ltr' }} /></div></Field>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function WalletCard({ item, onToggle, onEdit, onRemove }) {
-  const [expanded, setExpanded] = useState(false)
-  const [confirm,  setConfirm]  = useState(false)
-  const [copied,   setCopied]   = useState(false)
-  const isReady     = item.enabled && item.number
-  const accentColor = item.enabled ? item.color : '#475569'
-  const displayName = item.name || '\u0645\u062d\u0641\u0638\u0629 \u062c\u062f\u064a\u062f\u0629'
-  const shortNum    = item.number ? (item.number.length > 18 ? `${item.number.slice(0,9)}...${item.number.slice(-4)}` : item.number) : null
-  const handleCopy  = () => { if (!item.number) return; navigator.clipboard.writeText(item.number); setCopied(true); setTimeout(() => setCopied(false), 2000) }
-  return (
-    <div className={`pm-card${item.enabled ? '' : ' pm-card-disabled'}`} style={{ borderColor: item.enabled ? `${item.color}30` : 'var(--al-border)' }}>
-      <div className="pm-card-bar" style={{ background: isReady ? item.color : item.enabled ? '#f59e0b' : '#334155' }} />
-      <div className="pm-card-body">
-        <div className="pm-card-top">
-          <div className="pm-card-icon" style={{ background: `${item.color}18`, border: `1.5px solid ${item.color}35` }}><span style={{ fontSize: 20 }}>{item.icon}</span></div>
-          <div className="pm-card-meta"><div className="pm-card-title" style={{ color: accentColor }}>{displayName}</div><div className="pm-card-subtitle">{item.methodId || '\u2014'}</div></div>
-          <StatusBadge enabled={item.enabled} ready={isReady} />
-        </div>
-        {shortNum
-          ? <div className="pm-info-row"><span className="pm-info-text">{shortNum}</span><button className={`pm-copy-btn${copied?' pm-copy-btn--done':''}`} onClick={handleCopy}>{copied ? <CheckIcon /> : <CopyIcon />}</button></div>
-          : <div className="pm-info-row pm-info-row--empty"><span>{'\u0644\u0645 \u064a\u064f\u062f\u062e\u064e\u0644 \u0631\u0642\u0645 \u0628\u0639\u062f'}</span></div>
-        }
-        <div className="pm-actions">
-          <button className="pm-edit-btn" onClick={() => { setExpanded(v => !v); setConfirm(false) }}>{expanded ? <CollapseIcon /> : <EditIcon />}<span>{expanded ? '\u0625\u062e\u0641\u0627\u0621' : '\u062a\u0639\u062f\u064a\u0644'}</span></button>
-          <div className="pm-actions-end">
-            <Toggle value={item.enabled} onChange={onToggle} color={item.color} />
-            <div className="pm-sep" />
-            {confirm
-              ? <div className="pm-confirm"><button className="pm-confirm-yes" onClick={onRemove}>{'\u062d\u0630\u0641'}</button><button className="pm-confirm-no" onClick={() => setConfirm(false)}>{'\u0644\u0627'}</button></div>
-              : <button className="pm-delete-btn" onClick={() => setConfirm(true)}><TrashIcon /></button>
-            }
-          </div>
-        </div>
-        {expanded && (
-          <div className="pm-edit-panel">
-            <div className="pm-field-grid pm-field-grid--3">
-              <Field label="methodId"><input className="pm-input" placeholder="vodafone" value={item.methodId} onChange={e => onEdit('methodId', e.target.value)} /></Field>
-              <Field label={'\u0627\u0633\u0645 \u0627\u0644\u0645\u062d\u0641\u0638\u0629'}><input className="pm-input" placeholder="Vodafone Cash" value={item.name} onChange={e => onEdit('name', e.target.value)} /></Field>
-              <Field label={'\u0627\u0644\u0623\u064a\u0642\u0648\u0646\u0629'}><input className="pm-input pm-input--center" value={item.icon} maxLength={2} onChange={e => onEdit('icon', e.target.value.slice(0,2) || '\ud83d\udcf1')} /></Field>
-            </div>
-            <Field label={'\u0631\u0642\u0645 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645'}><input className="pm-input pm-input--mono" placeholder={item.placeholder || '01XXXXXXXXX'} value={item.number} onChange={e => onEdit('number', e.target.value)} style={{ direction: 'ltr', textAlign: 'left' }} /></Field>
-            <div className="pm-field-grid pm-field-grid--2">
-              <Field label={'\u0627\u0644\u062d\u062f \u0627\u0644\u0623\u062f\u0646\u0649'}><input className="pm-input pm-input--mono" type="number" placeholder="0" value={item.minAmount || ''} onChange={e => onEdit('minAmount', parseFloat(e.target.value) || 0)} /></Field>
-              <Field label={'\u0627\u0644\u062d\u062f \u0627\u0644\u0623\u0642\u0635\u0649'}><input className="pm-input pm-input--mono" type="number" placeholder="0" value={item.maxAmount || ''} onChange={e => onEdit('maxAmount', parseFloat(e.target.value) || 0)} /></Field>
-            </div>
-            <div className="pm-field-grid pm-field-grid--2">
-              <Field label={'\u0627\u0633\u0645 \u0627\u0644\u062d\u0633\u0627\u0628'}><input className="pm-input" placeholder="NUMBER 1 EXCHANGE" value={item.accountName || ''} onChange={e => onEdit('accountName', e.target.value)} /></Field>
-              <Field label={'\u0627\u0644\u0644\u0648\u0646'}><div className="pm-color-row"><input type="color" className="pm-color-swatch" value={item.color} onChange={e => onEdit('color', e.target.value)} /><input className="pm-input pm-input--mono" value={item.color} onChange={e => onEdit('color', e.target.value)} maxLength={7} style={{ direction: 'ltr' }} /></div></Field>
-            </div>
-            <Field label={'\u0645\u0644\u0627\u062d\u0638\u0629 \u0644\u0644\u0645\u0633\u062a\u062e\u062f\u0645'}><input className="pm-input" placeholder={'\u062d\u0648\u0651\u0644 \u0627\u0644\u0645\u0628\u0644\u063a \u062e\u0644\u0627\u0644 30 \u062f\u0642\u064a\u0642\u0629'} value={item.note || ''} onChange={e => onEdit('note', e.target.value)} /></Field>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ── Shared sub-components ───────────────────────────────────
 function StatusBadge({ enabled, ready }) {
   if (!enabled) return <span className="pm-badge pm-badge--off">{'\u0645\u0639\u0637\u0651\u0644'}</span>
@@ -828,8 +649,6 @@ function SaveBtn({ saving, saved, onClick, large }) {
 }
 function EmptyState({ icon, text }) { return <div className="pm-empty"><span style={{ fontSize: 28 }}>{icon}</span><span className="pm-empty-text">{text}</span></div> }
 
-const CopyIcon    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-const CheckIcon   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
 const EditIcon    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
 const CollapseIcon= () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
 const TrashIcon   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>

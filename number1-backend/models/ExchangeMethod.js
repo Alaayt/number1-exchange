@@ -34,6 +34,16 @@ const methodItemSchema = new mongoose.Schema(
     maxAmount: { type: Number, default: 0 },
     // sort order
     sortOrder: { type: Number, default: 0 },
+    // رقم/حساب الاستلام (للمحافظ المصرية وMoneyGo) — يظهر للعميل
+    receiverNumber: { type: String, default: '' },
+    // شبكات العملات الرقمية مع عناوينها (لـ USDT وما شابه)
+    networks: [{
+      _id: false,
+      networkKey:  { type: String },             // TRC20, BEP20, ERC20 …
+      networkName: { type: String, default: '' }, // اسم اختياري للعرض
+      address:     { type: String, default: '' }, // عنوان المحفظة
+      enabled:     { type: Boolean, default: true },
+    }],
   },
   { _id: false }
 );

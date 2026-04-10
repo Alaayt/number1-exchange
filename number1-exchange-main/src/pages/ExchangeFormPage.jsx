@@ -74,7 +74,6 @@ export default function ExchangeFormPage({ onOpenAuth }) {
   const isUsdtRecv    = (recvMethod?.symbol === 'USDT' && recvMethod?.type === 'crypto') || toId === 'usdt-trc' || toId === 'usdt-bnb'
   const isEgpSend     = sendMethod?.type === 'egp' || sendMethod?.symbol === 'EGP'
   const isUsdtSend    = (sendMethod?.symbol === 'USDT' && sendMethod?.type === 'crypto') || fromId === 'usdt-trc' || fromId === 'usdt-bnb'
-  const sendNetwork   = sendMethod?.network || (fromId === 'usdt-bnb' ? 'BEP20' : 'TRC20')
   const recvNetwork   = recvMethod?.network || (toId === 'usdt-bnb' ? 'BEP20' : 'TRC20')
 
   // ── إذا المحفظة الداخلية وغير مسجل — ارجع وافتح Modal ──
@@ -87,7 +86,6 @@ export default function ExchangeFormPage({ onOpenAuth }) {
 
   // ── بيانات API + Auto-refetch ──────────────────────────
   const [rates,      setRates]    = useState(null)
-  const [adminItem,  setAdminItem] = useState(null)
   const [apiLoading, setLoading]  = useState(true)
 
   const fetchRates = useCallback(async () => {
@@ -100,33 +98,14 @@ export default function ExchangeFormPage({ onOpenAuth }) {
 
   const fetchMethods = useCallback(async () => {
     try {
-      const [pmRes, emRes] = await Promise.all([
-        fetch(`${API}/api/public/payment-methods`),
-        fetch(`${API}/api/public/exchange-methods`),
-      ])
-      const pmData = await pmRes.json()
+      const emRes = await fetch(`${API}/api/public/exchange-methods`)
       const emData = await emRes.json()
-
-      if (pmData.success) {
-        if (isEgpSend) {
-          const wallet = pmData.wallets?.find(w => w.methodId === fromId)
-            || pmData.wallets?.find(w => (w.name || '').toLowerCase().includes(fromId))
-            || pmData.wallets?.[0] || null
-          setAdminItem(wallet)
-        } else if (isUsdtSend) {
-          const crypto = pmData.cryptos?.find(c => c.methodId === fromId)
-            || pmData.cryptos?.find(c => c.network === sendNetwork)
-            || pmData.cryptos?.[0] || null
-          setAdminItem(crypto)
-        }
-      }
-
       if (emData.success) {
         setDynamicSend(emData.allSendMethods || emData.sendMethods || [])
         setDynamicRecv(emData.allReceiveMethods || emData.receiveMethods || [])
       }
     } catch {}
-  }, [isEgpSend, isUsdtSend, fromId, sendNetwork])
+  }, [])
 
   // Initial fetch
   useEffect(() => {
@@ -343,7 +322,7 @@ export default function ExchangeFormPage({ onOpenAuth }) {
           } catch (_) {}
         }
         navigate(`/exchange/order/${data.order.orderNumber}`, {
-          state: { sendMethod, recvMethod, sendAmount, receiveAmount, recipientId: recipientPhone, usdtNetwork: recvNetwork, adminItem, email }
+          state: { sendMethod, recvMethod, sendAmount, receiveAmount, recipientId: recipientPhone, usdtNetwork: recvNetwork, email }
         })
       } else {
         setError(data.message || 'حدث خطأ، حاول مرة أخرى')
@@ -485,42 +464,47 @@ export default function ExchangeFormPage({ onOpenAuth }) {
           </div>
         </div>
 
-        {/* حوّل المبلغ إلى — عنوان/رقم الاستلام من لوحة التحكم */}
-        {(isEgpSend || isUsdtSend) && (
+        {/* حوّل المبلغ إلى — بيانات الاستلام من الوسيلة مباشرة */}
+        {isEgpSend && (
           <div className="ef-card" style={{ background: 'rgba(0,210,255,0.04)', borderColor: 'rgba(0,210,255,0.25)' }}>
             <label className="ef-label">حوّل المبلغ إلى</label>
-            {adminItem ? (
-              <>
-                {isEgpSend && adminItem.number && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'rgba(0,229,160,0.07)', borderRadius: 10, border: '1px solid rgba(0,229,160,0.25)' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 3 }}>الرقم</div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace", letterSpacing: 1 }}>{adminItem.number}</div>
-                    </div>
-                    <button onClick={() => navigator.clipboard?.writeText(adminItem.number)} style={{ padding: '6px 14px', border: '1px solid rgba(0,229,160,0.4)', borderRadius: 8, background: 'transparent', color: 'var(--green)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif", flexShrink: 0 }}>نسخ</button>
-                  </div>
-                )}
-                {isUsdtSend && adminItem.address && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', background: 'rgba(0,210,255,0.07)', borderRadius: 10, border: '1px solid rgba(0,210,255,0.2)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>الشبكة:</span>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}>{adminItem.network || sendNetwork}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 3 }}>العنوان</div>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace", wordBreak: 'break-all' }}>{adminItem.address}</div>
-                      </div>
-                      <button onClick={() => navigator.clipboard?.writeText(adminItem.address)} style={{ padding: '6px 14px', border: '1px solid rgba(0,210,255,0.3)', borderRadius: 8, background: 'transparent', color: 'var(--cyan)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif", flexShrink: 0, alignSelf: 'flex-end' }}>نسخ</button>
-                    </div>
-                  </div>
-                )}
-              </>
+            {sendMethod?.receiverNumber ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'rgba(0,229,160,0.07)', borderRadius: 10, border: '1px solid rgba(0,229,160,0.25)' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 3 }}>الرقم</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace", letterSpacing: 1 }}>{sendMethod.receiverNumber}</div>
+                </div>
+                <button onClick={() => navigator.clipboard?.writeText(sendMethod.receiverNumber)} style={{ padding: '6px 14px', border: '1px solid rgba(0,229,160,0.4)', borderRadius: 8, background: 'transparent', color: 'var(--green)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif", flexShrink: 0 }}>نسخ</button>
+              </div>
             ) : (
               <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)', fontSize: '0.84rem', color: 'var(--gold)', fontFamily: "'Cairo','Tajawal',sans-serif", textAlign: 'center' }}>
                 تواصل مع الدعم للحصول على بيانات التحويل
               </div>
             )}
+          </div>
+        )}
+
+        {/* للـ USDT — عرض شبكات الاستلام مع خيار اختيار الشبكة */}
+        {isUsdtSend && sendMethod?.networks?.length > 0 && (
+          <div className="ef-card" style={{ background: 'rgba(0,210,255,0.04)', borderColor: 'rgba(0,210,255,0.25)' }}>
+            <label className="ef-label">اختر شبكة الإرسال وحوّل إلى العنوان</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {sendMethod.networks.filter(n => n.address).map((net, i) => (
+                <div key={i} style={{ padding: '12px 14px', background: 'rgba(0,210,255,0.07)', borderRadius: 10, border: '1px solid rgba(0,210,255,0.2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}>{net.networkKey}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ flex: 1, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace", wordBreak: 'break-all' }}>{net.address}</div>
+                    <button onClick={() => navigator.clipboard?.writeText(net.address)} style={{ padding: '6px 12px', border: '1px solid rgba(0,210,255,0.3)', borderRadius: 8, background: 'transparent', color: 'var(--cyan)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif", flexShrink: 0 }}>نسخ</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="ef-warning" style={{ marginTop: 8 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>تأكد من إرسالك على نفس الشبكة المختارة. الإرسال على شبكة خاطئة يؤدي لفقدان الأموال.</span>
+            </div>
           </div>
         )}
 
