@@ -14,11 +14,9 @@ const app = express();
 
 app.set('trust proxy', 1);
 
-// ─── CORS — يجب أن يكون أول شيء قبل كل شيء ──
 app.options('*', cors({ origin: '*', credentials: false }))
 app.use(cors({ origin: '*', credentials: false }))
 
-// ─── Helmet — بعد CORS وبدون crossOriginResourcePolicy ──
 app.use(helmet({
   crossOriginResourcePolicy: false,
   crossOriginOpenerPolicy:   false,
@@ -28,13 +26,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ─── Rate Limiting ────────────────────────────
-// Public endpoints (rates, settings, exchange-methods) are fetched on every page load
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
   message: { success: false, message: 'Too many requests, please try again later.' }
 });
-// Auth/order endpoints stay strict
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -59,6 +55,51 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/wallet', require('./routes/wallet'));
 
+// ══════════════════════════════════════════════════════════════════
+// ─── دالة تحديث السيولة ──────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+async function updateLiquidity(order) {
+  try {
+    const Rate  = require('./models/Rate')
+    const ot    = order.orderType || ''
+    const sent  = parseFloat(order.payment?.amountSent) || 0
+    const recv  = parseFloat(order.moneygo?.amountUSD) || parseFloat(order.exchangeRate?.finalAmountUSD) || 0
+    const cSent = order.payment?.currencySent // 'USDT' | 'EGP' | 'MGO'
+
+    const recvMap = {
+      USDT_TO_MONEYGO:       'MGO',
+      EGP_TO_MONEYGO:        'MGO',
+      EGP_WALLET_TO_MONEYGO: 'MGO',
+      WALLET_TO_MONEYGO:     'MGO',
+      EGP_TO_USDT:           'USDT',
+      MONEYGO_TO_USDT:       'USDT',
+      WALLET_TO_USDT:        'USDT',
+      USDT_TO_WALLET:        null,
+      MONEYGO_TO_WALLET:     null,
+    }
+    const cRecv = recvMap[ot]
+    const inc   = {}
+
+    if (cSent === 'EGP'  && sent > 0) inc.availableEgp  = (inc.availableEgp  || 0) + sent
+    if (cSent === 'USDT' && sent > 0) inc.availableUsdt = (inc.availableUsdt || 0) + sent
+    if (cSent === 'MGO'  && sent > 0) inc.availableMgo  = (inc.availableMgo  || 0) + sent
+
+    if (cRecv === 'EGP'  && recv > 0) inc.availableEgp  = (inc.availableEgp  || 0) - recv
+    if (cRecv === 'USDT' && recv > 0) inc.availableUsdt = (inc.availableUsdt || 0) - recv
+    if (cRecv === 'MGO'  && recv > 0) inc.availableMgo  = (inc.availableMgo  || 0) - recv
+
+    if (Object.keys(inc).length === 0) {
+      console.log(`[Liquidity] Order ${order.orderNumber} (${ot}): no change needed.`)
+      return
+    }
+
+    await Rate.findOneAndUpdate({}, { $inc: inc }, { new: true })
+    console.log(`[Liquidity] ✅ ${order.orderNumber} (${ot}) | sent:${sent} ${cSent} | recv:${recv} ${cRecv} | inc:`, inc)
+  } catch (err) {
+    console.error(`[Liquidity] ❌ ${order?.orderNumber}:`, err.message)
+  }
+}
+
 // ─── Telegram Webhook ─────────────────────────
 app.post('/api/telegram/webhook', async (req, res) => {
   try {
@@ -66,7 +107,6 @@ app.post('/api/telegram/webhook', async (req, res) => {
     if (!callback_query) return res.json({ ok: true });
 
     const { data, id: callbackQueryId, message: cbMessage } = callback_query;
-
     const telegramService = require('./services/telegram');
 
     const underscoreIndex = data.indexOf('_');
@@ -78,11 +118,11 @@ app.post('/api/telegram/webhook', async (req, res) => {
     const action  = data.substring(0, underscoreIndex);
     const orderId = data.substring(underscoreIndex + 1);
 
+    // ── معالجة طلبات الإيداع ──────────────────
     if (action === 'dep-approve' || action === 'dep-reject') {
       const Deposit     = require('./models/Deposit')
       const Wallet      = require('./models/Wallet')
       const Transaction = require('./models/Transaction')
-      const mongoose    = require('mongoose')
 
       if (!mongoose.Types.ObjectId.isValid(orderId)) {
         console.error(`[Deposit Webhook] Invalid ObjectId: "${orderId}"`)
@@ -97,10 +137,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
           return res.json({ ok: true })
         }
         if (deposit.status !== 'pending') {
-          await telegramService.answerCallbackQuery(
-            callbackQueryId,
-            `⚠️ تم معالجة هذا الطلب مسبقاً (${deposit.status})`
-          )
+          await telegramService.answerCallbackQuery(callbackQueryId, `⚠️ تم معالجة هذا الطلب مسبقاً (${deposit.status})`)
           return res.json({ ok: true })
         }
 
@@ -112,34 +149,25 @@ app.post('/api/telegram/webhook', async (req, res) => {
           let wallet = await Wallet.findOne({ user: deposit.user })
           if (!wallet) wallet = await Wallet.create({ user: deposit.user })
 
-          const balanceBefore   = wallet.balance
+          const balanceBefore    = wallet.balance
           wallet.balance        += deposit.amount
           wallet.totalDeposited += deposit.amount
           await wallet.save()
 
           await Transaction.create({
-            user:          deposit.user,
-            wallet:        wallet._id,
-            type:          'deposit',
-            amount:        deposit.amount,
-            balanceBefore,
-            balanceAfter:  wallet.balance,
-            status:        'completed',
-            performedBy:   'admin:telegram',
-            note:          `TXID: ${deposit.txid}`
+            user: deposit.user, wallet: wallet._id,
+            type: 'deposit', amount: deposit.amount,
+            balanceBefore, balanceAfter: wallet.balance,
+            status: 'completed', performedBy: 'admin:telegram',
+            note: `TXID: ${deposit.txid}`
           })
 
-          await telegramService.answerCallbackQuery(
-            callbackQueryId,
-            `✅ تمت الموافقة — رصيد المحفظة: ${wallet.balance} USDT`
-          )
+          await telegramService.answerCallbackQuery(callbackQueryId, `✅ تمت الموافقة — رصيد المحفظة: ${wallet.balance} USDT`)
           await telegramService.editDepositMessage(cbMessage?.message_id, deposit, 'approved')
-
         } else {
           deposit.status      = 'rejected'
           deposit.processedAt = new Date()
           await deposit.save()
-
           await telegramService.answerCallbackQuery(callbackQueryId, '❌ تم رفض طلب الإيداع')
           await telegramService.editDepositMessage(cbMessage?.message_id, deposit, 'rejected')
         }
@@ -147,10 +175,10 @@ app.post('/api/telegram/webhook', async (req, res) => {
         console.error('[Deposit Webhook] Error:', depErr.message, depErr.stack)
         await telegramService.answerCallbackQuery(callbackQueryId, '⚠️ خطأ في معالجة الطلب، راجع السيرفر')
       }
-
       return res.json({ ok: true })
     }
 
+    // ── معالجة طلبات التبادل ──────────────────
     const Order = require('./models/Order');
     const order = await Order.findById(orderId);
     if (!order) {
@@ -176,20 +204,21 @@ app.post('/api/telegram/webhook', async (req, res) => {
     const action_data = statusMap[action];
     if (!action_data) return res.json({ ok: true });
 
+    const wasCompleted = order.status === 'completed';
     order.status = action_data.status;
     order.addTimeline(action_data.status, `${action_data.msg} via Telegram`, 'admin:telegram');
-
     if (action_data.status === 'completed') order.moneygo.transferStatus = 'sent';
     if (action_data.status === 'rejected')  order.moneygo.transferStatus = 'failed';
-
     await order.save();
 
-    const msgId = callback_query.message?.message_id
-if (msgId) {
-  await telegramService.editOrderMessage(msgId, order, action)
-}
+    // ── تحديث السيولة عند اكتمال الطلب ──────────
+    if (action_data.status === 'completed' && !wasCompleted) {
+      await updateLiquidity(order);
+    }
 
-    // ── الرد على الأدمن + تعديل الرسالة ────────
+    const msgId = callback_query.message?.message_id;
+    if (msgId) await telegramService.editOrderMessage(msgId, order, action);
+
     await telegramService.answerCallbackQuery(callbackQueryId, action_data.msg);
     await telegramService.editOrderMessage(cbMessage?.message_id, order, action);
 
@@ -206,12 +235,7 @@ app.use('/api/admin', require('./routes/admin'));
 
 // ─── Health Check ─────────────────────────────
 app.get('/', (req, res) => {
-  res.json({
-    success:   true,
-    message:   'Number1 Backend is running 🚀',
-    version:   '1.0.0',
-    timestamp: new Date().toISOString()
-  });
+  res.json({ success: true, message: 'Number1 Backend is running 🚀', version: '1.0.0', timestamp: new Date().toISOString() });
 });
 
 // ─── 404 ──────────────────────────────────────
@@ -238,13 +262,11 @@ app.listen(PORT, async () => {
         expiresAt: { $lt: new Date() },
         status:    { $in: ['pending'] }
       });
-      if (result.deletedCount > 0) {
-        console.log(`🧹 Cleaned up ${result.deletedCount} expired pending orders`);
-      }
+      if (result.deletedCount > 0) console.log(`🧹 Cleaned up ${result.deletedCount} expired pending orders`);
     } catch (err) {
       console.error('Cleanup job error:', err.message);
     }
-  }, 60 * 1000); // كل دقيقة
+  }, 60 * 1000);
 
   if (process.env.BACKEND_URL) {
     try {
@@ -252,19 +274,12 @@ app.listen(PORT, async () => {
       const Setting = require('./models/Setting')
       const s = await Setting.getSingleton()
       const token = s.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN
-
       if (token) {
         const webhookUrl = `${process.env.BACKEND_URL}/api/telegram/webhook`
         const axios = require('axios')
-        const result = await axios.post(
-          `https://api.telegram.org/bot${token}/setWebhook`,
-          { url: webhookUrl, drop_pending_updates: false }
-        )
-        if (result.data.ok) {
-          console.log(`✅ Telegram Webhook registered: ${webhookUrl}`)
-        } else {
-          console.warn('⚠️ Telegram Webhook registration failed:', result.data.description)
-        }
+        const result = await axios.post(`https://api.telegram.org/bot${token}/setWebhook`, { url: webhookUrl, drop_pending_updates: false })
+        if (result.data.ok) console.log(`✅ Telegram Webhook registered: ${webhookUrl}`)
+        else console.warn('⚠️ Telegram Webhook registration failed:', result.data.description)
       }
     } catch (e) {
       console.warn('⚠️ Telegram Webhook auto-setup error:', e.message)
