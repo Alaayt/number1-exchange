@@ -32,6 +32,8 @@ const methodItemSchema = new mongoose.Schema(
     // per-method limits (0 = use global)
     minAmount: { type: Number, default: 0 },
     maxAmount: { type: Number, default: 0 },
+    // primary network tag (TRC20, BEP20, ERC20 …) — used by the frontend to render labels
+    network: { type: String, default: '' },
     // sort order
     sortOrder: { type: Number, default: 0 },
     // رقم/حساب الاستلام (للمحافظ المصرية وMoneyGo) — يظهر للعميل
@@ -39,10 +41,10 @@ const methodItemSchema = new mongoose.Schema(
     // شبكات العملات الرقمية مع عناوينها (لـ USDT وما شابه)
     networks: [{
       _id: false,
-      networkKey:  { type: String },             // TRC20, BEP20, ERC20 …
+      networkKey: { type: String },             // TRC20, BEP20, ERC20 …
       networkName: { type: String, default: '' }, // اسم اختياري للعرض
-      address:     { type: String, default: '' }, // عنوان المحفظة
-      enabled:     { type: Boolean, default: true },
+      address: { type: String, default: '' }, // عنوان المحفظة
+      enabled: { type: Boolean, default: true },
     }],
   },
   { _id: false }
@@ -103,7 +105,7 @@ const DEFAULT_SEND = [
   },
   {
     id: "usdt-bnb",
-    name: "USDT BEP20",
+    name: "USDT BNB",
     symbol: "USDT",
     type: "crypto",
     color: "#f0b90b",
@@ -180,7 +182,7 @@ const DEFAULT_RECEIVE = [
   },
   {
     id: "usdt-bnb",
-    name: "USDT BEP20",
+    name: "USDT BNB",
     symbol: "USDT",
     type: "crypto",
     color: "#f0b90b",
@@ -217,13 +219,13 @@ function patchMethods(methods, defaults) {
   return methods.map(m => {
     const def = defMap[m.id] || {};
     const patched = { ...m };
-    if (!patched.name   || !patched.name.trim())   patched.name   = def.name   || m.id;
-    if (!patched.symbol || !patched.symbol.trim())  patched.symbol = def.symbol || 'USDT';
-    if (!patched.type   || !patched.type.trim())    patched.type   = def.type   || 'custom';
-    if (!patched.rateKey           && def.rateKey)           patched.rateKey           = def.rateKey;
-    if (!patched.paymentMethodKey  && def.paymentMethodKey)  patched.paymentMethodKey  = def.paymentMethodKey;
-    if (!patched.color             && def.color)             patched.color             = def.color;
-    if (!patched.img  && def.img)  patched.img  = def.img;
+    if (!patched.name || !patched.name.trim()) patched.name = def.name || m.id;
+    if (!patched.symbol || !patched.symbol.trim()) patched.symbol = def.symbol || 'USDT';
+    if (!patched.type || !patched.type.trim()) patched.type = def.type || 'custom';
+    if (!patched.rateKey && def.rateKey) patched.rateKey = def.rateKey;
+    if (!patched.paymentMethodKey && def.paymentMethodKey) patched.paymentMethodKey = def.paymentMethodKey;
+    if (!patched.color && def.color) patched.color = def.color;
+    if (!patched.img && def.img) patched.img = def.img;
     return patched;
   });
 }
@@ -252,6 +254,117 @@ exchangeMethodSchema.statics.getSingleton = async function () {
       { new: true }
     );
     console.log('[ExchangeMethod] Auto-patched methods with missing name/symbol.');
+  }
+
+  // ── Migration: add missing default methods (e.g. usdt-bnb) ──
+  let changed = false;
+  const sendIds = doc.sendMethods.map(m => m.id);
+  const recvIds = doc.receiveMethods.map(m => m.id);
+  const missingSend = DEFAULT_SEND.filter(d => !sendIds.includes(d.id));
+  const missingRecv = DEFAULT_RECEIVE.filter(d => !recvIds.includes(d.id));
+
+  if (missingSend.length > 0 || missingRecv.length > 0) {
+    const updatedSend = [...doc.sendMethods.map(m => m.toObject ? m.toObject() : m), ...missingSend];
+    const updatedRecv = [...doc.receiveMethods.map(m => m.toObject ? m.toObject() : m), ...missingRecv];
+    doc = await this.findOneAndUpdate(
+      { _id: doc._id },
+      { $set: { sendMethods: updatedSend, receiveMethods: updatedRecv } },
+      { new: true }
+    );
+    console.log(`[ExchangeMethod] Added missing methods: send=[${missingSend.map(m=>m.id)}] recv=[${missingRecv.map(m=>m.id)}]`);
+    changed = true;
+  }
+
+  // ── Migration: ensure compatibleWith arrays include usdt-bnb where needed ──
+  if (!changed) {
+    const COMPAT_UPDATES_SEND = { 'vodafone': 'usdt-bnb', 'instapay': 'usdt-bnb', 'mgo-send': 'usdt-bnb', 'wallet-usdt': 'usdt-bnb' };
+    const COMPAT_UPDATES_RECV = { 'mgo-recv': ['usdt-bnb'], 'wallet-recv': ['usdt-bnb'] };
+
+    let needsCompatUpdate = false;
+    const sendArr = doc.sendMethods.map(m => {
+      const obj = m.toObject ? m.toObject() : { ...m };
+      const target = COMPAT_UPDATES_SEND[obj.id];
+      if (target && obj.compatibleWith && !obj.compatibleWith.includes(target)) {
+        obj.compatibleWith = [...obj.compatibleWith, target];
+        needsCompatUpdate = true;
+      }
+      return obj;
+    });
+    const recvArr = doc.receiveMethods.map(m => {
+      const obj = m.toObject ? m.toObject() : { ...m };
+      const targets = COMPAT_UPDATES_RECV[obj.id];
+      if (targets && obj.compatibleWith) {
+        targets.forEach(t => {
+          if (!obj.compatibleWith.includes(t)) {
+            obj.compatibleWith = [...obj.compatibleWith, t];
+            needsCompatUpdate = true;
+          }
+        });
+      }
+      return obj;
+    });
+
+    if (needsCompatUpdate) {
+      doc = await this.findOneAndUpdate(
+        { _id: doc._id },
+        { $set: { sendMethods: sendArr, receiveMethods: recvArr } },
+        { new: true }
+      );
+      console.log('[ExchangeMethod] Updated compatibleWith arrays for usdt-bnb.');
+    }
+  }
+
+  // ── Migration: rename "USDT BEP20" → "USDT BNB" ──
+  const renameMap = { 'usdt-bnb': 'USDT BNB' };
+  let needsRename = false;
+  const renameSend = doc.sendMethods.map(m => {
+    const obj = m.toObject ? m.toObject() : { ...m };
+    if (renameMap[obj.id] && obj.name !== renameMap[obj.id]) { obj.name = renameMap[obj.id]; needsRename = true; }
+    return obj;
+  });
+  const renameRecv = doc.receiveMethods.map(m => {
+    const obj = m.toObject ? m.toObject() : { ...m };
+    if (renameMap[obj.id] && obj.name !== renameMap[obj.id]) { obj.name = renameMap[obj.id]; needsRename = true; }
+    return obj;
+  });
+  if (needsRename) {
+    doc = await this.findOneAndUpdate(
+      { _id: doc._id },
+      { $set: { sendMethods: renameSend, receiveMethods: renameRecv } },
+      { new: true }
+    );
+    console.log('[ExchangeMethod] Renamed USDT BEP20 → USDT BNB');
+  }
+
+  // ── Migration: cleanup — remove duplicates & invalid methods ──
+  const validRecvIds = new Set(DEFAULT_RECEIVE.map(d => d.id));
+  const seenSendIds = new Set();
+  const seenRecvIds = new Set();
+  
+  const cleanSend = doc.sendMethods
+    .map(m => m.toObject ? m.toObject() : { ...m })
+    .filter(m => { if (seenSendIds.has(m.id)) return false; seenSendIds.add(m.id); return true; });
+  
+  const cleanRecv = doc.receiveMethods
+    .map(m => m.toObject ? m.toObject() : { ...m })
+    .filter(m => {
+      // Remove legacy duplicate 'usdt-recv' (replaced by 'usdt-trc')
+      if (m.id === 'usdt-recv') return false;
+      // Remove send-only methods that don't belong in receive
+      if (!validRecvIds.has(m.id) && ['vodafone', 'instapay', 'mgo-send', 'wallet-usdt'].includes(m.id)) return false;
+      // Deduplicate
+      if (seenRecvIds.has(m.id)) return false;
+      seenRecvIds.add(m.id);
+      return true;
+    });
+
+  if (cleanSend.length !== doc.sendMethods.length || cleanRecv.length !== doc.receiveMethods.length) {
+    doc = await this.findOneAndUpdate(
+      { _id: doc._id },
+      { $set: { sendMethods: cleanSend, receiveMethods: cleanRecv } },
+      { new: true }
+    );
+    console.log(`[ExchangeMethod] Cleanup: send ${doc.sendMethods.length} recv ${cleanRecv.length} (removed duplicates/invalid)`);
   }
 
   return doc;

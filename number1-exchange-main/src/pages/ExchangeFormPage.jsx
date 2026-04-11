@@ -74,7 +74,10 @@ export default function ExchangeFormPage({ onOpenAuth }) {
   const isUsdtRecv    = (recvMethod?.symbol === 'USDT' && recvMethod?.type === 'crypto') || toId === 'usdt-trc' || toId === 'usdt-bnb'
   const isEgpSend     = sendMethod?.type === 'egp' || sendMethod?.symbol === 'EGP'
   const isUsdtSend    = (sendMethod?.symbol === 'USDT' && sendMethod?.type === 'crypto') || fromId === 'usdt-trc' || fromId === 'usdt-bnb'
+  const sendNetwork   = sendMethod?.network || (fromId === 'usdt-bnb' ? 'BEP20' : 'TRC20')
   const recvNetwork   = recvMethod?.network || (toId === 'usdt-bnb' ? 'BEP20' : 'TRC20')
+  const sendNetworkLabel = sendNetwork === 'BEP20' ? 'USDT BNB' : 'USDT TRC20'
+  const recvNetworkLabel = recvNetwork === 'BEP20' ? 'USDT BNB' : 'USDT TRC20'
 
   // ── إذا المحفظة الداخلية وغير مسجل — ارجع وافتح Modal ──
   useEffect(() => {
@@ -249,7 +252,20 @@ export default function ExchangeFormPage({ onOpenAuth }) {
     if (!email || !emailRx.test(email)) errs.email = 'يرجى إدخال بريد إلكتروني صحيح'
     if (isEgpSend && userPhone && !/^\+?[0-9\s\-]{7,20}$/.test(userPhone.trim())) errs.phone = 'رقم الهاتف غير صحيح'
     if (isMoneyGoRecv && recipientId.trim().length < 3) errs.recipient = 'يرجى إدخال معرّف محفظة MoneyGo صحيح'
-    if (isUsdtRecv    && usdtAddress.trim().length < 10) errs.recipient = 'يرجى إدخال عنوان محفظة USDT صحيح'
+    if (isUsdtRecv) {
+      const addr = usdtAddress.trim()
+      if (!addr || addr.length < 10) {
+        errs.recipient = 'يرجى إدخال عنوان محفظة USDT صحيح'
+      } else if (recvNetwork === 'TRC20' && !addr.startsWith('T')) {
+        errs.recipient = 'عنوان TRC20 يجب أن يبدأ بحرف T'
+      } else if (recvNetwork === 'BEP20' && !addr.startsWith('0x')) {
+        errs.recipient = 'عنوان BEP20 يجب أن يبدأ بـ 0x'
+      } else if (recvNetwork === 'TRC20' && addr.length !== 34) {
+        errs.recipient = 'عنوان TRC20 يجب أن يكون 34 حرفاً'
+      } else if (recvNetwork === 'BEP20' && addr.length !== 42) {
+        errs.recipient = 'عنوان BEP20 يجب أن يكون 42 حرفاً'
+      }
+    }
     if (isWalletRecv  && !user)           errs.recipient = 'يجب تسجيل الدخول لاستخدام المحفظة الداخلية'
     if (isWalletRecv  && user && !walletId) errs.recipient = 'جاري تحميل بيانات المحفظة، حاول مرة أخرى'
     if (!agreed) errs.agreed = 'يجب الموافقة على الشروط والأحكام للمتابعة'
@@ -486,29 +502,38 @@ export default function ExchangeFormPage({ onOpenAuth }) {
           </div>
         )}
 
-        {/* للـ USDT — عرض شبكات الاستلام مع خيار اختيار الشبكة */}
-        {isUsdtSend && sendMethod?.networks?.length > 0 && (
-          <div className="ef-card" style={{ background: 'rgba(0,210,255,0.04)', borderColor: 'rgba(0,210,255,0.25)' }}>
-            <label className="ef-label">اختر شبكة الإرسال وحوّل إلى العنوان</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {sendMethod.networks.filter(n => n.address).map((net, i) => (
-                <div key={i} style={{ padding: '12px 14px', background: 'rgba(0,210,255,0.07)', borderRadius: 10, border: '1px solid rgba(0,210,255,0.2)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}>{net.networkKey}</span>
-                  </div>
+        {/* للـ USDT — عرض عنوان محفظة الأدمن حسب الشبكة المختارة */}
+        {isUsdtSend && (() => {
+          // جلب العنوان من networks أو receiverNumber
+          const adminAddr = sendMethod?.networks?.find(n => n.networkKey === sendNetwork && n.address)?.address || sendMethod?.receiverNumber || ''
+          return (
+            <div className="ef-card" style={{ background: 'rgba(0,210,255,0.04)', borderColor: 'rgba(0,210,255,0.25)' }}>
+              <label className="ef-label">قم بتحويل المبلغ إلى العنوان التالي</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(0,210,255,0.06)', border: '1px solid rgba(0,210,255,0.15)', marginBottom: 8 }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>الشبكة:</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}>{sendNetwork}</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginRight: 'auto' }}>({sendNetworkLabel})</span>
+              </div>
+              {adminAddr ? (
+                <div style={{ padding: '14px 16px', background: 'rgba(0,229,160,0.07)', borderRadius: 12, border: '1px solid rgba(0,229,160,0.25)' }}>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 6 }}>عنوان محفظة {sendNetworkLabel}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ flex: 1, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace", wordBreak: 'break-all' }}>{net.address}</div>
-                    <button onClick={() => navigator.clipboard?.writeText(net.address)} style={{ padding: '6px 12px', border: '1px solid rgba(0,210,255,0.3)', borderRadius: 8, background: 'transparent', color: 'var(--cyan)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif", flexShrink: 0 }}>نسخ</button>
+                    <div style={{ flex: 1, fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace", wordBreak: 'break-all', lineHeight: 1.5 }}>{adminAddr}</div>
+                    <button onClick={() => { navigator.clipboard?.writeText(adminAddr); }} style={{ padding: '8px 16px', border: '1px solid rgba(0,229,160,0.4)', borderRadius: 8, background: 'rgba(0,229,160,0.08)', color: 'var(--green)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif", flexShrink: 0 }}>📋 نسخ</button>
                   </div>
                 </div>
-              ))}
+              ) : (
+                <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)', fontSize: '0.84rem', color: 'var(--gold)', fontFamily: "'Cairo','Tajawal',sans-serif", textAlign: 'center' }}>
+                  ⚠ لم يتم تحديد عنوان المحفظة لهذه الشبكة بعد — تواصل مع الدعم
+                </div>
+              )}
+              <div className="ef-warning" style={{ marginTop: 8 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>⚠ تأكد من الإرسال على شبكة <strong>{sendNetwork}</strong> فقط. الإرسال على شبكة خاطئة يؤدي لفقدان الأموال نهائياً.</span>
+              </div>
             </div>
-            <div className="ef-warning" style={{ marginTop: 8 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span>تأكد من إرسالك على نفس الشبكة المختارة. الإرسال على شبكة خاطئة يؤدي لفقدان الأموال.</span>
-            </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* بيانات الاستلام */}
         <div className="ef-card" id="field-recipient">
@@ -522,16 +547,43 @@ export default function ExchangeFormPage({ onOpenAuth }) {
           )}
           {isUsdtRecv && (
             <>
-              <label className="ef-label">عنوان محفظة {recvNetwork === 'BEP20' ? 'USDT BNB' : 'USDT TRC20'} للاستلام <span style={{ color: 'var(--red)' }}>*</span></label>
+              <label className="ef-label">أدخل عنوان محفظتك {recvNetworkLabel} للاستلام <span style={{ color: 'var(--red)' }}>*</span></label>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-2)', fontFamily: "'Cairo','Tajawal',sans-serif", marginBottom: 6, lineHeight: 1.5 }}>
+                هذا العنوان سيتم استخدامه لإرسال الأموال إليك
+              </div>
               <input type="text" value={usdtAddress} onChange={e => { setUsdtAddress(e.target.value); clearErr('recipient') }} placeholder={recvNetwork === 'BEP20' ? '0x...' : 'T...'} className={`ef-input ef-mono ${fieldErrors.recipient ? 'ef-input--error' : ''}`} style={{ direction: 'ltr' }} />
               <FieldError msg={fieldErrors.recipient} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(0,210,255,0.06)', border: '1px solid rgba(0,210,255,0.15)', marginTop: 4 }}>
+              {/* التحقق المرئي من العنوان */}
+              {usdtAddress.trim() && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: '0.74rem', fontFamily: "'JetBrains Mono',monospace" }}>
+                  {((recvNetwork === 'TRC20' && usdtAddress.trim().startsWith('T') && usdtAddress.trim().length === 34) || (recvNetwork === 'BEP20' && usdtAddress.trim().startsWith('0x') && usdtAddress.trim().length === 42))
+                    ? <span style={{ color: 'var(--green)' }}>✓ عنوان {recvNetwork} صحيح</span>
+                    : <span style={{ color: '#f87171' }}>✗ {recvNetwork === 'TRC20' ? 'يجب أن يبدأ بـ T ويكون 34 حرفاً' : 'يجب أن يبدأ بـ 0x ويكون 42 حرفاً'}</span>
+                  }
+                </div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(0,210,255,0.06)', border: '1px solid rgba(0,210,255,0.15)', marginTop: 6 }}>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>الشبكة:</span>
                 <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}>{recvNetwork}</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginRight: 'auto' }}>({recvNetworkLabel})</span>
               </div>
-              <div className="ef-warning">
+              {/* عرض حقل حول المبلغ إلى — رقم محفظة الأدمن من Admin Panel */}
+              {(() => {
+                const adminRecvAddr = recvMethod?.networks?.find(n => n.networkKey === recvNetwork && n.address)?.address || recvMethod?.receiverNumber || ''
+                if (!adminRecvAddr) return null
+                return (
+                  <div style={{ padding: '12px 14px', background: 'rgba(0,229,160,0.07)', borderRadius: 10, border: '1px solid rgba(0,229,160,0.25)', marginTop: 6 }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 4 }}>حوّل المبلغ إلى</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ flex: 1, fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace", wordBreak: 'break-all' }}>{adminRecvAddr}</div>
+                      <button onClick={() => navigator.clipboard?.writeText(adminRecvAddr)} style={{ padding: '6px 14px', border: '1px solid rgba(0,229,160,0.4)', borderRadius: 8, background: 'transparent', color: 'var(--green)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif", flexShrink: 0 }}>📋 نسخ</button>
+                    </div>
+                  </div>
+                )
+              })()}
+              <div className="ef-warning" style={{ marginTop: 6 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                <span>⚠ تأكد من إدخال عنوان الشبكة الصحيحة ({recvNetwork}). الإرسال على شبكة خاطئة قد يؤدي إلى فقدان الأموال نهائياً.</span>
+                <span>⚠ تأكد من إدخال عنوان شبكة <strong>{recvNetwork}</strong> الصحيح. الإرسال على شبكة خاطئة قد يؤدي إلى فقدان الأموال نهائياً.</span>
               </div>
             </>
           )}

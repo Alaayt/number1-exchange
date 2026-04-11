@@ -68,10 +68,20 @@ function LockBadge() {
   )
 }
 
-// ── Dynamic compatibility using compatibleWith arrays from admin panel ──
+// ── Pair validation rules ──
+// 1. Same method forbidden
+// 2. USDT-crypto ↔ USDT-crypto forbidden (TRC20/TRC20, BNB/BNB, TRC20/BNB)
+// 3. Internal Wallet only pairs with USDT-crypto on the other side
+function isUsdt(m)   { return m?.symbol === 'USDT' && m?.type === 'crypto' }
+function isWallet(m) { return m?.type === 'wallet' }
+
 function isCompatible(send, recv) {
   if (!send || !recv) return true
-  return send.id !== recv.id
+  if (send.id === recv.id) return false
+  if (isUsdt(send) && isUsdt(recv)) return false
+  if (isWallet(send) && !isUsdt(recv)) return false
+  if (isWallet(recv) && !isUsdt(send)) return false
+  return true
 }
 
 function MethodCard({ method, selected, disabled, onClick, locked, onLockedClick }) {
@@ -173,7 +183,7 @@ function ReceivePanel({ sendMethod, recvMethod, onSelect, activeRecv, user }) {
   const { lang } = useLang()
   const regularMethods = activeRecv.filter(m => m.type !== 'wallet')
   const walletMethods  = activeRecv.filter(m => m.type === 'wallet')
-  const showWallets = !!user && walletMethods.length > 0 && (sendMethod?.type === 'crypto' || sendMethod?.symbol === 'USDT')
+  const showWallets = !!user && walletMethods.length > 0 && isUsdt(sendMethod)
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border-1)", borderRadius: 22, overflow: "hidden", flex: 1 }}>
       <div style={{ padding: "18px 20px 14px", borderBottom: "1px solid var(--border-1)", background: "linear-gradient(135deg,rgba(0,229,160,0.05),rgba(0,210,255,0.03))" }}>
@@ -281,7 +291,7 @@ function MobileMethodCard({ method, selected, disabled, onClick, locked, onLocke
 function MobileExchangeSelector({ sendMethod, recvMethod, onSend, onRecv, bothReady, lang, activeSend, activeRecv, user, onLockedClick }) {
   // Wallet-type receive methods hidden for guests
   const recvMethods = activeRecv.filter(m =>
-    m.type !== 'wallet' || (!!user && (sendMethod?.type === 'crypto' || sendMethod?.symbol === 'USDT'))
+    m.type !== 'wallet' || (!!user && isUsdt(sendMethod))
   )
   return (
     <>

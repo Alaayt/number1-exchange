@@ -32,7 +32,20 @@ function MethodIcon({ method, size = 32 }) {
 
 function isCompatible(send, recv) {
   if (!send || !recv) return true
-  return send.id !== recv.id
+  // Rule 1: Same method — never allowed
+  if (send.id === recv.id) return false
+  // Rule 2: Block ALL USDT crypto ↔ USDT crypto (TRC20↔TRC20, BNB↔BNB, TRC20↔BNB)
+  const isSendUsdtCrypto = send.symbol === 'USDT' && send.type === 'crypto'
+  const isRecvUsdtCrypto = recv.symbol === 'USDT' && recv.type === 'crypto'
+  if (isSendUsdtCrypto && isRecvUsdtCrypto) return false
+  // Rule 3: Use compatibleWith from backend if available
+  if (send.compatibleWith && send.compatibleWith.length > 0) {
+    return send.compatibleWith.includes(recv.id)
+  }
+  // Rule 4: Internal Wallet only with USDT crypto
+  if (send.type === 'wallet' && recv.type !== 'crypto') return false
+  if (recv.type === 'wallet' && send.type !== 'crypto') return false
+  return true
 }
 
 function SendRow({ method, selected, onSelect, disabled, locked, onLockedClick }) {
@@ -49,10 +62,10 @@ function SendRow({ method, selected, onSelect, disabled, locked, onLockedClick }
       <div className="es-row-info">
         <span className="es-row-name">{method.name}</span>
         <span className="es-row-sub">
-          {method.type === 'egp'     ? 'EGP · \u062c\u0646\u064a\u0647 \u0645\u0635\u0631\u064a'
-           : method.type === 'wallet'  ? '\u0645\u062d\u0641\u0638\u0629 \u062f\u0627\u062e\u0644\u064a\u0629 · USDT'
-           : method.type === 'moneygo' ? 'MoneyGo USD'
-           : `${method.symbol} · \u0631\u0642\u0645\u064a`}
+          {method.type === 'egp' ? 'EGP · \u062c\u0646\u064a\u0647 \u0645\u0635\u0631\u064a'
+            : method.type === 'wallet' ? '\u0645\u062d\u0641\u0638\u0629 \u062f\u0627\u062e\u0644\u064a\u0629 · USDT'
+              : method.type === 'moneygo' ? 'MoneyGo USD'
+                : `${method.symbol} · \u0631\u0642\u0645\u064a`}
         </span>
       </div>
       {method.limits && (
@@ -62,7 +75,7 @@ function SendRow({ method, selected, onSelect, disabled, locked, onLockedClick }
       )}
       {locked && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', flexShrink: 0 }}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
           <span style={{ fontSize: '0.65rem', color: '#f59e0b', fontFamily: "'Cairo',sans-serif", fontWeight: 700 }}>{'\u062a\u0633\u062c\u064a\u0644 \u062f\u062e\u0648\u0644'}</span>
         </div>
       )}
@@ -72,13 +85,19 @@ function SendRow({ method, selected, onSelect, disabled, locked, onLockedClick }
 
 function RecvRow({ method, selected, onSelect, disabled, rates, sendId, sendMethod }) {
   const isSelected = selected?.id === method.id
-  const rateInfo   = (sendId && rates) ? getRate(sendId, method.id, rates, sendMethod, method) : null
-  const rateText   = rateInfo
+  const rateInfo = (sendId && rates) ? getRate(sendId, method.id, rates, sendMethod, method) : null
+  const rateText = rateInfo
     ? (rateInfo.divide ? `1 ${method.symbol} = ${rateInfo.rate.toFixed(2)} EGP` : `\u00d7 ${rateInfo.rate.toFixed(4)}`)
     : '\u2014'
 
-  // Same currency warning
-  const isSameCurrency = sendMethod && sendMethod.symbol === method.symbol && (sendMethod.symbol !== 'USDT' || sendMethod.type === method.type)
+  // Same currency warning — also block all USDT crypto ↔ USDT crypto
+  const isSendUsdtCrypto = sendMethod?.symbol === 'USDT' && sendMethod?.type === 'crypto'
+  const isRecvUsdtCrypto = method.symbol === 'USDT' && method.type === 'crypto'
+  const isSameCurrency = sendMethod && (
+    (sendMethod.id === method.id) ||
+    (isSendUsdtCrypto && isRecvUsdtCrypto) ||
+    (sendMethod.symbol === method.symbol && sendMethod.type === method.type)
+  )
 
   return (
     <div onClick={() => !disabled && !isSameCurrency && onSelect(method)} className={`es-row es-row--recv ${isSelected ? 'es-row--active' : ''} ${disabled || isSameCurrency ? 'es-row--disabled' : ''}`}>
@@ -107,8 +126,8 @@ export default function ExchangeSelect() {
 
   const [sendMethod, setSendMethod] = useState(null)
   const [recvMethod, setRecvMethod] = useState(null)
-  const [rates,      setRates]      = useState(null)
-  const [loading,    setLoading]    = useState(true)
+  const [rates, setRates] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [loginAlert, setLoginAlert] = useState(false)
 
   const [activeSend, setActiveSend] = useState([])
@@ -153,8 +172,8 @@ export default function ExchangeSelect() {
   }
 
   const handleRecvSelect = (m) => {
-    // Prevent same currency selection
-    if (sendMethod && sendMethod.symbol === m.symbol && (sendMethod.symbol !== 'USDT' || sendMethod.type === m.type)) return
+    // Prevent incompatible selection
+    if (!isCompatible(sendMethod, m)) return
     setRecvMethod(m)
     if (sendMethod && !isCompatible(sendMethod, m)) setSendMethod(null)
   }
@@ -166,7 +185,7 @@ export default function ExchangeSelect() {
       <style>{CSS}</style>
       <div className="es-header">
         <button onClick={() => navigate('/')} className="es-back">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
           {'\u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629'}
         </button>
         <div className="es-header-title">{'\u062a\u0628\u0627\u062f\u0644 \u0627\u0644\u0639\u0645\u0644\u0627\u062a'}</div>
@@ -186,7 +205,7 @@ export default function ExchangeSelect() {
         {/* Same currency warning */}
         {sendMethod && recvMethod && sendMethod.symbol === recvMethod.symbol && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: 12, background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', marginBottom: 16, fontFamily: "'Cairo','Tajawal',sans-serif", fontSize: '0.88rem', color: '#f87171', animation: 'es-fadein 0.2s ease' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
             <span>{'\u0644\u0627 \u064a\u0645\u0643\u0646 \u0625\u0631\u0633\u0627\u0644 \u0648\u0627\u0633\u062a\u0644\u0627\u0645 \u0646\u0641\u0633 \u0627\u0644\u0639\u0645\u0644\u0629'}</span>
           </div>
         )}
@@ -194,7 +213,7 @@ export default function ExchangeSelect() {
         {/* Login alert */}
         {loginAlert && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: 12, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', marginBottom: 16, fontFamily: "'Cairo','Tajawal',sans-serif", fontSize: '0.88rem', color: '#f59e0b', animation: 'es-fadein 0.2s ease' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
             <span>{'\u0627\u0644\u0645\u062d\u0641\u0638\u0629 \u0627\u0644\u062f\u0627\u062e\u0644\u064a\u0629 \u062a\u062a\u0637\u0644\u0628'} <strong>{'\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644'}</strong> {'\u0623\u0648\u0644\u0627\u064b'}</span>
             <button onClick={() => navigate('/login')} style={{ marginRight: 'auto', padding: '4px 14px', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 7, background: 'transparent', color: '#f59e0b', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif" }}>
               {'\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644'}
