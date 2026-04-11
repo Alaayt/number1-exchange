@@ -77,17 +77,22 @@ function isWallet(m) { return m?.type === 'wallet' }
 // BNB treated as same group as USDT
 function isUsdtLike(m) { return m?.type === 'crypto' && (m?.symbol === 'USDT' || m?.symbol === 'BNB') }
 
+function isMoneyGo(m) { return m?.type === 'moneygo' }
+
 function isCompatible(send, recv) {
   if (!send || !recv) return true
   if (send.id === recv.id) return false
   // EGP ↔ EGP not allowed
   if (send.type === 'egp' && recv.type === 'egp') return false
   // MoneyGo ↔ MoneyGo not allowed
-  if (send.type === 'moneygo' && recv.type === 'moneygo') return false
+  if (isMoneyGo(send) && isMoneyGo(recv)) return false
   // USDT/BNB crypto ↔ USDT/BNB crypto not allowed
   if (isUsdtLike(send) && isUsdtLike(recv)) return false
-  if (isWallet(send) && !isUsdt(recv)) return false
-  if (isWallet(recv) && !isUsdt(send)) return false
+  // Internal wallet: compatible with USDT-crypto and MoneyGo
+  if (isWallet(send) && !isUsdt(recv) && !isMoneyGo(recv)) return false
+  if (isWallet(recv) && !isUsdt(send) && !isMoneyGo(send)) return false
+  // Use compatibleWith list if defined
+  if (send.compatibleWith?.length > 0 && !send.compatibleWith.includes(recv.id)) return false
   return true
 }
 
@@ -370,13 +375,13 @@ function ExchangeSelector() {
   useEffect(() => {
     if (loaded && activeSend.length > 0 && !sendMethod) {
       const usdt = activeSend.find(m => m.id === 'usdt-trc')
-      setSendMethod(usdt ?? activeSend[0])
+      setTimeout(() => setSendMethod(usdt ?? activeSend[0]), 0)
     }
   }, [activeSend, loaded])
 
   // إذا تغيّر user وكان recvMethod محفظة وغير مسجل — امسحه
   useEffect(() => {
-    if (!user && recvMethod?.type === 'wallet') setRecvMethod(null)
+    if (!user && recvMethod?.type === 'wallet') setTimeout(() => setRecvMethod(null), 0)
   }, [user])
 
   const handleLockedClick = () => {

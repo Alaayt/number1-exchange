@@ -22,9 +22,11 @@ router.get("/rates", async (req, res) => {
 
     const find = (from, to) =>
       pairs.find((p) => p.from === from && p.to === to);
-    const vodafone = find("EGP_VODAFONE", "USDT");
-    const instapay = find("EGP_INSTAPAY", "USDT");
-    const mgo      = find("USDT", "MGO");
+    const vodafone    = find("EGP_VODAFONE", "USDT");
+    const instapay    = find("EGP_INSTAPAY", "USDT");
+    const mgo         = find("USDT", "MGO");
+    const internal    = find("USDT", "INTERNAL");
+    const walletToMgo = find("INTERNAL", "MGO");
 
     // ── الحدود الدنيا ─────────────────────────
     const minEgp  = doc.minEgp  || 100;
@@ -57,13 +59,27 @@ router.get("/rates", async (req, res) => {
       minOrderUsdt: minUsdt,
       maxOrderUsdt: maxUsdt,
 
-      usdtBuyRate:     vodafone?.buyRate  || 50,
-      usdtSellRate:    vodafone?.sellRate || 49,
-      moneygoRate:     mgo?.sellRate      || 1,
-      moneygoSellRate: mgo?.buyRate       || 1,
+      // EGP <-> USDT
+      usdtBuyRate:     vodafone?.buyRate  || 50,   // EGP→USDT: client sends EGP, divide
+      usdtSellRate:    vodafone?.sellRate || 49,   // USDT→EGP: client sends USDT, multiply
       vodafoneBuyRate: vodafone?.buyRate  || 50,
       instaPayRate:    instapay?.buyRate  || 50,
-      updatedAt:       doc.updatedAt,
+
+      // USDT <-> MGO
+      // moneygoRate: client buys MGO (sends USDT) → pair.buyRate
+      // moneygoSellRate: client sells MGO (sends MGO, receives USDT) → pair.sellRate
+      moneygoRate:     mgo?.buyRate  || 1,
+      moneygoSellRate: mgo?.sellRate || 1,
+
+      // USDT <-> INTERNAL wallet
+      internalUsdtBuyRate:  internal?.buyRate  || 1,
+      internalUsdtSellRate: internal?.sellRate || 1,
+
+      // INTERNAL wallet <-> MGO
+      internalUsdtToMoneyGoRate:  walletToMgo?.buyRate  || 1,
+      moneyGoToInternalUsdtRate:  walletToMgo?.sellRate || 1,
+
+      updatedAt: doc.updatedAt,
     });
   } catch (error) {
     console.error("Public rates error:", error);

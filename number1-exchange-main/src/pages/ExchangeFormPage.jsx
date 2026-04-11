@@ -258,10 +258,11 @@ export default function ExchangeFormPage({ onOpenAuth }) {
     if (recvMethod && recvMethod.enabled === false) errs.amount = `وسيلة الاستلام "${recvMethod.name}" معطّلة حالياً`
 
     if (!errs.amount) {
-      if (!sendAmount || isNaN(amt) || amt <= 0) errs.amount = 'يرجى إدخال مبلغ صحيح'
-      else if (amt < limits.min) errs.amount = `الحد الأدنى هو ${limits.min.toLocaleString()} ${limits.unit}`
-      else if (amt > limits.max) errs.amount = `الحد الأقصى هو ${limits.max.toLocaleString()} ${limits.unit}`
-      else if (recvAmt > 0 && limits.available < Infinity && recvAmt > limits.available) {
+      if (!sendAmount || isNaN(amt) || amt <= 0 || recvAmt <= 0) errs.amount = 'يرجى إدخال مبلغ صحيح'
+      // Limits are in recv currency — compare recvAmt against them
+      else if (recvAmt < limits.min) errs.amount = `الحد الأدنى هو ${limits.min.toLocaleString()} ${limits.unit}`
+      else if (limits.max < Infinity && recvAmt > limits.max) errs.amount = `الحد الأقصى هو ${limits.max.toLocaleString()} ${limits.unit}`
+      else if (limits.available < Infinity && recvAmt > limits.available) {
         errs.amount = `المبلغ يتجاوز الرصيد المتاح (${limits.available.toLocaleString()} ${limits.unit})`
       }
     }
@@ -303,10 +304,10 @@ export default function ExchangeFormPage({ onOpenAuth }) {
     if (sendMethod && sendMethod.enabled === false) errs.amount = `وسيلة الإرسال "${sendMethod.name}" معطّلة حالياً`
     if (recvMethod && recvMethod.enabled === false) errs.amount = `وسيلة الاستلام "${recvMethod.name}" معطّلة حالياً`
     if (!errs.amount) {
-      if (!sendAmount || isNaN(amt) || amt <= 0) errs.amount = 'يرجى إدخال مبلغ صحيح'
-      else if (amt < limits.min) errs.amount = `الحد الأدنى هو ${limits.min.toLocaleString()} ${limits.unit}`
-      else if (amt > limits.max) errs.amount = `الحد الأقصى هو ${limits.max.toLocaleString()} ${limits.unit}`
-      else if (recvAmt > 0 && limits.available < Infinity && recvAmt > limits.available)
+      if (!sendAmount || isNaN(amt) || amt <= 0 || recvAmt <= 0) errs.amount = 'يرجى إدخال مبلغ صحيح'
+      else if (recvAmt < limits.min) errs.amount = `الحد الأدنى هو ${limits.min.toLocaleString()} ${limits.unit}`
+      else if (limits.max < Infinity && recvAmt > limits.max) errs.amount = `الحد الأقصى هو ${limits.max.toLocaleString()} ${limits.unit}`
+      else if (limits.available < Infinity && recvAmt > limits.available)
         errs.amount = `المبلغ يتجاوز الرصيد المتاح (${limits.available.toLocaleString()} ${limits.unit})`
     }
     if (!email || !emailRx.test(email)) errs.email = 'يرجى إدخال بريد إلكتروني صحيح'
@@ -523,11 +524,12 @@ export default function ExchangeFormPage({ onOpenAuth }) {
               </div>
             </div>
             <FieldError msg={fieldErrors.amount} />
-            {limits.available !== undefined && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: limits.available > limits.max * 0.5 ? 'rgba(0,229,160,0.12)' : 'rgba(245,158,11,0.12)', border: `1px solid ${limits.available > limits.max * 0.5 ? 'rgba(0,229,160,0.4)' : 'rgba(245,158,11,0.4)'}`, borderRadius: 10, marginTop: 6, fontSize: '0.8rem', fontWeight: 700 }}>
+            {limits.available !== undefined && limits.available < Infinity && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: limits.available <= 0 ? 'rgba(239,68,68,0.12)' : limits.available < 500 ? 'rgba(245,158,11,0.12)' : 'rgba(0,229,160,0.12)', border: `1px solid ${limits.available <= 0 ? 'rgba(239,68,68,0.4)' : limits.available < 500 ? 'rgba(245,158,11,0.4)' : 'rgba(0,229,160,0.4)'}`, borderRadius: 10, marginTop: 6, fontSize: '0.8rem', fontWeight: 700 }}>
                 <div style={{ fontSize: '1.1rem' }}>💰</div>
-                <span>الرصيد المتاح: <strong style={{ color: limits.available > limits.max * 0.5 ? 'var(--green)' : 'var(--gold)' }}>{limits.available.toLocaleString()} {limits.unit}</strong></span>
-                {limits.available < limits.max * 0.2 && <span style={{ fontSize: '0.74rem', color: 'var(--red)' }}>⚠️ منخفض</span>}
+                <span>الرصيد المتاح: <strong style={{ color: limits.available <= 0 ? 'var(--red)' : limits.available < 500 ? 'var(--gold)' : 'var(--green)' }}>{limits.available.toLocaleString()} {limits.unit}</strong></span>
+                {limits.available <= 0 && <span style={{ fontSize: '0.74rem', color: 'var(--red)' }}>⛔ نفد الرصيد</span>}
+                {limits.available > 0 && limits.available < 500 && <span style={{ fontSize: '0.74rem', color: 'var(--gold)' }}>⚠️ منخفض</span>}
               </div>
             )}
             <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 8 }}>

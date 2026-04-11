@@ -46,7 +46,7 @@ function getRate(from, to, rates) {
   if (from === 'egp'           && to === 'usdt')          return { rate: rates.usdtBuyRate,               divide: true  }
   if (from === 'moneygo'       && to === 'egp')           return { rate: rates.moneygoEgpSellRate,        divide: false }
   if (from === 'egp'           && to === 'moneygo')       return { rate: rates.moneygoEgpBuyRate,         divide: true  }
-  if (from === 'moneygo'       && to === 'usdt')          return { rate: rates.moneygoRate,               divide: false }
+  if (from === 'moneygo'       && to === 'usdt')          return { rate: rates.moneygoSellRate,           divide: false }
   if (from === 'internal_usdt' && to === 'usdt')          return { rate: rates.internalUsdtSellRate,      divide: false }
   if (from === 'usdt'          && to === 'internal_usdt') return { rate: rates.internalUsdtBuyRate,       divide: true  }
   if (from === 'internal_usdt' && to === 'moneygo')       return { rate: rates.internalUsdtToMoneyGoRate, divide: false }

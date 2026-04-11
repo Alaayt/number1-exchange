@@ -129,7 +129,7 @@ const DEFAULT_SEND = [
     mode: "default",
     rateKey: "MGO",
     paymentMethodKey: "MONEYGO",
-    compatibleWith: ["usdt-trc", "usdt-bnb"],
+    compatibleWith: ["usdt-trc", "usdt-bnb", "wallet-recv"],
     sortOrder: 4,
   },
   {
@@ -207,7 +207,7 @@ const DEFAULT_RECEIVE = [
     mode: "default",
     rateKey: "INTERNAL",
     placeholder: "",
-    compatibleWith: ["usdt-trc", "usdt-bnb"],
+    compatibleWith: ["usdt-trc", "usdt-bnb", "mgo-send"],
     sortOrder: 3,
   },
 ];
@@ -275,18 +275,30 @@ exchangeMethodSchema.statics.getSingleton = async function () {
     changed = true;
   }
 
-  // ── Migration: ensure compatibleWith arrays include usdt-bnb where needed ──
+  // ── Migration: ensure compatibleWith arrays are complete ──
   if (!changed) {
-    const COMPAT_UPDATES_SEND = { 'vodafone': 'usdt-bnb', 'instapay': 'usdt-bnb', 'mgo-send': 'usdt-bnb', 'wallet-usdt': 'usdt-bnb' };
-    const COMPAT_UPDATES_RECV = { 'mgo-recv': ['usdt-bnb'], 'wallet-recv': ['usdt-bnb'] };
+    const COMPAT_UPDATES_SEND = {
+      'vodafone':    ['usdt-bnb'],
+      'instapay':    ['usdt-bnb'],
+      'mgo-send':    ['usdt-bnb', 'wallet-recv'],
+      'wallet-usdt': ['usdt-bnb', 'mgo-recv'],
+    };
+    const COMPAT_UPDATES_RECV = {
+      'mgo-recv':    ['usdt-bnb', 'wallet-usdt'],
+      'wallet-recv': ['usdt-bnb', 'mgo-send'],
+    };
 
     let needsCompatUpdate = false;
     const sendArr = doc.sendMethods.map(m => {
       const obj = m.toObject ? m.toObject() : { ...m };
-      const target = COMPAT_UPDATES_SEND[obj.id];
-      if (target && obj.compatibleWith && !obj.compatibleWith.includes(target)) {
-        obj.compatibleWith = [...obj.compatibleWith, target];
-        needsCompatUpdate = true;
+      const targets = COMPAT_UPDATES_SEND[obj.id];
+      if (targets && obj.compatibleWith) {
+        targets.forEach(t => {
+          if (!obj.compatibleWith.includes(t)) {
+            obj.compatibleWith = [...obj.compatibleWith, t];
+            needsCompatUpdate = true;
+          }
+        });
       }
       return obj;
     });

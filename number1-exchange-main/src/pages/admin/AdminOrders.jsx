@@ -12,8 +12,15 @@ import {
 import { adminAPI } from '../../services/api'
 
 const ORDER_TYPE_LABELS = {
-  USDT_TO_MONEYGO:       'USDT → USD',
-  EGP_WALLET_TO_MONEYGO: 'محفظة → USD',
+  EGP_TO_USDT:            'جنيه → USDT',
+  EGP_TO_MONEYGO:         'جنيه → MoneyGo',
+  USDT_TO_MONEYGO:        'USDT → MoneyGo',
+  USDT_TO_WALLET:         'USDT → محفظة',
+  WALLET_TO_USDT:         'محفظة → USDT',
+  WALLET_TO_MONEYGO:      'محفظة → MoneyGo',
+  MONEYGO_TO_USDT:        'MoneyGo → USDT',
+  MONEYGO_TO_WALLET:      'MoneyGo → محفظة',
+  EGP_WALLET_TO_MONEYGO:  'محفظة (EGP) → MoneyGo',
 }
 
 const STATUS_TABS = [

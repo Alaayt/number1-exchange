@@ -74,17 +74,53 @@ export function getRate(fromId, toId, ratesData, sendMethod, recvMethod) {
     return DEFAULT;
   }
 
-  // MGO → USDT
+  // MGO → USDT: user sends MGO, receives USDT → multiply by sellRate
   if (fromKey === 'MGO' && toKey === 'USDT') {
     const pair = findPair(pairs, 'USDT', 'MGO');
     if (!pair) return DEFAULT;
     return { rate: pair.sellRate, divide: false, pair };
   }
 
-  // INTERNAL → USDT
+  // USDT → EGP (any EGP variant): user sends USDT, receives EGP → multiply by sellRate
+  if (fromKey === 'USDT' && toKey.startsWith('EGP_')) {
+    const pair = findPair(pairs, toKey, 'USDT');
+    if (pair) return { rate: pair.sellRate, divide: false, pair };
+  }
+
+  // MGO → EGP (any EGP variant): user sends MGO, receives EGP → multiply by sellRate
+  if (fromKey === 'MGO' && toKey.startsWith('EGP_')) {
+    const pair = findPair(pairs, toKey, 'MGO');
+    if (pair) return { rate: pair.sellRate, divide: false, pair };
+  }
+
+  // INTERNAL → USDT: wallet to USDT → multiply by buyRate
   if (fromKey === 'INTERNAL' && toKey === 'USDT') {
     const pair = findPair(pairs, 'INTERNAL', 'USDT');
     if (!pair) return { rate: 1, divide: false, pair: null };
+    return { rate: pair.buyRate, divide: false, pair };
+  }
+
+  // MGO → INTERNAL: user sends MGO, receives wallet USDT → use sellRate (same logic as MGO→USDT)
+  if (fromKey === 'MGO' && toKey === 'INTERNAL') {
+    const pair = findPair(pairs, 'MGO', 'INTERNAL');
+    if (!pair) {
+      // fallback: use USDT→MGO sellRate
+      const fallback = findPair(pairs, 'USDT', 'MGO');
+      if (fallback) return { rate: fallback.sellRate, divide: false, pair: fallback };
+      return DEFAULT;
+    }
+    return { rate: pair.sellRate, divide: false, pair };
+  }
+
+  // INTERNAL → MGO: user sends wallet USDT, receives MGO → use buyRate (same logic as USDT→MGO)
+  if (fromKey === 'INTERNAL' && toKey === 'MGO') {
+    const pair = findPair(pairs, 'INTERNAL', 'MGO');
+    if (!pair) {
+      // fallback: use USDT→MGO buyRate
+      const fallback = findPair(pairs, 'USDT', 'MGO');
+      if (fallback) return { rate: fallback.buyRate, divide: false, pair: fallback };
+      return DEFAULT;
+    }
     return { rate: pair.buyRate, divide: false, pair };
   }
 
@@ -101,18 +137,21 @@ export function getRate(fromId, toId, ratesData, sendMethod, recvMethod) {
         return { rate: combinedRate, divide: true, pair: null };
       }
     }
-    // Try reverse pair
+    // Try reverse pair — if the reverse pair goes FROM EGP, we are in X→EGP direction: multiply
     const reversePair = findPair(pairs, toKey, fromKey);
     if (reversePair) {
-      return { rate: reversePair.sellRate, divide: !isEgpSender(fromId, sendMethod), pair: reversePair };
+      const origFromIsEgp = (reversePair.from || '').startsWith('EGP_');
+      return { rate: reversePair.sellRate, divide: !origFromIsEgp, pair: reversePair };
     }
     console.warn(`[rateEngine] No pair found: "${fromKey}" → "${toKey}"`);
     return DEFAULT;
   }
 
   if (isEgpSender(fromId, sendMethod)) {
+    // EGP → X: divide sendAmount by buyRate to get X amount
     return { rate: pair.buyRate, divide: true, pair };
   } else {
+    // X → Y (both non-EGP): multiply sendAmount by buyRate
     return { rate: pair.buyRate, divide: false, pair };
   }
 }
@@ -156,6 +195,7 @@ export function toOrderType(fromId, toId, sendMethod, recvMethod) {
     'wallet-usdt:mgo-recv':  'WALLET_TO_MONEYGO',
     'mgo-send:usdt-trc':     'MONEYGO_TO_USDT',
     'mgo-send:usdt-bnb':     'MONEYGO_TO_USDT',
+    'mgo-send:wallet-recv':  'MONEYGO_TO_WALLET',
   };
 
   const key = `${fromId}:${toId}`;
@@ -216,9 +256,9 @@ export function getDynamicLimits(sendMethod, recvMethod, ratesData) {
   };
 
   const limits = {
-    EGP: { min: ratesData.minEgp || 100, max: ratesData.maxEgp || 300000 },
-    USDT: { min: ratesData.minUsdt || 10, max: ratesData.maxUsdt || 10000 },
-    MGO: { min: ratesData.minMgo || 10, max: ratesData.maxMgo || 10000 },
+    EGP: { min: ratesData.minEgp || 100, max: available.EGP },
+    USDT: { min: ratesData.minUsdt || 10, max: available.USDT },
+    MGO: { min: ratesData.minMgo || 10, max: available.MGO },
   };
 
   // Use per-method limits if set, otherwise global

@@ -301,10 +301,13 @@ router.post('/', optionalProtect, async (req, res) => {
       )
       // Determine receive method from orderType
       const recvMethodObj = emDoc.receiveMethods.find(m => {
-        if (orderType === 'USDT_TO_WALLET' && m.type === 'wallet') return true
-        if (orderType.includes('MONEYGO') && m.type === 'moneygo') return true
-        if (orderType.includes('WALLET') && m.type === 'wallet') return true
-        if (orderType.includes('USDT') && m.type === 'crypto' && m.symbol === 'USDT') return true
+        if (orderType === 'USDT_TO_WALLET'    && m.type === 'wallet')  return true
+        if (orderType === 'MONEYGO_TO_WALLET' && m.type === 'wallet')  return true
+        if (orderType === 'WALLET_TO_MONEYGO' && m.type === 'moneygo') return true
+        if (orderType === 'MONEYGO_TO_USDT'   && m.type === 'crypto' && m.symbol === 'USDT') return true
+        if (orderType === 'WALLET_TO_USDT'    && m.type === 'crypto' && m.symbol === 'USDT') return true
+        if (orderType.endsWith('_TO_MONEYGO') && m.type === 'moneygo') return true
+        if (orderType.endsWith('_TO_USDT')    && m.type === 'crypto' && m.symbol === 'USDT') return true
         return false
       })
 
@@ -400,6 +403,7 @@ const NO_RECIPIENT_TYPES = [
   'USDT_TO_WALLET',
   'WALLET_TO_USDT',
   'WALLET_TO_MONEYGO',
+  'MONEYGO_TO_WALLET',
   'EGP_WALLET_TO_MONEYGO', // القديم — يمكن إزالته لاحقاً
 ]
  
