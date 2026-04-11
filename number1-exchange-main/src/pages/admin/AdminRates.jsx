@@ -120,16 +120,33 @@ export default function AdminRates() {
         { from: 'MGO',          to: 'INTERNAL', buyRate: wMgoBuy,   sellRate: wMgoSell,   label: 'MoneyGo → محفظة داخلية',   enabled: true },
       ];
 
-      const avEgp  = parseFloat(rates.availableEgp)  || 0;
-      const avUsdt = parseFloat(rates.availableUsdt) || 0;
-      const avMgo  = parseFloat(rates.availableMgo)  || 0;
+      // ── اجلب أحدث قيم السيولة من السيرفر قبل الحفظ ──
+      // يمنع الكتابة فوق قيم السيولة التي حُدِّثت تلقائياً بعد الطلبات
+      let latestEgp, latestUsdt, latestMgo;
+      try {
+        const { data: fresh } = await adminAPI.getRates();
+        latestEgp  = fresh?.availableEgp  ?? parseFloat(rates.availableEgp)  ?? 0;
+        latestUsdt = fresh?.availableUsdt ?? parseFloat(rates.availableUsdt) ?? 0;
+        latestMgo  = fresh?.availableMgo  ?? parseFloat(rates.availableMgo)  ?? 0;
+      } catch {
+        latestEgp  = parseFloat(rates.availableEgp)  || 0;
+        latestUsdt = parseFloat(rates.availableUsdt) || 0;
+        latestMgo  = parseFloat(rates.availableMgo)  || 0;
+      }
+
+      // إذا عدّل الأدمن قيمة السيولة يدوياً في الحقل، استخدم قيمته
+      const userEditedEgp  = parseFloat(rates.availableEgp);
+      const userEditedUsdt = parseFloat(rates.availableUsdt);
+      const userEditedMgo  = parseFloat(rates.availableMgo);
+      const avEgp  = isNaN(userEditedEgp)  ? latestEgp  : userEditedEgp;
+      const avUsdt = isNaN(userEditedUsdt) ? latestUsdt : userEditedUsdt;
+      const avMgo  = isNaN(userEditedMgo)  ? latestMgo  : userEditedMgo;
 
       await adminAPI.saveRates({
         pairs,
         minEgp:  parseFloat(rates.minEgp)  || 0,
         minUsdt: parseFloat(rates.minUsdt) || 0,
         minMgo:  parseFloat(rates.minMgo)  || 0,
-        // max = available (kept in sync for backward compat)
         maxEgp:  avEgp,
         maxUsdt: avUsdt,
         maxMgo:  avMgo,
