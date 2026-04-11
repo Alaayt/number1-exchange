@@ -107,7 +107,13 @@ router.put("/orders/:id/status", async (req, res) => {
 
     // ── تحديث السيولة عند اكتمال الطلب (مرة واحدة فقط) ──
     if (status === "completed" && !wasCompleted) {
-      await liquidityService.applyLiquidity(order);
+      console.log(`[Liquidity-PANEL] 🔥 Order ${order.orderNumber} | type: ${order.orderType}`);
+      console.log(`[Liquidity-PANEL] amountSent: ${order.payment?.amountSent} | moneygo.amountUSD: ${order.moneygo?.amountUSD} | finalAmountUSD: ${order.exchangeRate?.finalAmountUSD}`);
+      const result = await liquidityService.applyLiquidity(order);
+      console.log(`[Liquidity-PANEL] result: ${result}`);
+      // تحقق من DB بعد التحديث
+      const fresh = await Rate.findOne();
+      console.log(`[Liquidity-PANEL] 📊 DB now → EGP: ${fresh?.availableEgp} | USDT: ${fresh?.availableUsdt} | MGO: ${fresh?.availableMgo}`);
     }
 
     await telegramService.notifyOrderUpdate(order, status, note);
@@ -297,7 +303,13 @@ router.post("/telegram-webhook-internal", async (req, res) => {
 
     // ── تحديث السيولة عند اكتمال الطلب ──────────
     if (action === "complete" && !wasCompleted) {
-      await liquidityService.applyLiquidity(order);
+      console.log(`[Liquidity-TG] 🔥 Order ${order.orderNumber} | type: ${order.orderType}`);
+      console.log(`[Liquidity-TG] amountSent: ${order.payment?.amountSent} | moneygo.amountUSD: ${order.moneygo?.amountUSD} | finalAmountUSD: ${order.exchangeRate?.finalAmountUSD}`);
+      const result = await liquidityService.applyLiquidity(order);
+      console.log(`[Liquidity-TG] result: ${result}`);
+      // تحقق من DB بعد التحديث
+      const fresh = await Rate.findOne();
+      console.log(`[Liquidity-TG] 📊 DB now → EGP: ${fresh?.availableEgp} | USDT: ${fresh?.availableUsdt} | MGO: ${fresh?.availableMgo}`);
     }
 
     // ── إيداع محفظة داخلية ───────────────────────
@@ -434,7 +446,6 @@ router.put("/rates", async (req, res) => {
       minOrderUsdt: parseFloat(minUsdt) || parseFloat(minOrderUsdt) || 0,
       maxOrderUsdt: parsedMaxUsdt,
       // السيولة — الأدمن يمكنه ضبطها يدوياً
-      // إذا لم يُرسَل قيمة، تبقى كما هي ($setOnInsert لن يعمل هنا)
       ...(availableEgp !== undefined && {
         availableEgp: parseFloat(availableEgp) ?? parsedMaxEgp,
       }),
@@ -994,7 +1005,6 @@ router.put("/exchange-methods", async (req, res) => {
   try {
     const { sendMethods, receiveMethods } = req.body;
 
-    // Validate: no duplicate IDs
     const sendIds = (sendMethods || []).map((m) => m.id);
     const recvIds = (receiveMethods || []).map((m) => m.id);
     if (new Set(sendIds).size !== sendIds.length) {
@@ -1008,7 +1018,6 @@ router.put("/exchange-methods", async (req, res) => {
         .json({ success: false, message: "Duplicate receive method IDs." });
     }
 
-    // Validate: required fields on each method
     const allMethods = [
       ...(sendMethods || []).map((m) => ({ ...m, _dir: "send" })),
       ...(receiveMethods || []).map((m) => ({ ...m, _dir: "receive" })),
@@ -1032,7 +1041,6 @@ router.put("/exchange-methods", async (req, res) => {
           message: `الوسيلة "${m.id}" بدون رمز عملة (Symbol) — الرمز مطلوب.`,
         });
       }
-      // Validate min ≤ max when both are set
       if (m.minAmount > 0 && m.maxAmount > 0 && m.minAmount > m.maxAmount) {
         return res.status(400).json({
           success: false,
@@ -1068,7 +1076,7 @@ router.post("/exchange-methods/reset", async (req, res) => {
   try {
     const ExchangeMethod = require("../models/ExchangeMethod");
     await ExchangeMethod.deleteMany({});
-    const doc = await ExchangeMethod.getSingleton(); // re-creates from DEFAULT_SEND/RECEIVE
+    const doc = await ExchangeMethod.getSingleton();
     res.json({ success: true, message: "تم إعادة تعيين وسائل التبادل للافتراضيات.", sendMethods: doc.sendMethods, receiveMethods: doc.receiveMethods });
   } catch (error) {
     console.error("Exchange methods reset error:", error);
