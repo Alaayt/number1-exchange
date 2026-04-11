@@ -15,11 +15,11 @@ export default function AdminRates() {
     egpBuyRate: '', egpSellRate: '',
     moneyGoBuyRate: '', moneyGoSellRate: '',
     egpMgoBuyRate: '', egpMgoSellRate: '',
-    internalBuyRate: '', internalSellRate: '',
+    internalBuyRate: '', internalSellRate: '',   // USDT <-> wallet
+    walletMgoBuyRate: '', walletMgoSellRate: '', // wallet <-> MGO (independent)
     minEgp: '', maxEgp: '',
     minUsdt: '', maxUsdt: '',
     minMgo: '', maxMgo: '',
-    // السيولة المتاحة
     availableEgp: '', availableUsdt: '', availableMgo: '',
   });
   const [loading, setLoading] = useState(true);
@@ -62,19 +62,22 @@ export default function AdminRates() {
       const { data } = await adminAPI.getRates();
       const pairs = data?.pairs || [];
       const find  = (from, to) => pairs.find(p => p.from === from && p.to === to);
-      const egp      = find('EGP_VODAFONE', 'USDT') || find('EGP_INSTAPAY', 'USDT');
-      const mgo      = find('USDT', 'MGO');
-      const egpMgo   = find('EGP_VODAFONE', 'MGO');
-      const internal = find('USDT', 'INTERNAL');
+      const egp        = find('EGP_VODAFONE', 'USDT') || find('EGP_INSTAPAY', 'USDT');
+      const mgo        = find('USDT', 'MGO');
+      const egpMgo     = find('EGP_VODAFONE', 'MGO');
+      const internal   = find('USDT', 'INTERNAL');
+      const walletMgo  = find('INTERNAL', 'MGO');
       setRates({
-        egpBuyRate:       egp?.buyRate       ?? data?.usdtBuyRate      ?? '',
-        egpSellRate:      egp?.sellRate      ?? data?.usdtSellRate     ?? '',
-        moneyGoBuyRate:   mgo?.buyRate       ?? data?.moneygoRate      ?? '',
-        moneyGoSellRate:  mgo?.sellRate      ?? data?.moneygoSellRate  ?? '',
-        egpMgoBuyRate:    egpMgo?.buyRate    ?? '',
-        egpMgoSellRate:   egpMgo?.sellRate   ?? '',
-        internalBuyRate:  internal?.buyRate  ?? '',
-        internalSellRate: internal?.sellRate ?? '',
+        egpBuyRate:        egp?.buyRate        ?? data?.usdtBuyRate     ?? '',
+        egpSellRate:       egp?.sellRate       ?? data?.usdtSellRate    ?? '',
+        moneyGoBuyRate:    mgo?.buyRate        ?? data?.moneygoRate     ?? '',
+        moneyGoSellRate:   mgo?.sellRate       ?? data?.moneygoSellRate ?? '',
+        egpMgoBuyRate:     egpMgo?.buyRate     ?? '',
+        egpMgoSellRate:    egpMgo?.sellRate    ?? '',
+        internalBuyRate:   internal?.buyRate   ?? '',
+        internalSellRate:  internal?.sellRate  ?? '',
+        walletMgoBuyRate:  walletMgo?.buyRate  ?? '',
+        walletMgoSellRate: walletMgo?.sellRate ?? '',
         minEgp:           data?.minEgp       ?? '',
         maxEgp:           data?.maxEgp       ?? '',
         minUsdt:          data?.minUsdt      ?? data?.minOrderUsdt ?? '',
@@ -95,28 +98,32 @@ export default function AdminRates() {
   const handleSave = async () => {
     setSaving(true); setError('');
     try {
-      const egpBuy    = parseFloat(rates.egpBuyRate)       || 0;
-      const egpSell   = parseFloat(rates.egpSellRate)      || 0;
-      const mgoBuy    = parseFloat(rates.moneyGoBuyRate)   || 0;
-      const mgoSell   = parseFloat(rates.moneyGoSellRate)  || 0;
-      const egpMgoBuy = parseFloat(rates.egpMgoBuyRate)    || 0;
-      const egpMgoSell= parseFloat(rates.egpMgoSellRate)   || 0;
-      const intBuy    = parseFloat(rates.internalBuyRate)  || 0;
-      const intSell   = parseFloat(rates.internalSellRate) || 0;
+      const egpBuy       = parseFloat(rates.egpBuyRate)        || 0;
+      const egpSell      = parseFloat(rates.egpSellRate)       || 0;
+      const mgoBuy       = parseFloat(rates.moneyGoBuyRate)    || 0;
+      const mgoSell      = parseFloat(rates.moneyGoSellRate)   || 0;
+      const egpMgoBuy    = parseFloat(rates.egpMgoBuyRate)     || 0;
+      const egpMgoSell   = parseFloat(rates.egpMgoSellRate)    || 0;
+      const intBuy       = parseFloat(rates.internalBuyRate)   || 0;
+      const intSell      = parseFloat(rates.internalSellRate)  || 0;
+      const wMgoBuy      = parseFloat(rates.walletMgoBuyRate)  || 0;
+      const wMgoSell     = parseFloat(rates.walletMgoSellRate) || 0;
 
       const pairs = [
-        { from: 'EGP_VODAFONE', to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'فودافون كاش ↔ USDT',      enabled: true },
-        { from: 'EGP_INSTAPAY', to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'إنستا باي ↔ USDT',        enabled: true },
-        { from: 'EGP_FAWRY',    to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'فاوري ↔ USDT',            enabled: true },
-        { from: 'EGP_ORANGE',   to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'أورنج كاش ↔ USDT',       enabled: true },
-        { from: 'USDT',         to: 'MGO',      buyRate: mgoBuy,    sellRate: mgoSell,    label: 'USDT ↔ MoneyGo',           enabled: true },
-        { from: 'EGP_VODAFONE', to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'فودافون كاش ↔ MoneyGo',   enabled: true },
-        { from: 'EGP_INSTAPAY', to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'إنستا باي ↔ MoneyGo',    enabled: true },
-        { from: 'EGP_FAWRY',    to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'فاوري ↔ MoneyGo',         enabled: true },
-        { from: 'EGP_ORANGE',   to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'أورنج كاش ↔ MoneyGo',    enabled: true },
-        { from: 'USDT',         to: 'INTERNAL', buyRate: intBuy,    sellRate: intSell,    label: 'USDT ↔ محفظة داخلية',    enabled: true },
-        { from: 'INTERNAL',     to: 'USDT',     buyRate: intBuy,    sellRate: intSell,    label: 'محفظة داخلية ↔ USDT',    enabled: true },
-        { from: 'INTERNAL',     to: 'MGO',      buyRate: mgoBuy,    sellRate: mgoSell,    label: 'محفظة داخلية ↔ MoneyGo', enabled: true },
+        { from: 'EGP_VODAFONE', to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'فودافون كاش ↔ USDT',         enabled: true },
+        { from: 'EGP_INSTAPAY', to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'إنستا باي ↔ USDT',           enabled: true },
+        { from: 'EGP_FAWRY',    to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'فاوري ↔ USDT',               enabled: true },
+        { from: 'EGP_ORANGE',   to: 'USDT',     buyRate: egpBuy,    sellRate: egpSell,    label: 'أورنج كاش ↔ USDT',          enabled: true },
+        { from: 'USDT',         to: 'MGO',      buyRate: mgoBuy,    sellRate: mgoSell,    label: 'USDT ↔ MoneyGo',              enabled: true },
+        { from: 'EGP_VODAFONE', to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'فودافون كاش ↔ MoneyGo',      enabled: true },
+        { from: 'EGP_INSTAPAY', to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'إنستا باي ↔ MoneyGo',       enabled: true },
+        { from: 'EGP_FAWRY',    to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'فاوري ↔ MoneyGo',            enabled: true },
+        { from: 'EGP_ORANGE',   to: 'MGO',      buyRate: egpMgoBuy, sellRate: egpMgoSell, label: 'أورنج كاش ↔ MoneyGo',       enabled: true },
+        { from: 'USDT',         to: 'INTERNAL', buyRate: intBuy,    sellRate: intSell,    label: 'USDT ↔ محفظة داخلية',       enabled: true },
+        { from: 'INTERNAL',     to: 'USDT',     buyRate: intBuy,    sellRate: intSell,    label: 'محفظة داخلية ↔ USDT',       enabled: true },
+        // wallet <-> MGO: أسعار مستقلة عن USDT <-> MGO
+        { from: 'INTERNAL',     to: 'MGO',      buyRate: wMgoBuy,   sellRate: wMgoSell,   label: 'محفظة داخلية → MoneyGo',    enabled: true },
+        { from: 'MGO',          to: 'INTERNAL', buyRate: wMgoBuy,   sellRate: wMgoSell,   label: 'MoneyGo → محفظة داخلية',   enabled: true },
       ];
 
       await adminAPI.saveRates({
@@ -210,10 +217,15 @@ export default function AdminRates() {
         buyLabel="سعر شراء MoneyGo بالجنيه" buyHint="المستخدم يرسل EGP ← نعطيه MoneyGo" buyValue={rates.egpMgoBuyRate} onBuyChange={v => set('egpMgoBuyRate', v)}
         sellLabel="سعر بيع MoneyGo بالجنيه" sellHint="المستخدم يرسل MoneyGo ← نعطيه EGP" sellValue={rates.egpMgoSellRate} onSellChange={v => set('egpMgoSellRate', v)} unit="EGP" />
 
-      <RateSection icon="🏦" iconBg="rgba(37,99,235,0.12)" title="USDT داخلي (المحفظة الداخلية)" subtitle="سعر التحويل داخل منصة Number1"
+      <RateSection icon="🏦" iconBg="rgba(37,99,235,0.12)" title="USDT ↔ المحفظة الداخلية" subtitle="إيداع USDT في المحفظة · سحب USDT من المحفظة"
         margin={calcMargin(rates.internalBuyRate, rates.internalSellRate)}
-        buyLabel="سعر شراء داخلي" buyHint="شراء USDT عبر المحفظة الداخلية" buyValue={rates.internalBuyRate} onBuyChange={v => set('internalBuyRate', v)}
-        sellLabel="سعر بيع داخلي" sellHint="بيع USDT عبر المحفظة الداخلية" sellValue={rates.internalSellRate} onSellChange={v => set('internalSellRate', v)} unit="USDT" />
+        buyLabel="سعر الإيداع (USDT → محفظة)" buyHint="المستخدم يرسل USDT ← نضيفه للمحفظة" buyValue={rates.internalBuyRate} onBuyChange={v => set('internalBuyRate', v)}
+        sellLabel="سعر السحب (محفظة → USDT)" sellHint="المستخدم يسحب من المحفظة ← نرسل USDT" sellValue={rates.internalSellRate} onSellChange={v => set('internalSellRate', v)} unit="USDT" />
+
+      <RateSection icon="💼" iconBg="rgba(0,193,124,0.12)" title="المحفظة الداخلية ↔ MoneyGo" subtitle="تحويل بين المحفظة الداخلية و MoneyGo — سعر مستقل"
+        margin={calcMargin(rates.walletMgoBuyRate, rates.walletMgoSellRate)}
+        buyLabel="سعر شراء MoneyGo (محفظة → MGO)" buyHint="المستخدم يحول من محفظته ← نرسل MoneyGo" buyValue={rates.walletMgoBuyRate} onBuyChange={v => set('walletMgoBuyRate', v)}
+        sellLabel="سعر بيع MoneyGo (MGO → محفظة)" sellHint="المستخدم يرسل MoneyGo ← نضيف لمحفظته" sellValue={rates.walletMgoSellRate} onSellChange={v => set('walletMgoSellRate', v)} unit="USDT" />
 
       {/* حدود المعاملات */}
       <div className="ar-card">

@@ -45,20 +45,20 @@ paymentMethodSchema.statics.getLimits = async function (methodId, currency) {
     if (currency === "EGP")
       return {
         min: rateDoc.minEgp,
-        max: Math.min(rateDoc.maxEgp, rateDoc.availableEgp || rateDoc.maxEgp),
+        max: Math.min(rateDoc.maxEgp, rateDoc.availableEgp ?? rateDoc.maxEgp),
       };
     if (currency === "USDT")
       return {
         min: rateDoc.minUsdt,
         max: Math.min(
           rateDoc.maxUsdt,
-          rateDoc.availableUsdt || rateDoc.maxUsdt,
+          rateDoc.availableUsdt ?? rateDoc.maxUsdt,
         ),
       };
     if (currency === "MGO")
       return {
         min: rateDoc.minMgo,
-        max: Math.min(rateDoc.maxMgo, rateDoc.availableMgo || rateDoc.maxMgo),
+        max: Math.min(rateDoc.maxMgo, rateDoc.availableMgo ?? rateDoc.maxMgo),
       };
     return { min: 0, max: 0 };
   }

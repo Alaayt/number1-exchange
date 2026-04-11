@@ -9,47 +9,10 @@ const User = require("../models/User");
 const { protect, adminOnly } = require("../middleware/auth");
 const telegramService = require("../services/telegram");
 const Rate = require("../models/Rate");
+const liquidityService = require("../services/liquidity");
 const mongoose = require("mongoose");
 
 router.use(protect, adminOnly);
-
-// ── دالة مساعدة: تحديث السيولة بعد اكتمال الطلب ──────────
-async function updateLiquidity(order) {
-  try {
-    const currencySent = order.payment?.currencySent || "USDT";
-    const amountSent = parseFloat(order.payment?.amountSent) || 0;
-    const amountRecv =
-      parseFloat(
-        order.exchangeRate?.finalAmountUSD || order.moneygo?.amountUSD,
-      ) || 0;
-
-    // تحديد عملة الاستلام من orderType
-    let currencyRecv = "USDT";
-    const ot = order.orderType || "";
-    if (
-      ot === "EGP_TO_MONEYGO" ||
-      ot === "USDT_TO_MONEYGO" ||
-      ot === "WALLET_TO_MONEYGO"
-    )
-      currencyRecv = "MGO";
-    else if (ot === "MONEYGO_TO_USDT") currencyRecv = "USDT";
-    else if (ot === "EGP_TO_USDT") currencyRecv = "USDT";
-    else if (ot === "USDT_TO_WALLET" || ot === "WALLET_TO_USDT")
-      currencyRecv = "USDT";
-
-    await Rate.applyLiquidity(
-      currencySent,
-      currencyRecv,
-      amountSent,
-      amountRecv,
-    );
-    console.log(
-      `[Liquidity] +${amountSent} ${currencySent} | -${amountRecv} ${currencyRecv} | Order: ${order.orderNumber}`,
-    );
-  } catch (err) {
-    console.error("[Liquidity] update failed:", err.message);
-  }
-}
 
 // ─── GET /api/admin/orders ────────────────────
 router.get("/orders", async (req, res) => {
@@ -144,7 +107,7 @@ router.put("/orders/:id/status", async (req, res) => {
 
     // ── تحديث السيولة عند اكتمال الطلب (مرة واحدة فقط) ──
     if (status === "completed" && !wasCompleted) {
-      await updateLiquidity(order);
+      await liquidityService.applyLiquidity(order);
     }
 
     await telegramService.notifyOrderUpdate(order, status, note);
@@ -334,7 +297,7 @@ router.post("/telegram-webhook-internal", async (req, res) => {
 
     // ── تحديث السيولة عند اكتمال الطلب ──────────
     if (action === "complete" && !wasCompleted) {
-      await updateLiquidity(order);
+      await liquidityService.applyLiquidity(order);
     }
 
     // ── إيداع محفظة داخلية ───────────────────────

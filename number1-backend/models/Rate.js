@@ -60,9 +60,10 @@ const DEFAULT_PAIRS = [
   { from: 'EGP_INSTAPAY', to: 'MGO',      buyRate: 49.75, sellRate: 48.75, label: 'إنستا باي ↔ MoneyGo'   },
   { from: 'EGP_FAWRY',    to: 'MGO',      buyRate: 49.75, sellRate: 48.75, label: 'فاوري ↔ MoneyGo'        },
   { from: 'EGP_ORANGE',   to: 'MGO',      buyRate: 49.75, sellRate: 48.75, label: 'أورنج كاش ↔ MoneyGo'   },
-  { from: 'USDT',         to: 'INTERNAL', buyRate: 1,     sellRate: 1,     label: 'USDT ↔ محفظة داخلية'   },
-  { from: 'INTERNAL',     to: 'USDT',     buyRate: 1,     sellRate: 1,     label: 'محفظة داخلية ↔ USDT'   },
-  { from: 'INTERNAL',     to: 'MGO',      buyRate: 0.995, sellRate: 1.005, label: 'محفظة داخلية ↔ MoneyGo'},
+  { from: 'USDT',         to: 'INTERNAL', buyRate: 1,     sellRate: 1,     label: 'USDT ↔ محفظة داخلية'        },
+  { from: 'INTERNAL',     to: 'USDT',     buyRate: 1,     sellRate: 1,     label: 'محفظة داخلية ↔ USDT'        },
+  { from: 'INTERNAL',     to: 'MGO',      buyRate: 0.995, sellRate: 1.005, label: 'محفظة داخلية → MoneyGo'     },
+  { from: 'MGO',          to: 'INTERNAL', buyRate: 0.995, sellRate: 1.005, label: 'MoneyGo → محفظة داخلية'     },
 ];
 
 rateSchema.statics.getSingleton = async function () {
@@ -76,6 +77,16 @@ rateSchema.statics.getSingleton = async function () {
     })
   }
   if (doc.pairs.length === 0) { doc.pairs = DEFAULT_PAIRS; await doc.save(); }
+
+  // ── Migration: أضف أي أزواج افتراضية مفقودة ──────────────
+  const existingKeys = new Set(doc.pairs.map(p => `${p.from}|${p.to}`))
+  const missingPairs = DEFAULT_PAIRS.filter(p => !existingKeys.has(`${p.from}|${p.to}`))
+  if (missingPairs.length > 0) {
+    await this.findOneAndUpdate({}, { $push: { pairs: { $each: missingPairs } } })
+    doc = await this.findOne()
+    console.log(`[Rate] Added missing default pairs: ${missingPairs.map(p => `${p.from}→${p.to}`).join(', ')}`)
+  }
+
   // إذا availableXxx لا يزال null، اضبطه من maxXxx
   let needsSave = false
   if (doc.availableEgp  === null || doc.availableEgp  === undefined) { doc.availableEgp  = doc.maxEgp;  needsSave = true }

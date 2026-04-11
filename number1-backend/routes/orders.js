@@ -282,21 +282,29 @@ router.post('/', optionalProtect, async (req, res) => {
     // ═══════════════════════════════════════════════════════
     // Dynamic Exchange Method Validation
     // ═══════════════════════════════════════════════════════
-    try {
-      const emDoc   = await ExchangeMethod.getSingleton()
-      const rateDoc = await Rate.getSingleton()
 
+    // Step 1: fetch data — DB failure is a hard error (500)
+    let emDoc, rateDoc
+    try {
+      emDoc   = await ExchangeMethod.getSingleton()
+      rateDoc = await Rate.getSingleton()
+    } catch (fetchErr) {
+      console.error('Validation data fetch failed:', fetchErr.message)
+      return res.status(500).json({ success: false, message: 'فشل في التحقق من البيانات، حاول مجدداً.' })
+    }
+
+    // Step 2: validate — errors here are real business-rule violations
+    {
       // ── Find the send and receive methods by paymentMethodKey or fallback ──
       const sendMethodObj = emDoc.sendMethods.find(m =>
         m.paymentMethodKey === payment.method || m.id === payment.method
       )
       // Determine receive method from orderType
       const recvMethodObj = emDoc.receiveMethods.find(m => {
+        if (orderType === 'USDT_TO_WALLET' && m.type === 'wallet') return true
         if (orderType.includes('MONEYGO') && m.type === 'moneygo') return true
         if (orderType.includes('WALLET') && m.type === 'wallet') return true
-        if (orderType.includes('USDT') && m.type === 'crypto' && m.symbol === 'USDT' && !orderType.startsWith('USDT_TO_WALLET') && !orderType.includes('MONEYGO')) return true
-        // For USDT_TO_WALLET: recv = wallet
-        if (orderType === 'USDT_TO_WALLET' && m.type === 'wallet') return true
+        if (orderType.includes('USDT') && m.type === 'crypto' && m.symbol === 'USDT') return true
         return false
       })
 
@@ -316,8 +324,8 @@ router.post('/', optionalProtect, async (req, res) => {
         })
       }
 
-      // ── Validate compatibility (if send method has compatibleWith set) ──
-      if (sendMethodObj && recvMethodObj && sendMethodObj.compatibleWith && sendMethodObj.compatibleWith.length > 0) {
+      // ── Validate compatibility ──
+      if (sendMethodObj && recvMethodObj && sendMethodObj.compatibleWith?.length > 0) {
         if (!sendMethodObj.compatibleWith.includes(recvMethodObj.id)) {
           return res.status(400).json({
             success: false,
@@ -326,7 +334,7 @@ router.post('/', optionalProtect, async (req, res) => {
         }
       }
 
-      // ── Validate amount against per-method limits ──
+      // ── Validate amount ──
       const sendAmt = parseFloat(payment.amountSent)
       if (isNaN(sendAmt) || sendAmt <= 0) {
         return res.status(400).json({ success: false, message: 'المبلغ يجب أن يكون أكبر من صفر.' })
@@ -336,14 +344,21 @@ router.post('/', optionalProtect, async (req, res) => {
       const sendMin = sendMethodObj?.minAmount || 0
       const sendMax = sendMethodObj?.maxAmount || 0
 
-      // Global limits by currency
+      const currency = payment.currencySent || 'EGP'
+
+      // Global limits — max is capped by available liquidity for the SENT currency
+      // (using ?? so that 0 is treated as a real value, not a missing value)
+      const availableByCurrency = {
+        EGP:  rateDoc.availableEgp  ?? rateDoc.maxEgp  ?? 300000,
+        USDT: rateDoc.availableUsdt ?? rateDoc.maxUsdt ?? 10000,
+        MGO:  rateDoc.availableMgo  ?? rateDoc.maxMgo  ?? 10000,
+      }
       const globalLimits = {
-        EGP: { min: rateDoc.minEgp || 100, max: rateDoc.maxEgp || 300000 },
-        USDT: { min: rateDoc.minUsdt || 10, max: rateDoc.maxUsdt || 10000 },
-        MGO: { min: rateDoc.minMgo || 10, max: rateDoc.maxMgo || 10000 },
+        EGP:  { min: rateDoc.minEgp  || 100, max: Math.min(rateDoc.maxEgp  || 300000, availableByCurrency.EGP)  },
+        USDT: { min: rateDoc.minUsdt || 10,  max: Math.min(rateDoc.maxUsdt || 10000,   availableByCurrency.USDT) },
+        MGO:  { min: rateDoc.minMgo  || 10,  max: Math.min(rateDoc.maxMgo  || 10000,   availableByCurrency.MGO)  },
       }
 
-      const currency = payment.currencySent || 'EGP'
       const effectiveMin = sendMin > 0 ? sendMin : (globalLimits[currency]?.min || 0)
       const effectiveMax = sendMax > 0 ? sendMax : (globalLimits[currency]?.max || Infinity)
 
@@ -360,16 +375,16 @@ router.post('/', optionalProtect, async (req, res) => {
         })
       }
 
-      // ── Validate available liquidity for the receive currency ──
+      // ── Validate available liquidity for the RECEIVE currency ──
       const recvAmt = parseFloat(moneygo.amountUSD || exchangeRate.finalAmountUSD || 0)
       if (recvMethodObj && recvAmt > 0) {
         const recvSymbol = recvMethodObj.symbol
-        const available = {
-          EGP: rateDoc.availableEgp ?? rateDoc.maxEgp ?? 300000,
+        const recvAvailable = {
+          EGP:  rateDoc.availableEgp  ?? rateDoc.maxEgp  ?? 300000,
           USDT: rateDoc.availableUsdt ?? rateDoc.maxUsdt ?? 10000,
-          MGO: rateDoc.availableMgo ?? rateDoc.maxMgo ?? 10000,
-        }
-        const recvAvailable = available[recvSymbol]
+          MGO:  rateDoc.availableMgo  ?? rateDoc.maxMgo  ?? 10000,
+        }[recvSymbol]
+
         if (recvAvailable !== undefined && recvAmt > recvAvailable) {
           return res.status(400).json({
             success: false,
@@ -377,10 +392,6 @@ router.post('/', optionalProtect, async (req, res) => {
           })
         }
       }
-
-    } catch (validationErr) {
-      // Log but don't block the order — fallback to basic validation
-      console.warn('Dynamic validation failed (proceeding with order):', validationErr.message)
     }
 
     // ── التحقق من معرّف الاستلام (ليس مطلوباً للحساب الداخلي) ──
