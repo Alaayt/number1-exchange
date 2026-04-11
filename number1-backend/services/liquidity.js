@@ -75,6 +75,7 @@ async function applyLiquidity(order) {
       currencyRecv ? `-${effectiveRecv} ${currencyRecv}` : '',
       '| DB inc:', inc
     )
+    
     return true
   } catch (err) {
     console.error(`[Liquidity] ❌ Failed for order ${order.orderNumber}:`, err.message)
