@@ -666,6 +666,23 @@ export default function ExchangeFormPage({ onOpenAuth }) {
             </div>
           )}
 
+          {(sendMethod?.type === 'moneygo' || fromId === 'mgo-send') && (
+            <div className="ef-card" style={{ background: 'rgba(0,210,255,0.04)', borderColor: 'rgba(0,210,255,0.25)' }}>
+              <label className="ef-label">حوّل المبلغ إلى معرّف MoneyGo التالي</label>
+              {sendMethod?.receiverNumber ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'rgba(0,229,160,0.07)', borderRadius: 10, border: '1px solid rgba(0,229,160,0.25)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 3 }}>معرّف المحفظة</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace", letterSpacing: 1 }}>{sendMethod.receiverNumber}</div>
+                  </div>
+                  <button onClick={() => navigator.clipboard?.writeText(sendMethod.receiverNumber)} style={{ padding: '6px 14px', border: '1px solid rgba(0,229,160,0.4)', borderRadius: 8, background: 'transparent', color: 'var(--green)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif", flexShrink: 0 }}>📋 نسخ</button>
+                </div>
+              ) : (
+                <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)', fontSize: '0.84rem', color: 'var(--gold)', textAlign: 'center' }}>تواصل مع الدعم للحصول على بيانات التحويل</div>
+              )}
+            </div>
+          )}
+
           {isUsdtSend && (() => {
             const adminAddr = sendMethod?.networks?.find(n => n.networkKey === sendNetwork && n.address)?.address || sendMethod?.receiverNumber || ''
             return (
