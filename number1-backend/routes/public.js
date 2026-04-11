@@ -2,43 +2,75 @@
 const express        = require("express");
 const router         = express.Router();
 const Rate           = require("../models/Rate");
+const Order          = require("../models/Order");
 const ExchangeMethod = require("../models/ExchangeMethod");
 const mongoose       = require("mongoose");
 
+// ══════════════════════════════════════════════════════════════════
+// ─── حساب السيولة من الطلبات المكتملة ───────────────────────────
+// ══════════════════════════════════════════════════════════════════
+const RECV_MAP = {
+  USDT_TO_MONEYGO:       'MGO',
+  EGP_TO_MONEYGO:        'MGO',
+  EGP_WALLET_TO_MONEYGO: 'MGO',
+  WALLET_TO_MONEYGO:     'MGO',
+  EGP_TO_USDT:           'USDT',
+  MONEYGO_TO_USDT:       'USDT',
+  WALLET_TO_USDT:        'USDT',
+  USDT_TO_WALLET:        null,
+  MONEYGO_TO_WALLET:     null,
+}
+
+async function calcLiquidity(doc) {
+  const orders = await Order.find(
+    { status: 'completed' },
+    { orderType: 1, 'payment.amountSent': 1, 'payment.currencySent': 1, 'moneygo.amountUSD': 1, 'exchangeRate.finalAmountUSD': 1 }
+  ).lean()
+
+  let gainEgp = 0, gainUsdt = 0, gainMgo = 0
+  let usedEgp = 0, usedUsdt = 0, usedMgo = 0
+
+  for (const o of orders) {
+    const sent  = parseFloat(o.payment?.amountSent) || 0
+    const recv  = parseFloat(o.moneygo?.amountUSD)  || parseFloat(o.exchangeRate?.finalAmountUSD) || 0
+    const cSent = o.payment?.currencySent
+    const cRecv = RECV_MAP[o.orderType]
+
+    if (cSent === 'EGP')  gainEgp  += sent
+    if (cSent === 'USDT') gainUsdt += sent
+    if (cSent === 'MGO')  gainMgo  += sent
+    if (cRecv === 'EGP')  usedEgp  += recv
+    if (cRecv === 'USDT') usedUsdt += recv
+    if (cRecv === 'MGO')  usedMgo  += recv
+  }
+
+  return {
+    availableEgp:  Math.max(0, (doc.maxEgp  || 0) + gainEgp  - usedEgp),
+    availableUsdt: Math.max(0, (doc.maxUsdt || 0) + gainUsdt - usedUsdt),
+    availableMgo:  Math.max(0, (doc.maxMgo  || 0) + gainMgo  - usedMgo),
+  }
+}
 
 // ─── GET /api/public/rates ────────────────────
 router.get("/rates", async (req, res) => {
   try {
     const doc = await Rate.getSingleton();
-    const pairs = doc.pairs
-      .filter((p) => p.enabled)
-      .map((p) => ({
-        from:     p.from,
-        to:       p.to,
-        buyRate:  p.buyRate,
-        sellRate: p.sellRate,
-        label:    p.label,
-      }));
+    const pairs = doc.pairs.filter(p => p.enabled).map(p => ({ from: p.from, to: p.to, buyRate: p.buyRate, sellRate: p.sellRate, label: p.label }));
 
-    const find = (from, to) =>
-      pairs.find((p) => p.from === from && p.to === to);
+    const find = (from, to) => pairs.find(p => p.from === from && p.to === to);
     const vodafone    = find("EGP_VODAFONE", "USDT");
     const instapay    = find("EGP_INSTAPAY", "USDT");
     const mgo         = find("USDT", "MGO");
     const internal    = find("USDT", "INTERNAL");
     const walletToMgo = find("INTERNAL", "MGO");
 
-    // ── الحدود الدنيا ─────────────────────────
     const minEgp  = doc.minEgp  || 100;
     const minUsdt = doc.minUsdt || doc.minOrderUsdt || 10;
     const minMgo  = doc.minMgo  || 10;
 
-    // ── الرصيد المتاح = الحد الأقصى (يتحدث تلقائياً مع كل طلب مكتمل) ──
-    const availableEgp  = doc.availableEgp  ?? doc.maxEgp  ?? 300000;
-    const availableUsdt = doc.availableUsdt ?? doc.maxUsdt ?? 10000;
-    const availableMgo  = doc.availableMgo  ?? doc.maxMgo  ?? 10000;
+    // ── السيولة تُحسب من الطلبات المكتملة ──────
+    const { availableEgp, availableUsdt, availableMgo } = await calcLiquidity(doc);
 
-    // الحد الأقصى = الرصيد المتاح مباشرةً — لا حاجة لسقف منفصل
     const maxEgp  = availableEgp;
     const maxUsdt = availableUsdt;
     const maxMgo  = availableMgo;
@@ -46,39 +78,22 @@ router.get("/rates", async (req, res) => {
     res.json({
       success: true,
       pairs,
-
       minEgp,  maxEgp,
       minUsdt, maxUsdt,
       minMgo,  maxMgo,
-
-      availableEgp,
-      availableUsdt,
-      availableMgo,
-
-      // backward compat
+      availableEgp, availableUsdt, availableMgo,
       minOrderUsdt: minUsdt,
       maxOrderUsdt: maxUsdt,
-
-      // EGP <-> USDT
-      usdtBuyRate:     vodafone?.buyRate  || 50,   // EGP→USDT: client sends EGP, divide
-      usdtSellRate:    vodafone?.sellRate || 49,   // USDT→EGP: client sends USDT, multiply
+      usdtBuyRate:     vodafone?.buyRate  || 50,
+      usdtSellRate:    vodafone?.sellRate || 49,
       vodafoneBuyRate: vodafone?.buyRate  || 50,
       instaPayRate:    instapay?.buyRate  || 50,
-
-      // USDT <-> MGO
-      // moneygoRate: client buys MGO (sends USDT) → pair.buyRate
-      // moneygoSellRate: client sells MGO (sends MGO, receives USDT) → pair.sellRate
       moneygoRate:     mgo?.buyRate  || 1,
       moneygoSellRate: mgo?.sellRate || 1,
-
-      // USDT <-> INTERNAL wallet
       internalUsdtBuyRate:  internal?.buyRate  || 1,
       internalUsdtSellRate: internal?.sellRate || 1,
-
-      // INTERNAL wallet <-> MGO
-      internalUsdtToMoneyGoRate:  walletToMgo?.buyRate  || 1,
-      moneyGoToInternalUsdtRate:  walletToMgo?.sellRate || 1,
-
+      internalUsdtToMoneyGoRate: walletToMgo?.buyRate  || 1,
+      moneyGoToInternalUsdtRate: walletToMgo?.sellRate || 1,
       updatedAt: doc.updatedAt,
     });
   } catch (error) {
@@ -86,7 +101,6 @@ router.get("/rates", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
-
 
 // ─── GET /api/public/rates/convert ───────────
 router.get("/rates/convert", async (req, res) => {
@@ -105,10 +119,8 @@ router.get("/rates/convert", async (req, res) => {
 router.get("/payment-methods", async (req, res) => {
   try {
     const PaymentMethod = require("../models/PaymentMethod");
-    const doc     = await PaymentMethod.getSingleton();
-    const cryptos = (doc.cryptos || []).filter((c) => c.enabled && c.address);
-    const wallets = (doc.wallets || []).filter((w) => w.enabled && w.number);
-    res.json({ success: true, cryptos, wallets });
+    const doc = await PaymentMethod.getSingleton();
+    res.json({ success: true, cryptos: (doc.cryptos||[]).filter(c=>c.enabled&&c.address), wallets: (doc.wallets||[]).filter(w=>w.enabled&&w.number) });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
   }
@@ -120,8 +132,7 @@ router.get("/wallet-deposit-addresses", async (req, res) => {
     const WalletDeposit = mongoose.model("WalletDeposit");
     let doc = await WalletDeposit.findOne();
     if (!doc) return res.json({ success: true, cryptos: [] });
-    const cryptos = (doc.cryptos || []).filter((c) => c.enabled && c.address);
-    res.json({ success: true, cryptos });
+    res.json({ success: true, cryptos: (doc.cryptos||[]).filter(c=>c.enabled&&c.address) });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
   }
@@ -132,19 +143,7 @@ router.get("/deposit-info", async (req, res) => {
   try {
     const Setting = require("../models/Setting");
     const s = await Setting.getSingleton();
-    res.json({
-      success: true,
-      bank: {
-        bankName:      s.depositBankName      || "",
-        accountName:   s.depositAccountName   || "",
-        accountNumber: s.depositAccountNumber || "",
-      },
-      usdt: {
-        address: s.depositUsdtAddress || "",
-        network: s.depositUsdtNetwork || "TRC20",
-      },
-      note: s.depositNote || "",
-    });
+    res.json({ success: true, bank: { bankName: s.depositBankName||"", accountName: s.depositAccountName||"", accountNumber: s.depositAccountNumber||"" }, usdt: { address: s.depositUsdtAddress||"", network: s.depositUsdtNetwork||"TRC20" }, note: s.depositNote||"" });
   } catch {
     res.status(500).json({ success: false, message: "Server error." });
   }
@@ -155,16 +154,7 @@ router.get("/settings", async (req, res) => {
   try {
     const Setting = require("../models/Setting");
     const s = await Setting.getSingleton();
-    res.json({
-      success:         true,
-      platformName:    s.platformName,
-      platformActive:  s.platformActive,
-      maintenanceMode: s.maintenanceMode,
-      contactTelegram: s.contactTelegram,
-      contactWhatsapp: s.contactWhatsapp,
-      contactEmail:    s.contactEmail,
-      contactWebsite:  s.contactWebsite,
-    });
+    res.json({ success: true, platformName: s.platformName, platformActive: s.platformActive, maintenanceMode: s.maintenanceMode, contactTelegram: s.contactTelegram, contactWhatsapp: s.contactWhatsapp, contactEmail: s.contactEmail, contactWebsite: s.contactWebsite });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
   }
@@ -176,9 +166,7 @@ router.get("/exchange-methods", async (req, res) => {
     const doc     = await ExchangeMethod.getSingleton();
     const rateDoc = await Rate.getSingleton();
 
-    const availableEgp  = rateDoc.availableEgp  ?? rateDoc.maxEgp  ?? 300000;
-    const availableUsdt = rateDoc.availableUsdt ?? rateDoc.maxUsdt ?? 10000;
-    const availableMgo  = rateDoc.availableMgo  ?? rateDoc.maxMgo  ?? 10000;
+    const { availableEgp, availableUsdt, availableMgo } = await calcLiquidity(rateDoc);
 
     const limitsMap = {
       EGP:  { min: rateDoc.minEgp  || 100, max: availableEgp,  available: availableEgp  },
@@ -188,27 +176,13 @@ router.get("/exchange-methods", async (req, res) => {
 
     const enrichMethod = (m) => {
       const g = limitsMap[m.symbol] || { min: 0, max: 0, available: 0 };
-      return {
-        ...(m.toObject ? m.toObject() : m),
-        limits: {
-          min:       m.minAmount > 0 ? m.minAmount : g.min,
-          max:       m.maxAmount > 0 ? m.maxAmount : g.max,
-          available: g.available,
-        },
-      };
+      return { ...(m.toObject ? m.toObject() : m), limits: { min: m.minAmount > 0 ? m.minAmount : g.min, max: m.maxAmount > 0 ? m.maxAmount : g.max, available: g.available } };
     };
 
-    const sendMethods    = doc.sendMethods.filter(m => m.enabled).sort((a,b) => (a.sortOrder||0)-(b.sortOrder||0)).map(enrichMethod);
-    const receiveMethods = doc.receiveMethods.filter(m => m.enabled).sort((a,b) => (a.sortOrder||0)-(b.sortOrder||0)).map(enrichMethod);
+    const sendMethods    = doc.sendMethods.filter(m=>m.enabled).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0)).map(enrichMethod);
+    const receiveMethods = doc.receiveMethods.filter(m=>m.enabled).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0)).map(enrichMethod);
 
-    res.json({
-      success:           true,
-      sendMethods,
-      receiveMethods,
-      allSendMethods:    doc.sendMethods.map(enrichMethod),
-      allReceiveMethods: doc.receiveMethods.map(enrichMethod),
-      limitsMap,
-    });
+    res.json({ success: true, sendMethods, receiveMethods, allSendMethods: doc.sendMethods.map(enrichMethod), allReceiveMethods: doc.receiveMethods.map(enrichMethod), limitsMap });
   } catch (error) {
     console.error("Exchange methods error:", error);
     res.status(500).json({ success: false, message: "Server error." });

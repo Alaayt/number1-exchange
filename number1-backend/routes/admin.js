@@ -14,52 +14,47 @@ const mongoose = require("mongoose");
 router.use(protect, adminOnly);
 
 // ══════════════════════════════════════════════════════════════════
-// ─── دالة مساعدة: تحديث السيولة مباشرة ─────────────────────────
+// ─── حساب السيولة من الطلبات المكتملة ───────────────────────────
 // ══════════════════════════════════════════════════════════════════
-async function updateLiquidity(order) {
-  try {
-    const ot = order.orderType || ''
-    const sent = parseFloat(order.payment?.amountSent) || 0
-    const recv = parseFloat(order.moneygo?.amountUSD) || parseFloat(order.exchangeRate?.finalAmountUSD) || 0
-    const cSent = order.payment?.currencySent // 'USDT' | 'EGP' | 'MGO'
+const RECV_MAP = {
+  USDT_TO_MONEYGO:       'MGO',
+  EGP_TO_MONEYGO:        'MGO',
+  EGP_WALLET_TO_MONEYGO: 'MGO',
+  WALLET_TO_MONEYGO:     'MGO',
+  EGP_TO_USDT:           'USDT',
+  MONEYGO_TO_USDT:       'USDT',
+  WALLET_TO_USDT:        'USDT',
+  USDT_TO_WALLET:        null,
+  MONEYGO_TO_WALLET:     null,
+}
 
-    // عملة الاستلام حسب نوع الطلب
-    const recvMap = {
-      USDT_TO_MONEYGO:       'MGO',
-      EGP_TO_MONEYGO:        'MGO',
-      EGP_WALLET_TO_MONEYGO: 'MGO',
-      WALLET_TO_MONEYGO:     'MGO',
-      EGP_TO_USDT:           'USDT',
-      MONEYGO_TO_USDT:       'USDT',
-      WALLET_TO_USDT:        'USDT',
-      USDT_TO_WALLET:        null,   // داخلي — لا تغيير
-      MONEYGO_TO_WALLET:     null,   // داخلي — لا تغيير
-    }
-    const cRecv = recvMap[ot]
+async function calcLiquidity(doc) {
+  const orders = await Order.find(
+    { status: 'completed' },
+    { orderType: 1, 'payment.amountSent': 1, 'payment.currencySent': 1, 'moneygo.amountUSD': 1, 'exchangeRate.finalAmountUSD': 1 }
+  ).lean()
 
-    const inc = {}
+  let gainEgp = 0, gainUsdt = 0, gainMgo = 0
+  let usedEgp = 0, usedUsdt = 0, usedMgo = 0
 
-    // العملة التي أرسلها العميل → رصيدنا يزيد
-    if (cSent === 'EGP'  && sent > 0) inc.availableEgp  = (inc.availableEgp  || 0) + sent
-    if (cSent === 'USDT' && sent > 0) inc.availableUsdt = (inc.availableUsdt || 0) + sent
-    if (cSent === 'MGO'  && sent > 0) inc.availableMgo  = (inc.availableMgo  || 0) + sent
+  for (const o of orders) {
+    const sent  = parseFloat(o.payment?.amountSent) || 0
+    const recv  = parseFloat(o.moneygo?.amountUSD)  || parseFloat(o.exchangeRate?.finalAmountUSD) || 0
+    const cSent = o.payment?.currencySent
+    const cRecv = RECV_MAP[o.orderType]
 
-    // العملة التي استلمها العميل → رصيدنا ينقص
-    if (cRecv === 'EGP'  && recv > 0) inc.availableEgp  = (inc.availableEgp  || 0) - recv
-    if (cRecv === 'USDT' && recv > 0) inc.availableUsdt = (inc.availableUsdt || 0) - recv
-    if (cRecv === 'MGO'  && recv > 0) inc.availableMgo  = (inc.availableMgo  || 0) - recv
+    if (cSent === 'EGP')  gainEgp  += sent
+    if (cSent === 'USDT') gainUsdt += sent
+    if (cSent === 'MGO')  gainMgo  += sent
+    if (cRecv === 'EGP')  usedEgp  += recv
+    if (cRecv === 'USDT') usedUsdt += recv
+    if (cRecv === 'MGO')  usedMgo  += recv
+  }
 
-    if (Object.keys(inc).length === 0) {
-      console.log(`[Liquidity] Order ${order.orderNumber} (${ot}): no liquidity change needed.`)
-      return true
-    }
-
-    await Rate.findOneAndUpdate({}, { $inc: inc }, { new: true })
-    console.log(`[Liquidity] ✅ Order ${order.orderNumber} (${ot}) | sent: ${sent} ${cSent} | recv: ${recv} ${cRecv} | inc:`, inc)
-    return true
-  } catch (err) {
-    console.error(`[Liquidity] ❌ Error for order ${order.orderNumber}:`, err.message)
-    return false
+  return {
+    availableEgp:  Math.max(0, (doc.maxEgp  || 0) + gainEgp  - usedEgp),
+    availableUsdt: Math.max(0, (doc.maxUsdt || 0) + gainUsdt - usedUsdt),
+    availableMgo:  Math.max(0, (doc.maxMgo  || 0) + gainMgo  - usedMgo),
   }
 }
 
@@ -79,23 +74,10 @@ router.get("/orders", async (req, res) => {
     }
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [orders, total] = await Promise.all([
-      Order.find(filter)
-        .populate("user", "name email")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(parseInt(limit)),
+      Order.find(filter).populate("user", "name email").sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
       Order.countDocuments(filter),
     ]);
-    res.json({
-      success: true,
-      orders,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit)),
-      },
-    });
+    res.json({ success: true, orders, pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) } });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
   }
@@ -105,8 +87,7 @@ router.get("/orders", async (req, res) => {
 router.get("/orders/:id", async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate("user", "name email phone");
-    if (!order)
-      return res.status(404).json({ success: false, message: "Order not found." });
+    if (!order) return res.status(404).json({ success: false, message: "Order not found." });
     res.json({ success: true, order });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
@@ -122,10 +103,8 @@ router.put("/orders/:id/status", async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid status." });
 
     const order = await Order.findById(req.params.id);
-    if (!order)
-      return res.status(404).json({ success: false, message: "Order not found." });
+    if (!order) return res.status(404).json({ success: false, message: "Order not found." });
 
-    const wasCompleted = order.status === "completed";
     order.status = status;
     if (note) order.adminNote = note;
     if (transferId) order.moneygo.transferId = transferId;
@@ -134,17 +113,8 @@ router.put("/orders/:id/status", async (req, res) => {
     order.addTimeline(status, note || `Status updated to ${status}`, `admin:${req.user.email}`);
     await order.save();
 
-    // ── تحديث السيولة عند اكتمال الطلب (مرة واحدة فقط) ──
-    if (status === "completed" && !wasCompleted) {
-      await updateLiquidity(order);
-    }
-
     await telegramService.notifyOrderUpdate(order, status, note);
-    res.json({
-      success: true,
-      message: "Order status updated.",
-      order: { orderNumber: order.orderNumber, status: order.status },
-    });
+    res.json({ success: true, message: "Order status updated.", order: { orderNumber: order.orderNumber, status: order.status } });
   } catch (error) {
     console.error("Update status error:", error);
     res.status(500).json({ success: false, message: "Server error." });
@@ -166,10 +136,7 @@ router.get("/stats", async (req, res) => {
       { $match: { status: "completed" } },
       { $group: { _id: null, totalUSD: { $sum: "$exchangeRate.finalAmountUSD" } } },
     ]);
-    res.json({
-      success: true,
-      stats: { totalOrders, pendingOrders, completedOrders, rejectedOrders, totalUsers, todayOrders, totalVolumeUSD: (volumeResult[0]?.totalUSD || 0).toFixed(2) },
-    });
+    res.json({ success: true, stats: { totalOrders, pendingOrders, completedOrders, rejectedOrders, totalUsers, todayOrders, totalVolumeUSD: (volumeResult[0]?.totalUSD || 0).toFixed(2) } });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
   }
@@ -238,8 +205,8 @@ router.post("/telegram-webhook-internal", async (req, res) => {
     }
 
     const allowedTransitions = {
-      approve: ["pending","verifying"],
-      reject:  ["pending","verifying"],
+      approve:  ["pending","verifying"],
+      reject:   ["pending","verifying"],
       complete: ["verified","processing"],
     };
 
@@ -256,36 +223,19 @@ router.post("/telegram-webhook-internal", async (req, res) => {
       default: return res.json({ success: true });
     }
 
-    const wasCompleted = order.status === "completed";
     order.status = newStatus;
     if (newStatus === "rejected") order.moneygo.transferStatus = "failed";
+    if (newStatus === "completed") order.moneygo.transferStatus = "sent";
     order.addTimeline(newStatus, `${message_text} via Telegram`, "admin:telegram");
     await order.save();
 
-    // ── تحديث السيولة عند اكتمال الطلب ──────────
-    if (action === "complete" && !wasCompleted) {
-      await updateLiquidity(order);
-    }
-
     // ── إيداع محفظة داخلية ───────────────────────
-    let walletCreditResult = null;
     if (action === "complete" && order.orderType === "USDT_TO_WALLET") {
-      walletCreditResult = await creditWalletFromOrder(order);
+      const walletCreditResult = await creditWalletFromOrder(order);
       if (walletCreditResult.success) {
-        order.addTimeline("completed", `💰 تم إضافة ${walletCreditResult.amountAdded} USDT للمحفظة الداخلية — الرصيد الجديد: ${walletCreditResult.newBalance} USDT`, "system");
-        order.moneygo.transferStatus = "sent";
+        order.addTimeline("completed", `💰 تم إضافة ${walletCreditResult.amountAdded} USDT للمحفظة`, "system");
         await order.save();
         message_text = `🎉 تم إتمام الطلب\n💰 تم إضافة ${walletCreditResult.amountAdded} USDT للمحفظة`;
-      } else {
-        const reasonMessages = {
-          already_credited: "⚠️ تم الإيداع مسبقاً",
-          no_user_linked:   "⚠️ الطلب غير مرتبط بمستخدم",
-          wallet_inactive:  "⚠️ المحفظة غير نشطة",
-          invalid_amount:   "⚠️ مبلغ غير صالح",
-          not_wallet_order: "⚠️ ليس طلب محفظة",
-        };
-        message_text = `🎉 تم إتمام الطلب\n${reasonMessages[walletCreditResult.reason] || "⚠️ فشل الإيداع التلقائي"}`;
-        console.error("Wallet credit failed:", walletCreditResult.reason, "Order:", order.orderNumber);
       }
     }
 
@@ -308,9 +258,12 @@ router.post("/telegram-webhook-internal", async (req, res) => {
 });
 
 // ─── GET /api/admin/rates ─────────────────────
+// السيولة تُحسب تلقائياً من الطلبات المكتملة — لا تخزين ولا تحديث يدوي
 router.get("/rates", async (req, res) => {
   try {
     const doc = await Rate.getSingleton();
+    const { availableEgp, availableUsdt, availableMgo } = await calcLiquidity(doc);
+
     res.json({
       success: true,
       pairs: doc.pairs,
@@ -320,9 +273,9 @@ router.get("/rates", async (req, res) => {
       maxUsdt: doc.maxUsdt || doc.maxOrderUsdt || 0,
       minMgo:  doc.minMgo  || 0,
       maxMgo:  doc.maxMgo  || 0,
-      availableEgp:  doc.availableEgp  ?? doc.maxEgp  ?? 0,
-      availableUsdt: doc.availableUsdt ?? doc.maxUsdt ?? 0,
-      availableMgo:  doc.availableMgo  ?? doc.maxMgo  ?? 0,
+      availableEgp,
+      availableUsdt,
+      availableMgo,
       minOrderUsdt: doc.minOrderUsdt || doc.minUsdt || 0,
       maxOrderUsdt: doc.maxOrderUsdt || doc.maxUsdt || 0,
       updatedAt: doc.updatedAt,
@@ -335,7 +288,7 @@ router.get("/rates", async (req, res) => {
 // ─── PUT /api/admin/rates ─────────────────────
 router.put("/rates", async (req, res) => {
   try {
-    const { pairs, minEgp, maxEgp, minUsdt, maxUsdt, minMgo, maxMgo, minOrderUsdt, maxOrderUsdt, availableEgp, availableUsdt, availableMgo } = req.body;
+    const { pairs, minEgp, maxEgp, minUsdt, maxUsdt, minMgo, maxMgo, minOrderUsdt, maxOrderUsdt } = req.body;
 
     if (!Array.isArray(pairs))
       return res.status(400).json({ success: false, message: "pairs must be an array." });
@@ -351,6 +304,7 @@ router.put("/rates", async (req, res) => {
     const parsedMaxUsdt = parseFloat(maxUsdt)  || parseFloat(maxOrderUsdt) || 0;
     const parsedMaxMgo  = parseFloat(maxMgo)   || 0;
 
+    // نحفظ فقط الأسعار والحدود — السيولة تُحسب تلقائياً
     const updateData = {
       pairs, updatedBy: req.user.email,
       minEgp:  parseFloat(minEgp)  || 0, maxEgp:  parsedMaxEgp,
@@ -358,13 +312,10 @@ router.put("/rates", async (req, res) => {
       minMgo:  parseFloat(minMgo)  || 0, maxMgo:  parsedMaxMgo,
       minOrderUsdt: parseFloat(minUsdt) || parseFloat(minOrderUsdt) || 0,
       maxOrderUsdt: parsedMaxUsdt,
-      ...(availableEgp  !== undefined && { availableEgp:  parseFloat(availableEgp)  ?? parsedMaxEgp  }),
-      ...(availableUsdt !== undefined && { availableUsdt: parseFloat(availableUsdt) ?? parsedMaxUsdt }),
-      ...(availableMgo  !== undefined && { availableMgo:  parseFloat(availableMgo)  ?? parsedMaxMgo  }),
     };
 
     const doc = await Rate.findOneAndUpdate({}, { $set: updateData }, { new: true, upsert: true });
-    res.json({ success: true, message: "تم حفظ الأسعار والسيولة.", pairs: doc.pairs });
+    res.json({ success: true, message: "تم حفظ الأسعار.", pairs: doc.pairs });
   } catch (error) {
     console.error("Rates save error:", error);
     res.status(500).json({ success: false, message: "Server error." });
@@ -376,8 +327,8 @@ router.get("/settings", async (req, res) => {
   try {
     const settings = await Setting.getSingleton();
     const safe = settings.toObject();
-    if (safe.smtpPassword)     safe.smtpPassword     = safe.smtpPassword     ? "••••••••" : "";
-    if (safe.telegramBotToken) safe.telegramBotToken = safe.telegramBotToken ? "••••••••" : "";
+    if (safe.smtpPassword)     safe.smtpPassword     = "••••••••";
+    if (safe.telegramBotToken) safe.telegramBotToken = "••••••••";
     res.json({ success: true, ...safe });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
@@ -400,10 +351,7 @@ router.put("/settings", async (req, res) => {
     ];
     const updates = {};
     allowed.forEach((key) => {
-      if (req.body[key] !== undefined) {
-        if (req.body[key] === "••••••••") return;
-        updates[key] = req.body[key];
-      }
+      if (req.body[key] !== undefined && req.body[key] !== "••••••••") updates[key] = req.body[key];
     });
     const settings = await Setting.findOneAndUpdate({}, { $set: updates }, { new: true, upsert: true });
     res.json({ success: true, message: "Settings saved.", ...settings.toObject() });
@@ -428,9 +376,7 @@ router.get("/payment-methods", async (req, res) => {
 router.put("/payment-methods", async (req, res) => {
   try {
     const { cryptos, wallets } = req.body;
-    const doc = await PaymentMethod.findOneAndUpdate(
-      {}, { $set: { cryptos: cryptos || [], wallets: wallets || [] } }, { new: true, upsert: true },
-    );
+    const doc = await PaymentMethod.findOneAndUpdate({}, { $set: { cryptos: cryptos || [], wallets: wallets || [] } }, { new: true, upsert: true });
     res.json({ success: true, message: "Saved.", cryptos: doc.cryptos, wallets: doc.wallets });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
@@ -452,9 +398,7 @@ router.put("/wallet-deposit-addresses", async (req, res) => {
   try {
     const WalletDeposit = mongoose.model("WalletDeposit");
     const { cryptos } = req.body;
-    const doc = await WalletDeposit.findOneAndUpdate(
-      {}, { $set: { cryptos: cryptos || [] } }, { new: true, upsert: true },
-    );
+    const doc = await WalletDeposit.findOneAndUpdate({}, { $set: { cryptos: cryptos || [] } }, { new: true, upsert: true });
     res.json({ success: true, message: "Saved.", cryptos: doc.cryptos });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
@@ -492,10 +436,7 @@ router.get("/wallets", async (req, res) => {
 router.get("/wallets/:userId", async (req, res) => {
   try {
     let wallet = await Wallet.findOne({ user: req.params.userId }).populate("user", "name email");
-    if (!wallet) {
-      wallet = await Wallet.create({ user: req.params.userId });
-      await wallet.populate("user", "name email");
-    }
+    if (!wallet) { wallet = await Wallet.create({ user: req.params.userId }); await wallet.populate("user", "name email"); }
     const transactions = await Transaction.find({ user: req.params.userId }).sort({ createdAt: -1 }).limit(20);
     res.json({ success: true, wallet, transactions });
   } catch (error) {
@@ -511,14 +452,9 @@ router.post("/wallets/:userId/deposit", async (req, res) => {
     if (!wallet) wallet = await Wallet.create({ user: req.params.userId });
     if (!wallet.isActive) return res.status(400).json({ success: false, message: "Wallet is inactive." });
     const balanceBefore = wallet.balance;
-    wallet.balance += parseFloat(amount);
-    wallet.totalDeposited += parseFloat(amount);
+    wallet.balance += parseFloat(amount); wallet.totalDeposited += parseFloat(amount);
     await wallet.save();
-    const transaction = await Transaction.create({
-      user: req.params.userId, wallet: wallet._id, type: "deposit",
-      amount: parseFloat(amount), balanceBefore, balanceAfter: wallet.balance,
-      status: "completed", performedBy: `admin:${req.user.email}`, note: note || "Admin deposit",
-    });
+    const transaction = await Transaction.create({ user: req.params.userId, wallet: wallet._id, type: "deposit", amount: parseFloat(amount), balanceBefore, balanceAfter: wallet.balance, status: "completed", performedBy: `admin:${req.user.email}`, note: note || "Admin deposit" });
     res.json({ success: true, message: `تم إيداع ${amount} USDT بنجاح.`, balance: wallet.balance, transaction });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
@@ -528,8 +464,7 @@ router.post("/wallets/:userId/deposit", async (req, res) => {
 router.post("/wallets/:userId/adjust", async (req, res) => {
   try {
     const { amount, note } = req.body;
-    if (amount === undefined || amount === null || isNaN(amount))
-      return res.status(400).json({ success: false, message: "Invalid amount." });
+    if (amount === undefined || amount === null || isNaN(amount)) return res.status(400).json({ success: false, message: "Invalid amount." });
     let wallet = await Wallet.findOne({ user: req.params.userId });
     if (!wallet) return res.status(404).json({ success: false, message: "Wallet not found." });
     if (!wallet.isActive) return res.status(400).json({ success: false, message: "Wallet is inactive." });
@@ -540,12 +475,7 @@ router.post("/wallets/:userId/adjust", async (req, res) => {
     if (parseFloat(amount) > 0) wallet.totalDeposited += parseFloat(amount);
     else wallet.totalWithdrawn += Math.abs(parseFloat(amount));
     await wallet.save();
-    await Transaction.create({
-      user: req.params.userId, wallet: wallet._id, type: "admin_adjust",
-      amount: Math.abs(parseFloat(amount)), balanceBefore, balanceAfter: wallet.balance,
-      status: "completed", performedBy: `admin:${req.user.email}`,
-      note: note || `Admin adjust: ${amount > 0 ? "+" : ""}${amount} USDT`,
-    });
+    await Transaction.create({ user: req.params.userId, wallet: wallet._id, type: "admin_adjust", amount: Math.abs(parseFloat(amount)), balanceBefore, balanceAfter: wallet.balance, status: "completed", performedBy: `admin:${req.user.email}`, note: note || `Admin adjust: ${amount > 0 ? "+" : ""}${amount} USDT` });
     res.json({ success: true, message: "تم تعديل الرصيد بنجاح.", balance: wallet.balance });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
@@ -588,22 +518,14 @@ router.post("/deposits/:id/approve", async (req, res) => {
     const deposit = await Deposit.findById(req.params.id).populate("user","name email");
     if (!deposit) return res.status(404).json({ success: false, message: "طلب الإيداع غير موجود." });
     if (deposit.status !== "pending") return res.status(400).json({ success: false, message: "هذا الطلب تمت معالجته مسبقاً." });
-    deposit.status = "approved";
-    deposit.processedBy = req.user._id;
-    deposit.processedAt = new Date();
+    deposit.status = "approved"; deposit.processedBy = req.user._id; deposit.processedAt = new Date();
     await deposit.save();
     let wallet = await Wallet.findOne({ user: deposit.user._id });
     if (!wallet) wallet = await Wallet.create({ user: deposit.user._id });
     const balanceBefore = wallet.balance;
-    wallet.balance += deposit.amount;
-    wallet.totalDeposited += deposit.amount;
+    wallet.balance += deposit.amount; wallet.totalDeposited += deposit.amount;
     await wallet.save();
-    await Transaction.create({
-      user: deposit.user._id, wallet: wallet._id, type: "deposit",
-      amount: deposit.amount, balanceBefore, balanceAfter: wallet.balance,
-      status: "completed", performedBy: `admin:${req.user.email}`,
-      note: `USDT deposit approved — TXID: ${deposit.txid}`,
-    });
+    await Transaction.create({ user: deposit.user._id, wallet: wallet._id, type: "deposit", amount: deposit.amount, balanceBefore, balanceAfter: wallet.balance, status: "completed", performedBy: `admin:${req.user.email}`, note: `USDT deposit approved — TXID: ${deposit.txid}` });
     res.json({ success: true, message: `تمت الموافقة. تم إضافة ${deposit.amount} USDT للمستخدم.`, deposit, balance: wallet.balance });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
@@ -617,10 +539,7 @@ router.post("/deposits/:id/reject", async (req, res) => {
     const deposit = await Deposit.findById(req.params.id);
     if (!deposit) return res.status(404).json({ success: false, message: "طلب الإيداع غير موجود." });
     if (deposit.status !== "pending") return res.status(400).json({ success: false, message: "هذا الطلب تمت معالجته مسبقاً." });
-    deposit.status = "rejected";
-    deposit.rejectionReason = reason.trim();
-    deposit.processedBy = req.user._id;
-    deposit.processedAt = new Date();
+    deposit.status = "rejected"; deposit.rejectionReason = reason.trim(); deposit.processedBy = req.user._id; deposit.processedAt = new Date();
     await deposit.save();
     res.json({ success: true, message: "تم رفض طلب الإيداع.", deposit });
   } catch (error) {
@@ -632,14 +551,13 @@ router.post("/deposits/:id/reject", async (req, res) => {
 router.post("/telegram/set-webhook", async (req, res) => {
   try {
     const backendUrl = req.body.backendUrl || process.env.BACKEND_URL;
-    if (!backendUrl) return res.status(400).json({ success: false, message: "أرسل backendUrl في الـ body أو اضبط BACKEND_URL في .env" });
+    if (!backendUrl) return res.status(400).json({ success: false, message: "أرسل backendUrl في الـ body" });
     const s = await Setting.getSingleton();
     const token = s.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN;
     if (!token) return res.status(400).json({ success: false, message: "Telegram bot token غير مضبوط" });
     const axios = require("axios");
-    const webhookUrl = `${backendUrl}/api/telegram/webhook`;
-    const result = await axios.post(`https://api.telegram.org/bot${token}/setWebhook`, { url: webhookUrl, drop_pending_updates: false });
-    res.json({ success: result.data.ok, webhookUrl, telegram: result.data });
+    const result = await axios.post(`https://api.telegram.org/bot${token}/setWebhook`, { url: `${backendUrl}/api/telegram/webhook`, drop_pending_updates: false });
+    res.json({ success: result.data.ok, telegram: result.data });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -650,16 +568,14 @@ router.post("/telegram/register-webhook", async (req, res) => {
     const { backendUrl } = req.body;
     const s = await Setting.getSingleton();
     const token = s.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN;
-    if (!token) return res.status(400).json({ success: false, message: "لم يتم إعداد Bot Token. أضفه في الإعدادات أولاً." });
+    if (!token) return res.status(400).json({ success: false, message: "لم يتم إعداد Bot Token." });
     const base = (backendUrl || process.env.BACKEND_URL || "").replace(/\/$/, "");
-    if (!base) return res.status(400).json({ success: false, message: "يرجى إدخال رابط السيرفر (BACKEND_URL)." });
-    const webhookUrl = `${base}/api/telegram/webhook`;
+    if (!base) return res.status(400).json({ success: false, message: "يرجى إدخال رابط السيرفر." });
     const axios = require("axios");
-    const response = await axios.post(`https://api.telegram.org/bot${token}/setWebhook`, { url: webhookUrl, drop_pending_updates: true });
-    if (response.data.ok) return res.json({ success: true, message: `✅ تم تسجيل Webhook بنجاح: ${webhookUrl}`, webhookUrl });
+    const response = await axios.post(`https://api.telegram.org/bot${token}/setWebhook`, { url: `${base}/api/telegram/webhook`, drop_pending_updates: true });
+    if (response.data.ok) return res.json({ success: true, message: `✅ تم تسجيل Webhook بنجاح` });
     return res.status(400).json({ success: false, message: response.data.description || "فشل التسجيل" });
   } catch (err) {
-    console.error("register-webhook error:", err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -677,7 +593,7 @@ router.get("/telegram/webhook-info", async (req, res) => {
   }
 });
 
-// ─── Exchange Methods (Dynamic) ──────────────────
+// ─── Exchange Methods ──────────────────────────
 const ExchangeMethod = require("../models/ExchangeMethod");
 
 router.get("/exchange-methods", async (req, res) => {
@@ -692,26 +608,20 @@ router.get("/exchange-methods", async (req, res) => {
 router.put("/exchange-methods", async (req, res) => {
   try {
     const { sendMethods, receiveMethods } = req.body;
-    const sendIds = (sendMethods || []).map((m) => m.id);
-    const recvIds = (receiveMethods || []).map((m) => m.id);
+    const sendIds = (sendMethods || []).map(m => m.id);
+    const recvIds = (receiveMethods || []).map(m => m.id);
     if (new Set(sendIds).size !== sendIds.length) return res.status(400).json({ success: false, message: "Duplicate send method IDs." });
     if (new Set(recvIds).size !== recvIds.length) return res.status(400).json({ success: false, message: "Duplicate receive method IDs." });
-
-    const allMethods = [...(sendMethods||[]).map(m=>({...m,_dir:"send"})), ...(receiveMethods||[]).map(m=>({...m,_dir:"receive"}))];
+    const allMethods = [...(sendMethods||[]), ...(receiveMethods||[])];
     for (const m of allMethods) {
       if (!m.id?.trim()) return res.status(400).json({ success: false, message: `وسيلة بدون معرّف (ID)` });
       if (!m.name?.trim()) return res.status(400).json({ success: false, message: `الوسيلة "${m.id}" بدون اسم` });
       if (!m.symbol?.trim()) return res.status(400).json({ success: false, message: `الوسيلة "${m.id}" بدون رمز عملة` });
-      if (m.minAmount > 0 && m.maxAmount > 0 && m.minAmount > m.maxAmount)
-        return res.status(400).json({ success: false, message: `الوسيلة "${m.name}": الحد الأدنى أكبر من الأقصى` });
+      if (m.minAmount > 0 && m.maxAmount > 0 && m.minAmount > m.maxAmount) return res.status(400).json({ success: false, message: `الوسيلة "${m.name}": الحد الأدنى أكبر من الأقصى` });
     }
-
-    const doc = await ExchangeMethod.findOneAndUpdate(
-      {}, { $set: { sendMethods: sendMethods||[], receiveMethods: receiveMethods||[] } }, { new: true, upsert: true },
-    );
+    const doc = await ExchangeMethod.findOneAndUpdate({}, { $set: { sendMethods: sendMethods||[], receiveMethods: receiveMethods||[] } }, { new: true, upsert: true });
     res.json({ success: true, message: "تم الحفظ.", sendMethods: doc.sendMethods, receiveMethods: doc.receiveMethods });
   } catch (error) {
-    console.error("Exchange methods save error:", error);
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
@@ -720,9 +630,8 @@ router.post("/exchange-methods/reset", async (req, res) => {
   try {
     await ExchangeMethod.deleteMany({});
     const doc = await ExchangeMethod.getSingleton();
-    res.json({ success: true, message: "تم إعادة تعيين وسائل التبادل للافتراضيات.", sendMethods: doc.sendMethods, receiveMethods: doc.receiveMethods });
+    res.json({ success: true, message: "تم إعادة تعيين وسائل التبادل.", sendMethods: doc.sendMethods, receiveMethods: doc.receiveMethods });
   } catch (error) {
-    console.error("Exchange methods reset error:", error);
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
