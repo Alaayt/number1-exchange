@@ -30,13 +30,20 @@ const PAYMENT_METHOD_MAP = {
 const EGP_SENDERS = ['vodafone', 'instapay'];
 
 // Get rateKey from method object or fallback to hardcoded map
+// BNB is treated as USDT for rate purposes
 function getFromKey(fromId, sendMethod) {
-  if (sendMethod?.rateKey) return sendMethod.rateKey;
+  if (sendMethod?.rateKey) {
+    if (sendMethod.rateKey === 'BNB') return 'USDT';
+    return sendMethod.rateKey;
+  }
   return FROM_KEY_MAP[fromId] || fromId.toUpperCase();
 }
 
 function getToKey(toId, recvMethod) {
-  if (recvMethod?.rateKey) return recvMethod.rateKey;
+  if (recvMethod?.rateKey) {
+    if (recvMethod.rateKey === 'BNB') return 'USDT';
+    return recvMethod.rateKey;
+  }
   return TO_KEY_MAP[toId] || toId.toUpperCase();
 }
 

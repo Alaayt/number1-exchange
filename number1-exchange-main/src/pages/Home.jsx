@@ -74,11 +74,18 @@ function LockBadge() {
 // 3. Internal Wallet only pairs with USDT-crypto on the other side
 function isUsdt(m)   { return m?.symbol === 'USDT' && m?.type === 'crypto' }
 function isWallet(m) { return m?.type === 'wallet' }
+// BNB treated as same group as USDT
+function isUsdtLike(m) { return m?.type === 'crypto' && (m?.symbol === 'USDT' || m?.symbol === 'BNB') }
 
 function isCompatible(send, recv) {
   if (!send || !recv) return true
   if (send.id === recv.id) return false
-  if (isUsdt(send) && isUsdt(recv)) return false
+  // EGP ↔ EGP not allowed
+  if (send.type === 'egp' && recv.type === 'egp') return false
+  // MoneyGo ↔ MoneyGo not allowed
+  if (send.type === 'moneygo' && recv.type === 'moneygo') return false
+  // USDT/BNB crypto ↔ USDT/BNB crypto not allowed
+  if (isUsdtLike(send) && isUsdtLike(recv)) return false
   if (isWallet(send) && !isUsdt(recv)) return false
   if (isWallet(recv) && !isUsdt(send)) return false
   return true

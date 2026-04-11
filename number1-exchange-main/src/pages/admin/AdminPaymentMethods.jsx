@@ -395,8 +395,8 @@ function ExchangeMethodCard({ method, direction, otherMethods, onToggle, onEdit,
         {expanded && (
           <div className="pm-edit-panel">
 
-            {/* ── رقم الاستلام (للمحافظ المصرية وMoneyGo) ── */}
-            {(m.type === 'egp' || m.type === 'moneygo') && (
+            {/* ── رقم الاستلام (للمحافظ المصرية وMoneyGo) — فقط في وسائل الإرسال ── */}
+            {direction === 'send' && (m.type === 'egp' || m.type === 'moneygo') && (
               <Field label="رقم الاستلام — يظهر للعميل ليحول عليه">
                 <input
                   className="pm-input pm-input--mono"
@@ -408,8 +408,8 @@ function ExchangeMethodCard({ method, direction, otherMethods, onToggle, onEdit,
               </Field>
             )}
 
-            {/* ── شبكات USDT مع عناوينها ── */}
-            {m.type === 'crypto' && (
+            {/* ── شبكات USDT مع عناوينها — فقط في وسائل الإرسال ── */}
+            {direction === 'send' && m.type === 'crypto' && (
               <div>
                 <label className="pm-field-label">شبكات الاستلام وعناوينها — يختار العميل منها</label>
                 {(m.networks || []).map((net, idx) => (
