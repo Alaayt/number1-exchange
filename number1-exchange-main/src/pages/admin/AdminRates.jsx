@@ -204,8 +204,8 @@ export default function AdminRates() {
 
       <RateSection icon="💚" iconBg="rgba(5,150,105,0.12)" title="USDT ↔ MoneyGo USD" subtitle="تحويل بين USDT و MoneyGo مباشرة"
         margin={calcMargin(rates.moneyGoBuyRate, rates.moneyGoSellRate)}
-        buyLabel="سعر شراء MoneyGo" buyHint="المستخدم يرسل MoneyGo ← نعطيه USDT" buyValue={rates.moneyGoBuyRate} onBuyChange={v => set('moneyGoBuyRate', v)}
-        sellLabel="سعر بيع MoneyGo" sellHint="المستخدم يرسل USDT ← نعطيه MoneyGo" sellValue={rates.moneyGoSellRate} onSellChange={v => set('moneyGoSellRate', v)} unit="USDT" />
+        buyLabel="سعر شراء MoneyGo" buyHint="المستخدم يرسل USDT ← نعطيه MoneyGo" buyValue={rates.moneyGoBuyRate} onBuyChange={v => set('moneyGoBuyRate', v)}
+        sellLabel="سعر بيع MoneyGo" sellHint="المستخدم يرسل MoneyGo ← نعطيه USDT" sellValue={rates.moneyGoSellRate} onSellChange={v => set('moneyGoSellRate', v)} unit="USDT" />
 
       <RateSection icon="🔄" iconBg="rgba(0,193,124,0.12)" title="MoneyGo ↔ جنيه مصري (EGP)" subtitle="فودافون كاش · إنستا باي · فاوري · أورنج كاش → MoneyGo"
         margin={calcMargin(rates.egpMgoBuyRate, rates.egpMgoSellRate)}
