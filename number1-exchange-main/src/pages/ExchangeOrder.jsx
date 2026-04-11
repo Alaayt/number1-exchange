@@ -171,7 +171,7 @@ export default function ExchangeOrder() {
   const navigate     = useNavigate()
 
   const stateData = location.state || {}
-  const { sendMethod, recvMethod, sendAmount, receiveAmount, recipientId, usdtNetwork, adminItem, email } = stateData
+  const { sendMethod, recvMethod, sendAmount, receiveAmount, recipientId, adminItem, email } = stateData
 
   const [order,       setOrder]       = useState(null)
   const [apiError,    setApiError]    = useState('')
@@ -260,7 +260,6 @@ export default function ExchangeOrder() {
   const displayRecvAmt   = receiveAmount || order?.moneygo?.amountUSD
   const displayRecipient = recipientId   || order?.moneygo?.recipientPhone
   const isEgpSend        = sendMethod?.type === 'egp'
-  const isUsdtSend       = sendMethod?.id   === 'usdt-trc'
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg)', direction:'rtl', fontFamily:"'Cairo','Tajawal',sans-serif" }}>
@@ -451,24 +450,6 @@ export default function ExchangeOrder() {
           </div>
         )}
 
-        {isUsdtSend && !isApproved && (
-          <div className="eo-card eo-instr-card">
-            <div className="eo-section-label">💎 عنوان استلام USDT</div>
-            <div className="eo-instr-box">
-              {adminItem?.address
-                ? <div className="eo-instr-row eo-instr-row--col">
-                    <span className="eo-instr-key">عنوان المحفظة ({adminItem.network || usdtNetwork || 'TRC20'})</span>
-                    <div style={{ display:'flex', alignItems:'flex-start', gap:8, marginTop:4 }}><span className="eo-instr-val eo-instr-addr">{adminItem.address}</span><CopyBtn text={adminItem.address} /></div>
-                  </div>
-                : <div style={{ color:'var(--text-3)', fontSize:'0.8rem', padding:'8px 0' }}>تواصل مع الدعم للحصول على العنوان</div>}
-              {displaySendAmt && <div className="eo-instr-row" style={{ marginTop:10 }}><span className="eo-instr-key">المبلغ</span><span className="eo-instr-val" style={{ color:'var(--gold)' }}>{displaySendAmt} USDT</span></div>}
-            </div>
-            <div className="eo-warning">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0, marginTop:1 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span>⚠ استخدم شبكة <strong>{adminItem?.network || usdtNetwork || 'TRC20'}</strong> فقط.</span>
-            </div>
-          </div>
-        )}
 
         {/* خطوات حالة الطلب */}
         <div className="eo-card">

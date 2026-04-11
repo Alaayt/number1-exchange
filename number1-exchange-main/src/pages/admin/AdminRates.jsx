@@ -1,5 +1,5 @@
 // src/pages/admin/AdminRates.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import { Save, RefreshCw, AlertCircle, CheckCircle, TrendingUp, TrendingDown, Droplets } from "lucide-react";
 import { adminAPI } from "../../services/api";
@@ -27,7 +27,34 @@ export default function AdminRates() {
   const [saved,   setSaved]   = useState(false);
   const [error,   setError]   = useState('');
 
+  const [liquidityRefreshing, setLiquidityRefreshing] = useState(false);
+
+  // تحديث السيولة فقط بدون المساس بحقول الأسعار
+  const loadLiquidity = useCallback(async () => {
+    try {
+      const { data } = await adminAPI.getRates();
+      setRates(prev => ({
+        ...prev,
+        availableEgp:  data?.availableEgp  ?? data?.maxEgp  ?? prev.availableEgp,
+        availableUsdt: data?.availableUsdt ?? data?.maxUsdt ?? prev.availableUsdt,
+        availableMgo:  data?.availableMgo  ?? data?.maxMgo  ?? prev.availableMgo,
+      }));
+    } catch (e) { console.error('loadLiquidity', e); }
+  }, []);
+
+  const handleRefreshLiquidity = async () => {
+    setLiquidityRefreshing(true);
+    await loadLiquidity();
+    setLiquidityRefreshing(false);
+  };
+
   useEffect(() => { load(); }, []);
+
+  // Auto-refresh السيولة كل 15 ثانية
+  useEffect(() => {
+    const id = setInterval(loadLiquidity, 15000);
+    return () => clearInterval(id);
+  }, [loadLiquidity]);
 
   const load = async () => {
     setLoading(true); setError('');
@@ -129,6 +156,7 @@ export default function AdminRates() {
         @media (max-width: 480px) { .ar-grid { grid-template-columns: 1fr; } }
         .ar-card { background: #0d1117; border: 1px solid #21262d; border-radius: 14px; padding: 22px 20px; margin-bottom: 14px; transition: border-color 0.2s; }
         .ar-card:hover { border-color: #30363d; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .ar-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #21262d; flex-wrap: wrap; gap: 8px; }
         .ar-card-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; color: #e6edf3; font-family: 'Cairo', sans-serif; }
         .ar-section-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
@@ -237,6 +265,15 @@ export default function AdminRates() {
               <div style={{ fontSize: 12, color: '#6e7681', fontWeight: 400, marginTop: 2 }}>تتغير تلقائياً مع كل طلب مكتمل · يمكنك ضبطها يدوياً</div>
             </div>
           </div>
+          <button
+            onClick={handleRefreshLiquidity}
+            disabled={liquidityRefreshing}
+            title="تحديث السيولة"
+            style={{ background: 'transparent', border: '1px solid #1e3a5f', borderRadius: 8, padding: '6px 10px', cursor: liquidityRefreshing ? 'not-allowed' : 'pointer', color: '#22d3ee', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, opacity: liquidityRefreshing ? 0.5 : 1 }}
+          >
+            <RefreshCw size={14} style={{ animation: liquidityRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+            {liquidityRefreshing ? '...' : 'تحديث'}
+          </button>
         </div>
         <div className="ar-grid-3">
           {[
