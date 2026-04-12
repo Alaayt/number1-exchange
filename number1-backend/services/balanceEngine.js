@@ -110,8 +110,15 @@ async function completeOrder(order, completedBy = 'system', note = '') {
 
     // ── Step 2: Update liquidity ─────────────────
     // Ensure Rate doc exists and availableXxx fields are initialized before $inc
-    // (prevents silent failure when fields are null — e.g. Telegram webhook path)
     try { await Rate.getSingleton() } catch (e) { console.warn('[BalanceEngine] Rate pre-init warning:', e.message) }
+
+    // If liquidity was pre-reserved at creation, release it first so
+    // processTransaction can apply the full transaction (both sides) cleanly.
+    if (order.liquidityReserved) {
+      await releaseLiquidity(order)
+      order.liquidityReserved = false
+      await order.save()
+    }
 
     const balanceResult = await processTransaction(order)
     if (!balanceResult.success) {
@@ -177,9 +184,73 @@ async function creditWallet(order) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// reserveLiquidity — called at order CREATION
+//   Immediately decreases the available outbound currency so
+//   other clients see the updated limit right away.
+// ═══════════════════════════════════════════════════════════════
+async function reserveLiquidity(order) {
+  try {
+    const { currencyRecv } = getCurrencies(order)
+    if (!currencyRecv) return false // no outbound (e.g., TO_WALLET types)
+
+    const amountRecv =
+      parseFloat(order.moneygo?.amountUSD) ||
+      parseFloat(order.exchangeRate?.finalAmountUSD) ||
+      0
+    if (amountRecv <= 0) return false
+
+    const inc = {}
+    if (currencyRecv === 'USDT') inc.availableUsdt = -amountRecv
+    if (currencyRecv === 'MGO')  inc.availableMgo  = -amountRecv
+    if (currencyRecv === 'EGP')  inc.availableEgp  = -amountRecv
+
+    try { await Rate.getSingleton() } catch (e) {}
+    await Rate.findOneAndUpdate({}, { $inc: inc })
+
+    console.log(`[BalanceEngine] 🔒 Reserved ${amountRecv} ${currencyRecv} for order ${order.orderNumber}`)
+    return true
+  } catch (err) {
+    console.error(`[BalanceEngine] ❌ reserveLiquidity failed for ${order.orderNumber}:`, err.message)
+    return false
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// releaseLiquidity — called at CANCEL / REJECT / EXPIRY
+//   Restores the reserved amount back to available.
+// ═══════════════════════════════════════════════════════════════
+async function releaseLiquidity(order) {
+  try {
+    const { currencyRecv } = getCurrencies(order)
+    if (!currencyRecv) return false
+
+    const amountRecv =
+      parseFloat(order.moneygo?.amountUSD) ||
+      parseFloat(order.exchangeRate?.finalAmountUSD) ||
+      0
+    if (amountRecv <= 0) return false
+
+    const inc = {}
+    if (currencyRecv === 'USDT') inc.availableUsdt = +amountRecv
+    if (currencyRecv === 'MGO')  inc.availableMgo  = +amountRecv
+    if (currencyRecv === 'EGP')  inc.availableEgp  = +amountRecv
+
+    await Rate.findOneAndUpdate({}, { $inc: inc })
+
+    console.log(`[BalanceEngine] 🔓 Released ${amountRecv} ${currencyRecv} for order ${order.orderNumber}`)
+    return true
+  } catch (err) {
+    console.error(`[BalanceEngine] ❌ releaseLiquidity failed for ${order.orderNumber}:`, err.message)
+    return false
+  }
+}
+
 module.exports = {
   processTransaction,
   completeOrder,
+  reserveLiquidity,
+  releaseLiquidity,
   getCurrencies,
   ORDER_TYPE_CURRENCIES,
 }

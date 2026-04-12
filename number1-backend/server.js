@@ -209,10 +209,22 @@ app.post('/api/telegram/webhook', async (req, res) => {
     const action_data = statusMap[action];
     if (!action_data) return res.json({ ok: true });
 
+    const wasReserved = order.liquidityReserved;
     order.status = action_data.status;
     order.addTimeline(action_data.status, `${action_data.msg} via Telegram`, 'admin:telegram');
-    if (action_data.status === 'rejected') order.moneygo.transferStatus = 'failed';
+    if (action_data.status === 'rejected') {
+      order.moneygo.transferStatus = 'failed';
+      order.liquidityReserved = false;
+    }
     await order.save();
+
+    // إعادة السيولة المحجوزة عند الرفض
+    if (wasReserved && action_data.status === 'rejected') {
+      try {
+        const { releaseLiquidity } = require('./services/balanceEngine');
+        await releaseLiquidity(order);
+      } catch (e) { console.error('releaseLiquidity on telegram reject failed:', e.message); }
+    }
 
     // Update Telegram message (single call — fixed duplicate)
     const msgId = cbMessage?.message_id;
@@ -255,6 +267,18 @@ app.listen(PORT, async () => {
   setInterval(async () => {
     try {
       const Order = require('./models/Order');
+      const { releaseLiquidity } = require('./services/balanceEngine');
+
+      // أعد السيولة المحجوزة للطلبات المنتهية قبل حذفها
+      const expiredReserved = await Order.find({
+        expiresAt: { $lt: new Date() },
+        status: { $in: ['pending'] },
+        liquidityReserved: true
+      });
+      for (const expOrder of expiredReserved) {
+        try { await releaseLiquidity(expOrder) } catch (e) {}
+      }
+
       const result = await Order.deleteMany({
         expiresAt: { $lt: new Date() },
         status:    { $in: ['pending'] }

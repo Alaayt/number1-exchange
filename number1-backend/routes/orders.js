@@ -473,14 +473,28 @@ if (requiresRecipient && (!moneygo.recipientPhone || moneygo.recipientPhone.trim
     })
 
     // ── إشعار التليغرام ───────────────────────
+    let telegramMessageId = null
     try {
       const tgResult = await telegramService.notifyNewOrder(order)
-      if (tgResult.success) {
-        order.telegramMessageId = tgResult.messageId
-        await order.save()
-      }
+      if (tgResult.success) telegramMessageId = tgResult.messageId
     } catch (tgError) {
       console.error('Telegram notification failed:', tgError.message)
+    }
+
+    // ── حجز السيولة فوراً عند إنشاء الطلب ──
+    let liquidityReserved = false
+    try {
+      const { reserveLiquidity } = require('../services/balanceEngine')
+      liquidityReserved = await reserveLiquidity(order)
+    } catch (reserveErr) {
+      console.error('Liquidity reservation failed:', reserveErr.message)
+    }
+
+    // حفظ telegramMessageId و liquidityReserved دفعة واحدة
+    if (telegramMessageId || liquidityReserved) {
+      if (telegramMessageId)  order.telegramMessageId = telegramMessageId
+      if (liquidityReserved)  order.liquidityReserved = true
+      await order.save()
     }
 
     // ── إرسال صورة الإيصال للتليغرام ──────────
@@ -601,10 +615,20 @@ router.post('/:orderNumber/cancel', async (req, res) => {
       })
     }
 
+    const wasReserved = order.liquidityReserved
     order.status = 'cancelled'
     order.moneygo.transferStatus = 'failed'
+    order.liquidityReserved = false
     order.addTimeline('cancelled', reason ? `إلغاء العميل: ${reason}` : 'إلغاء العميل', 'customer')
     await order.save()
+
+    // إعادة السيولة المحجوزة عند الإلغاء
+    if (wasReserved) {
+      try {
+        const { releaseLiquidity } = require('../services/balanceEngine')
+        await releaseLiquidity(order)
+      } catch (e) { console.error('releaseLiquidity on cancel failed:', e.message) }
+    }
 
     // إشعار التليغرام بالإلغاء
     try {

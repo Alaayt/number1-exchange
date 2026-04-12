@@ -155,6 +155,7 @@ const orderSchema = new mongoose.Schema(
 
     adminNote: { type: String, default: null },
     telegramMessageId: { type: Number, default: null },
+    liquidityReserved: { type: Boolean, default: false },
     clientIp: { type: String, default: null },
 
     sessionToken: {

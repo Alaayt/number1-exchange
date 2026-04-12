@@ -99,12 +99,24 @@ router.put("/orders/:id/status", async (req, res) => {
     }
 
     // ── Non-completion status updates ─────────────
+    const wasReserved = order.liquidityReserved
     order.status = status;
     if (note) order.adminNote = note;
     if (transferId) order.moneygo.transferId = transferId;
-    if (status === "rejected") order.moneygo.transferStatus = "failed";
+    if (status === "rejected" || status === "cancelled") {
+      order.moneygo.transferStatus = "failed";
+      order.liquidityReserved = false;
+    }
     order.addTimeline(status, note || `Status updated to ${status}`, `admin:${req.user.email}`);
     await order.save();
+
+    // إعادة السيولة المحجوزة عند الرفض أو الإلغاء
+    if (wasReserved && (status === "rejected" || status === "cancelled")) {
+      try {
+        const { releaseLiquidity } = require("../services/balanceEngine");
+        await releaseLiquidity(order);
+      } catch (e) { console.error("releaseLiquidity on reject failed:", e.message); }
+    }
 
     await telegramService.notifyOrderUpdate(order, status, note);
     res.json({
@@ -236,10 +248,22 @@ router.post("/telegram-webhook-internal", async (req, res) => {
       default: return res.json({ success: true });
     }
 
+    const wasReserved = order.liquidityReserved;
     order.status = newStatus;
-    if (newStatus === "rejected") order.moneygo.transferStatus = "failed";
+    if (newStatus === "rejected") {
+      order.moneygo.transferStatus = "failed";
+      order.liquidityReserved = false;
+    }
     order.addTimeline(newStatus, `${message_text} via Telegram`, "admin:telegram");
     await order.save();
+
+    // إعادة السيولة المحجوزة عند الرفض
+    if (wasReserved && newStatus === "rejected") {
+      try {
+        const { releaseLiquidity } = require("../services/balanceEngine");
+        await releaseLiquidity(order);
+      } catch (e) { console.error("releaseLiquidity on internal reject failed:", e.message); }
+    }
 
     await telegramService.answerCallbackQuery(callbackQueryId, message_text);
     const msgId = order.telegramMessageId || message?.message_id;
