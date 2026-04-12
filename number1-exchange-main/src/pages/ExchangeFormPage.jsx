@@ -148,7 +148,9 @@ export default function ExchangeFormPage({ onOpenAuth }) {
   }, [fetchRates])
 
   // ── خطوة النموذج: 1 = بيانات الطلب، 2 = إرسال المبلغ + تأكيد ──
-  const [formStep, setFormStep] = useState(1)
+  const [formStep, setFormStep] = useState(() => {
+    try { return parseInt(sessionStorage.getItem('ef_step') || '1', 10) || 1 } catch { return 1 }
+  })
 
   // ── حالة المبالغ المتزامنة ──────────────────────────────
   const [sendAmount,    setSendAmount]    = useState('')
@@ -346,6 +348,7 @@ export default function ExchangeFormPage({ onOpenAuth }) {
     setSubmitted(false)
     setFieldErrors({})
     setFormStep(2)
+    try { sessionStorage.setItem('ef_step', '2') } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -413,6 +416,7 @@ export default function ExchangeFormPage({ onOpenAuth }) {
             document.cookie = `n1_order_session=${encodeURIComponent(sd)}; expires=${new Date(data.order.expiresAt).toUTCString()}; path=/; SameSite=Lax`
           } catch (_) {}
         }
+        try { sessionStorage.removeItem('ef_step') } catch {}
         navigate(`/exchange/order/${data.order.orderNumber}`, {
           state: { sendMethod, recvMethod, sendAmount, receiveAmount, recipientId: recipientPhone, usdtNetwork: recvNetwork, email }
         })
@@ -436,7 +440,7 @@ export default function ExchangeFormPage({ onOpenAuth }) {
 
       {/* Header */}
       <div className="ef-header">
-        <button onClick={() => formStep === 2 ? setFormStep(1) : navigate('/')} className="ef-back">
+        <button onClick={() => { if (formStep === 2) { try { sessionStorage.removeItem('ef_step') } catch {} setFormStep(1) } else { navigate('/') } }} className="ef-back">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
           رجوع
         </button>
@@ -765,6 +769,11 @@ export default function ExchangeFormPage({ onOpenAuth }) {
               </span>
             </label>
             <FieldError msg={fieldErrors.agreed} />
+            {agreed && (
+              <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 8, background: 'rgba(34,211,238,0.06)', border: '1px solid rgba(34,211,238,0.2)', fontSize: '0.84rem', color: '#22d3ee', textAlign: 'center' }}>
+                إذا قمت بإرسال الأموال، اضغط زر <strong>إرسال الطلب</strong> أدناه للتأكيد
+              </div>
+            )}
           </div>
 
           {error && <div className="ef-error">⚠ {error}</div>}
