@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import FlowDots from '../components/shared/FlowDots'
 import { readOrderSession, clearOrderSession } from '../services/orderSession'
+import { ReviewModal } from '../components/shared/ReviewPrompt'
 
 const API            = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 const ORDER_LIFETIME = 30 * 60
@@ -180,6 +181,7 @@ export default function ExchangeOrder() {
   const [secondsLeft,  setSecondsLeft]  = useState(ORDER_LIFETIME)
   const [showCancel,   setShowCancel]   = useState(false)
   const [sseConnected, setSseConnected] = useState(false)
+  const [showReview,   setShowReview]   = useState(false)
 
   const sseRef  = useRef(null)
   const pollRef = useRef(null)
@@ -193,6 +195,14 @@ export default function ExchangeOrder() {
   const isApproved     = APPROVED_STATUSES.includes(currentStatus)
   const canCancel      = ['pending', 'verifying'].includes(currentStatus)
   const wizardStep     = isCompleted ? 4 : 3
+
+  // ── تقييم: اعرض modal بعد 2 ثانية من اكتمال الطلب ──────────
+  useEffect(() => {
+    if (!isCompleted) return
+    try { if (localStorage.getItem('n1_review_dismissed')) return } catch {}
+    const t = setTimeout(() => setShowReview(true), 2000)
+    return () => clearTimeout(t)
+  }, [isCompleted])
 
   const fetchOrder = useCallback(async () => {
     if (!orderId) return
@@ -511,6 +521,10 @@ export default function ExchangeOrder() {
 
       </div>
       )}
+
+      {/* modal التقييم */}
+      <ReviewModal open={showReview} onClose={() => setShowReview(false)} />
+
     </div>
   )
 }

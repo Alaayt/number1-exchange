@@ -59,6 +59,7 @@ import Navbar         from './components/common/Navbar'
 import Footer         from './components/common/Footer'
 import AuthModal      from './components/common/AuthModal'
 import SupportFAB     from './components/common/SupportFAB'
+import { ReviewFloatingBtn } from './components/shared/ReviewPrompt'
 import MobileBottomNav from './components/common/MobileBottomNav'
 
 import Home       from './pages/Home'
@@ -320,6 +321,7 @@ function App() {
       <MobileBottomNav onOpenMenu={() => setMobileMenuOpen(true)} />
       <AuthModal isOpen={authOpen} type={authTab} onClose={() => setAuthOpen(false)} />
       <SupportFAB />
+      <ReviewFloatingBtn />
       <ReturnToOrderBanner />
     </div>
   )
