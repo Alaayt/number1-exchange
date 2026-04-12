@@ -321,7 +321,7 @@ export default function AdminRates() {
                 <div className="ar-field-wrap">
                   <div className="ar-label" style={{ color: '#22d3ee' }}><span className="ar-dot" style={{ background: '#06b6d4' }} />الرصيد المتاح</div>
                   <div style={{ position: 'relative' }}>
-                    <input type="number" className="ar-input liquid" placeholder="0" value={rates[key]} onChange={e => set(key, e.target.value)} style={{ fontSize: 15, color: col }} />
+                    <input type="number" className="ar-input liquid" placeholder="0" value={rates[key] === '' ? '' : parseFloat(Number(rates[key]).toFixed(2))} onChange={e => set(key, e.target.value)} style={{ fontSize: 15, color: col }} />
                     <span style={unitStyle}>{unit}</span>
                   </div>
                 </div>

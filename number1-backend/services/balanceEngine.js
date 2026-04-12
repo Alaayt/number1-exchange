@@ -36,11 +36,10 @@ async function processTransaction(order) {
   try {
     const { currencySent, currencyRecv } = getCurrencies(order)
 
-    const amountSent = parseFloat(order.payment?.amountSent) || 0
-    const amountRecv =
-      parseFloat(order.moneygo?.amountUSD) ||
-      parseFloat(order.exchangeRate?.finalAmountUSD) ||
-      0
+    const amountSent = Math.round((parseFloat(order.payment?.amountSent) || 0) * 1e6) / 1e6
+    const amountRecv = Math.round(
+      (parseFloat(order.moneygo?.amountUSD) || parseFloat(order.exchangeRate?.finalAmountUSD) || 0) * 1e6
+    ) / 1e6
 
     const effectiveSent = currencySent ? amountSent : 0
     const effectiveRecv = currencyRecv ? amountRecv : 0
@@ -194,10 +193,9 @@ async function reserveLiquidity(order) {
     const { currencyRecv } = getCurrencies(order)
     if (!currencyRecv) return false // no outbound (e.g., TO_WALLET types)
 
-    const amountRecv =
-      parseFloat(order.moneygo?.amountUSD) ||
-      parseFloat(order.exchangeRate?.finalAmountUSD) ||
-      0
+    const amountRecv = Math.round(
+      (parseFloat(order.moneygo?.amountUSD) || parseFloat(order.exchangeRate?.finalAmountUSD) || 0) * 1e6
+    ) / 1e6
     if (amountRecv <= 0) return false
 
     const inc = {}
@@ -225,10 +223,9 @@ async function releaseLiquidity(order) {
     const { currencyRecv } = getCurrencies(order)
     if (!currencyRecv) return false
 
-    const amountRecv =
-      parseFloat(order.moneygo?.amountUSD) ||
-      parseFloat(order.exchangeRate?.finalAmountUSD) ||
-      0
+    const amountRecv = Math.round(
+      (parseFloat(order.moneygo?.amountUSD) || parseFloat(order.exchangeRate?.finalAmountUSD) || 0) * 1e6
+    ) / 1e6
     if (amountRecv <= 0) return false
 
     const inc = {}
