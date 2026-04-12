@@ -132,15 +132,24 @@ async function completeOrder(order, completedBy = 'system', note = '') {
     return { success: false, error: 'already_completed' }
   }
 
+  // Save original state in case transaction fails and we need to fallback
+  const originalStatus = order.status
+  const originalTransferStatus = order.moneygo?.transferStatus
+
   // Try with transaction first (requires replica set)
   try {
     const result = await _completeWithTransaction(order, completedBy, note)
     return result
   } catch (txErr) {
+    // Restore original state — transaction rolled back in DB but object was mutated in memory
+    order.status = originalStatus
+    if (order.moneygo) order.moneygo.transferStatus = originalTransferStatus
+
     // If transaction fails due to no replica set, fall back to sequential
     const isNoReplicaSet = txErr.message?.includes('transaction') ||
                            txErr.message?.includes('replica set') ||
                            txErr.message?.includes('session') ||
+                           txErr.message?.includes('Transaction') ||
                            txErr.codeName === 'IllegalOperation'
     if (isNoReplicaSet) {
       console.warn(`[BalanceEngine] ⚠️ Transactions not supported — falling back to sequential for ${order.orderNumber}`)
