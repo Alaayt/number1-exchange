@@ -48,10 +48,12 @@ export default function AdminRates() {
 
   useEffect(() => { load(); }, []);
 
-  // Auto-refresh السيولة كل 15 ثانية
+  // Auto-refresh السيولة كل 5 ثواني + عند العودة للتبويب
   useEffect(() => {
-    const id = setInterval(loadLiquidity, 15000);
-    return () => clearInterval(id);
+    const id = setInterval(loadLiquidity, 5000);
+    const onVisible = () => { if (document.visibilityState === 'visible') loadLiquidity(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisible); };
   }, [loadLiquidity]);
 
   const load = async () => {
