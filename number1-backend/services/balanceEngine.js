@@ -107,6 +107,10 @@ async function completeOrder(order, completedBy = 'system', note = '') {
     console.log(`[BalanceEngine] ✅ Step 1: Order ${order.orderNumber} status → completed`)
 
     // ── Step 2: Update liquidity ─────────────────
+    // Ensure Rate doc exists and availableXxx fields are initialized before $inc
+    // (prevents silent failure when fields are null — e.g. Telegram webhook path)
+    try { await Rate.getSingleton() } catch (e) { console.warn('[BalanceEngine] Rate pre-init warning:', e.message) }
+
     const balanceResult = await processTransaction(order)
     if (!balanceResult.success) {
       console.error(`[BalanceEngine] ⚠️ Step 2 failed for ${order.orderNumber}: ${balanceResult.error}`)

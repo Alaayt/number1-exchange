@@ -185,10 +185,11 @@ app.post('/api/telegram/webhook', async (req, res) => {
       }
 
       console.log('💰 Telegram Balance Update:', {
-        order:   order.orderNumber,
-        send:    order.payment?.method,
-        receive: order.orderType,
-        status:  'completed'
+        order:      order.orderNumber,
+        send:       order.payment?.method,
+        receive:    order.orderType,
+        status:     'completed',
+        walletResult: result.walletResult || null,
       });
 
       // Update Telegram message (single call, no duplicate)
