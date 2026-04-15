@@ -132,15 +132,15 @@ router.get('/sse/:token', async (req, res) => {
   })
 })
 
-// ─── DELETE /api/orders/cleanup ───────────────
-// حذف الطلبات المنتهية (يُستدعى من Cron)
-router.delete('/cleanup', async (req, res) => {
+// ─── POST /api/orders/cleanup ─────────────────
+// تحديث الطلبات المنتهية إلى حالة expired (لا حذف أبداً)
+router.post('/cleanup', async (req, res) => {
   try {
-    const result = await Order.deleteMany({
-      expiresAt: { $lt: new Date() },
-      status:    { $in: ['pending'] } // حذف فقط طلبات pending المنتهية
-    })
-    res.json({ success: true, deleted: result.deletedCount })
+    const result = await Order.updateMany(
+      { expiresAt: { $lt: new Date() }, status: { $in: ['pending'] } },
+      { $set: { status: 'expired' }, $push: { timeline: { status: 'expired', message: 'انتهت صلاحية الطلب تلقائياً', by: 'system', createdAt: new Date() } } }
+    )
+    res.json({ success: true, updated: result.modifiedCount })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -398,6 +398,28 @@ router.post('/', optionalProtect, async (req, res) => {
       }
     }
 
+    // ══════════════════════════════════════════════════════════
+    // التحقق من رصيد المحفظة لطلبات WALLET_TO_*
+    // ══════════════════════════════════════════════════════════
+    if (orderType === 'WALLET_TO_USDT' || orderType === 'WALLET_TO_MONEYGO') {
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: 'يجب تسجيل الدخول لاستخدام المحفظة الداخلية.' })
+      }
+      const Wallet = require('../models/Wallet')
+      const userWallet = await Wallet.findOne({ user: req.user._id })
+      const walletBalance = userWallet?.balance || 0
+      const requiredAmount = parseFloat(payment.amountSent)
+      if (walletBalance < requiredAmount) {
+        return res.status(400).json({
+          success: false,
+          message: `رصيد المحفظة غير كافٍ. رصيدك الحالي: ${walletBalance} USDT، والمبلغ المطلوب: ${requiredAmount} USDT`
+        })
+      }
+      if (!userWallet?.isActive) {
+        return res.status(400).json({ success: false, message: 'المحفظة الداخلية معطّلة.' })
+      }
+    }
+
     // ── التحقق من معرّف الاستلام (ليس مطلوباً للحساب الداخلي) ──
 const NO_RECIPIENT_TYPES = [
   'USDT_TO_WALLET',
@@ -479,6 +501,26 @@ if (requiresRecipient && (!moneygo.recipientPhone || moneygo.recipientPhone.trim
       if (tgResult.success) telegramMessageId = tgResult.messageId
     } catch (tgError) {
       console.error('Telegram notification failed:', tgError.message)
+    }
+
+    // ── خصم رصيد المحفظة فوراً لطلبات WALLET_TO_* ──
+    if (orderType === 'WALLET_TO_USDT' || orderType === 'WALLET_TO_MONEYGO') {
+      try {
+        const { debitWallet } = require('../services/balanceEngine')
+        const debitResult = await debitWallet(order)
+        if (!debitResult.success) {
+          // إلغاء الطلب فوراً لو فشل الخصم (race condition)
+          order.status = 'cancelled'
+          order.addTimeline('cancelled', 'فشل خصم رصيد المحفظة — رصيد غير كافٍ', 'system')
+          await order.save()
+          return res.status(400).json({
+            success: false,
+            message: `رصيد المحفظة غير كافٍ. رصيدك الحالي: ${debitResult.balance ?? 0} USDT`
+          })
+        }
+      } catch (debitErr) {
+        console.error('Wallet debit failed:', debitErr.message)
+      }
     }
 
     // ── حجز السيولة فوراً عند إنشاء الطلب ──
@@ -628,6 +670,14 @@ router.post('/:orderNumber/cancel', async (req, res) => {
         const { releaseLiquidity } = require('../services/balanceEngine')
         await releaseLiquidity(order)
       } catch (e) { console.error('releaseLiquidity on cancel failed:', e.message) }
+    }
+
+    // إعادة رصيد المحفظة عند إلغاء طلبات WALLET_TO_*
+    if (order.orderType === 'WALLET_TO_USDT' || order.orderType === 'WALLET_TO_MONEYGO') {
+      try {
+        const { refundWallet } = require('../services/balanceEngine')
+        await refundWallet(order)
+      } catch (e) { console.error('refundWallet on cancel failed:', e.message) }
     }
 
     // إشعار التليغرام بالإلغاء
