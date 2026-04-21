@@ -32,8 +32,9 @@ router.get("/by-session/:token", async (req, res) => {
         .json({ success: false, message: "Session not found or expired." });
     }
 
-    // التحقق من انتهاء الوقت
-    if (order.expiresAt && new Date() > order.expiresAt) {
+    // التحقق من انتهاء الوقت — لا ننهي الطلبات المكتملة/المرفوضة/الملغاة
+    const FINAL_STATUSES = ['completed', 'rejected', 'cancelled', 'expired'];
+    if (!FINAL_STATUSES.includes(order.status) && order.expiresAt && new Date() > order.expiresAt) {
       return res
         .status(410)
         .json({
@@ -102,7 +103,9 @@ router.get("/sse/:token", async (req, res) => {
         return res.end();
       }
 
-      if (order.expiresAt && new Date() > order.expiresAt) {
+      // لا نُرسل EXPIRED للطلبات المكتملة/المرفوضة/الملغاة حتى لو انتهى expiresAt
+      const FINAL_STATUSES_SSE = ['completed', 'rejected', 'cancelled', 'expired'];
+      if (!FINAL_STATUSES_SSE.includes(order.status) && order.expiresAt && new Date() > order.expiresAt) {
         res.write(`data: ${JSON.stringify({ type: "EXPIRED" })}\n\n`);
         clearInterval(interval);
         return res.end();
