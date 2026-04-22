@@ -374,6 +374,8 @@ router.post("/", optionalProtect, async (req, res) => {
           m.symbol === "USDT"
         )
           return true;
+        if (orderType.endsWith("_TO_EGP") && m.type === "egp")
+          return true;
         return false;
       });
 

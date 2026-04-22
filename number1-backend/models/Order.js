@@ -60,9 +60,11 @@ const orderSchema = new mongoose.Schema(
         "EGP_TO_MONEYGO",
         "EGP_TO_USDT",
         "USDT_TO_WALLET",
+        "USDT_TO_EGP",
         "WALLET_TO_USDT",
         "WALLET_TO_MONEYGO",
         "MONEYGO_TO_USDT",
+        "MONEYGO_TO_EGP",
         "MONEYGO_TO_WALLET",
       ],
       required: true,
@@ -176,6 +178,12 @@ const orderSchema = new mongoose.Schema(
 
 // ── رقم الطلب + Limit Validation ──
 orderSchema.pre("save", async function (next) {
+  // الطلبات النهائية: nullify expiresAt حتى لا يحذفها MongoDB TTL index
+  const FINAL_STATUSES = ['completed', 'rejected', 'cancelled', 'expired'];
+  if (FINAL_STATUSES.includes(this.status) && this.expiresAt !== null) {
+    this.expiresAt = null;
+  }
+
   if (this.isNew && !this.orderNumber) {
     try {
       this.orderNumber = await getNextOrderNumber();

@@ -210,11 +210,13 @@ export function toOrderType(fromId, toId, sendMethod, recvMethod) {
   if (sendMethod && recvMethod) {
     const from = sendMethod.symbol;
     const to   = recvMethod.symbol;
-    if (from === 'USDT' && to === 'MGO')                            return 'USDT_TO_MONEYGO';
+    if (from === 'USDT' && to === 'MGO')                              return 'USDT_TO_MONEYGO';
     if (from === 'USDT' && to === 'USDT' && recvMethod.type === 'wallet') return 'USDT_TO_WALLET';
-    if (from === 'MGO'  && to === 'USDT')                           return 'MONEYGO_TO_USDT';
-    if (from === 'EGP'  && to === 'USDT')                           return 'EGP_TO_USDT';
-    if (from === 'EGP'  && to === 'MGO')                            return 'EGP_TO_MONEYGO';
+    if (from === 'USDT' && to === 'EGP')                              return 'USDT_TO_EGP';
+    if (from === 'MGO'  && to === 'USDT')                             return 'MONEYGO_TO_USDT';
+    if (from === 'MGO'  && to === 'EGP')                              return 'MONEYGO_TO_EGP';
+    if (from === 'EGP'  && to === 'USDT')                             return 'EGP_TO_USDT';
+    if (from === 'EGP'  && to === 'MGO')                              return 'EGP_TO_MONEYGO';
     return `${from}_TO_${to}`;
   }
 
