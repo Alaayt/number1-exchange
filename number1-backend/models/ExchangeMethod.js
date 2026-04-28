@@ -1,4 +1,3 @@
-// models/ExchangeMethod.js
 // Dynamic exchange methods (send/receive) — managed from admin panel
 const mongoose = require("mongoose");
 
