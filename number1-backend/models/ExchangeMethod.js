@@ -286,7 +286,6 @@ exchangeMethodSchema.statics.getSingleton = async function () {
   }
 
   // ── Migration: add missing default methods (e.g. usdt-bnb) ──
-  let changed = false;
   const sendIds = doc.sendMethods.map(m => m.id);
   const recvIds = doc.receiveMethods.map(m => m.id);
   const missingSend = DEFAULT_SEND.filter(d => !sendIds.includes(d.id));
@@ -301,11 +300,10 @@ exchangeMethodSchema.statics.getSingleton = async function () {
       { new: true }
     );
     console.log(`[ExchangeMethod] Added missing methods: send=[${missingSend.map(m=>m.id)}] recv=[${missingRecv.map(m=>m.id)}]`);
-    changed = true;
   }
 
   // ── Migration: ensure compatibleWith arrays are complete ──
-  if (!changed) {
+  {
     const COMPAT_UPDATES_SEND = {
       'vodafone':    ['usdt-bnb'],
       'instapay':    ['usdt-bnb'],
